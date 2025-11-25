@@ -18,7 +18,7 @@ interface Blog {
     id: number;
     name: string;
     slug: string;
-  };
+  } | null;
 }
 
 const CategoryPage = () => {
@@ -31,39 +31,48 @@ const CategoryPage = () => {
   useEffect(() => {
     const fetchCategoryBlogs = async () => {
       trackPageView(`/category/${categorySlug}`);
-      // First get the category
-      const { data: categoryData } = await supabase
+
+      // 1️⃣ Load the category
+      const { data: categoryData, error: categoryErr } = await supabase
         .from("categories")
-        .select("id, name")
+        .select("id, name, slug")
         .eq("slug", categorySlug)
         .single();
 
-      if (categoryData) {
-        setCategoryName(categoryData.name);
-
-        // Then get blogs for this category
-        const { data: blogsData } = await supabase
-          .from("blogs")
-          .select(`
-            id,
-            title,
-            slug,
-            author,
-            featured_image,
-            published_at,
-            content,
-            categories (
-              id,
-              name,
-              slug
-            )
-          `)
-          .eq("status", "published")
-          .eq("category_id", categoryData.id)
-          .order("published_at", { ascending: false });
-
-        if (blogsData) setBlogs(blogsData as Blog[]);
+      if (categoryErr || !categoryData) {
+        setLoading(false);
+        return;
       }
+
+      setCategoryName(categoryData.name);
+
+      // 2️⃣ Get all blogs that belong to this category
+      const { data: blogsData } = await supabase
+        .from("blogs")
+        .select(
+          `
+          id,
+          title,
+          slug,
+          author,
+          featured_image,
+          published_at,
+          content,
+          categories:category_id (
+            id,
+            name,
+            slug
+          )
+        `
+        )
+        .eq("status", "published")
+        .eq("category_id", categoryData.id)
+        .order("published_at", { ascending: false });
+
+      if (blogsData) {
+        setBlogs(blogsData as Blog[]);
+      }
+
       setLoading(false);
     };
 
@@ -105,8 +114,8 @@ const CategoryPage = () => {
                   id={blog.id}
                   title={blog.title}
                   slug={blog.slug}
-                  category={blog.categories.name}
-                  categorySlug={blog.categories.slug}
+                  category={blog.categories?.name || ""}
+                  categorySlug={blog.categories?.slug || ""}
                   author={blog.author}
                   featuredImage={blog.featured_image || undefined}
                   publishedAt={blog.published_at}

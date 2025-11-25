@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Trash2, Edit, Plus, Cloud } from "lucide-react";
+import { Trash2, Edit, Plus, Cloud, ChevronDown, ChevronRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -114,6 +114,9 @@ interface Analytics {
   unique_clicks?: number;
 }
 
+type Website = 'topicmingle' | 'dataorbitzone' | 'searchproject';
+type Section = 'blogs' | 'searches' | 'analytics' | 'webresults' | 'prelanding' | 'emails' | 'landing';
+
 const Admin = () => {
   const { sessionId } = useTracking();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -141,13 +144,27 @@ const Admin = () => {
   const [analytics, setAnalytics] = useState<Analytics>({ sessions: 0, page_views: 0, clicks: 0 });
   const [dataOrbitAnalytics, setDataOrbitAnalytics] = useState<Analytics>({ sessions: 0, page_views: 0, clicks: 0 });
   const [searchProjectAnalytics, setSearchProjectAnalytics] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'blogs' | 'searches' | 'analytics' | 'categories' | 'unified-analytics' | 'dz-analytics' | 'dz-blogs' | 'dz-searches' | 'dz-webresults' | 'dz-prelanding' | 'dz-emails' | 'sp-analytics' | 'sp-webresults' | 'sp-searches' | 'sp-landing' | 'sp-prelanding' | 'sp-emails' | 'tm-prelanding' | 'tm-emails' | 'tm-webresults'>('unified-analytics');
+  
+  const [selectedWebsite, setSelectedWebsite] = useState<Website | null>(null);
+  const [selectedSection, setSelectedSection] = useState<Section | null>(null);
+  const [expandedWebsite, setExpandedWebsite] = useState<Website | null>(null);
+  
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
   const [editingBlog, setEditingBlog] = useState<Blog | null>(null);
   const [editingSearch, setEditingSearch] = useState<RelatedSearch | null>(null);
   
   const [formData, setFormData] = useState({
+    title: "",
+    slug: "",
+    category_id: "",
+    author: "",
+    content: "",
+    featured_image: "",
+    status: "draft",
+  });
+
+  const [dzFormData, setDzFormData] = useState({
     title: "",
     slug: "",
     category_id: "",
@@ -171,6 +188,58 @@ const Admin = () => {
   const [selectedSource, setSelectedSource] = useState<string>("all");
   const [dataOrbitSelectedCountry, setDataOrbitSelectedCountry] = useState<string>("all");
   const [dataOrbitSelectedSiteName, setDataOrbitSelectedSiteName] = useState<string>("all");
+
+  // Website configurations
+  const websites = [
+    {
+      id: 'topicmingle' as Website,
+      name: 'TopicMingle',
+      description: 'Content Management & Analytics',
+      color: 'bg-blue-500',
+      icon: '📝'
+    },
+    {
+      id: 'dataorbitzone' as Website,
+      name: 'DataOrbitZone',
+      description: 'Data Analytics Platform',
+      color: 'bg-green-500',
+      icon: '🌐'
+    },
+    {
+      id: 'searchproject' as Website,
+      name: 'SearchProject',
+      description: 'Search Engine & Results',
+      color: 'bg-purple-500',
+      icon: '🔍'
+    }
+  ];
+
+  const sections: Record<Website, { id: Section; name: string; description: string }[]> = {
+    topicmingle: [
+      { id: 'blogs', name: 'Blogs', description: 'Manage blog posts and content' },
+      { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
+      { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
+      { id: 'prelanding', name: 'Pre-Landing Pages', description: 'Edit pre-landing page designs' },
+      { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' },
+      { id: 'analytics', name: 'Analytics', description: 'View website analytics and metrics' }
+    ],
+    dataorbitzone: [
+      { id: 'blogs', name: 'Blogs', description: 'Manage blog posts and content' },
+      { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
+      { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
+      { id: 'prelanding', name: 'Pre-Landing Pages', description: 'Edit pre-landing page designs' },
+      { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' },
+      { id: 'analytics', name: 'Analytics', description: 'View website analytics and metrics' }
+    ],
+    searchproject: [
+      { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
+      { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
+      { id: 'landing', name: 'Landing Pages', description: 'Manage landing pages' },
+      { id: 'prelanding', name: 'Pre-Landing Pages', description: 'Edit pre-landing page designs' },
+      { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' },
+      { id: 'analytics', name: 'Analytics', description: 'View website analytics and metrics' }
+    ]
+  };
 
   // Get IP address for tracking
   const getIPAddress = async () => {
@@ -414,6 +483,14 @@ const Admin = () => {
     });
   };
 
+  const handleDzTitleChange = (title: string) => {
+    setDzFormData({
+      ...dzFormData,
+      title,
+      slug: generateSlug(title),
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -458,6 +535,55 @@ const Admin = () => {
     }
   };
 
+  const handleDzBlogSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!dzFormData.title || !dzFormData.category_id || !dzFormData.author || !dzFormData.content) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    const blogData = {
+      title: dzFormData.title,
+      slug: dzFormData.slug,
+      category_id: parseInt(dzFormData.category_id),
+      author: dzFormData.author,
+      content: dzFormData.content,
+      featured_image: dzFormData.featured_image || null,
+      status: dzFormData.status,
+    };
+
+    try {
+      if (editingDzBlog) {
+        const { error } = await dataOrbitZoneClient
+          .from("blogs")
+          .update(blogData)
+          .eq("id", editingDzBlog.id);
+
+        if (error) {
+          toast.error("Failed to update blog");
+        } else {
+          toast.success("Blog updated successfully");
+          fetchDzBlogs();
+          resetDzForm();
+        }
+      } else {
+        const { error } = await dataOrbitZoneClient.from("blogs").insert([blogData]);
+
+        if (error) {
+          toast.error("Failed to create blog");
+        } else {
+          toast.success("Blog created successfully");
+          fetchDzBlogs();
+          resetDzForm();
+        }
+      }
+    } catch (error) {
+      console.error('Error saving blog:', error);
+      toast.error("Failed to save blog");
+    }
+  };
+
   const handleEdit = (blog: Blog) => {
     setEditingBlog(blog);
     setFormData({
@@ -470,6 +596,20 @@ const Admin = () => {
       status: blog.status,
     });
     setIsDialogOpen(true);
+  };
+
+  const handleEditDzBlog = (blog: Blog) => {
+    setEditingDzBlog(blog);
+    setDzFormData({
+      title: blog.title,
+      slug: blog.slug,
+      category_id: blog.category_id.toString(),
+      author: blog.author,
+      content: blog.content,
+      featured_image: blog.featured_image || "",
+      status: blog.status,
+    });
+    setDzBlogDialog(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -497,6 +637,20 @@ const Admin = () => {
     });
     setEditingBlog(null);
     setIsDialogOpen(false);
+  };
+
+  const resetDzForm = () => {
+    setDzFormData({
+      title: "",
+      slug: "",
+      category_id: "",
+      author: "",
+      content: "",
+      featured_image: "",
+      status: "draft",
+    });
+    setEditingDzBlog(null);
+    setDzBlogDialog(false);
   };
 
   const handleSearchSubmit = async (e: React.FormEvent) => {
@@ -548,10 +702,10 @@ const Admin = () => {
   const handleEditSearch = (search: RelatedSearch) => {
     setEditingSearch(search);
     setSearchFormData({
-      category_id: search.category_id.toString(),
+      category_id: search.category_id?.toString() || "",
       search_text: search.search_text,
       display_order: search.display_order,
-      is_active: search.is_active,
+      is_active: search.is_active || true,
       allowed_countries: search.allowed_countries || ["WW"],
     });
     setIsSearchDialogOpen(true);
@@ -658,32 +812,31 @@ const Admin = () => {
 
         const sessions = new Set(analyticsData.map((a: any) => a.session_id)).size;
         const pageViews = pageViewEvents.length;
-const clicks = clickEvents.length;
+        const clicks = clickEvents.length;
 
-// 🆕 Calculate UNIQUE pages
-const uniquePages = new Set(
-  pageViewEvents
-    .map((e: any) => e.page_url)
-    .filter((url: any) => url && url.trim() !== "")
-).size;
+        // Calculate UNIQUE pages
+        const uniquePages = new Set(
+          pageViewEvents
+            .map((e: any) => e.page_url)
+            .filter((url: any) => url && url.trim() !== "")
+        ).size;
 
-// 🆕 Calculate UNIQUE clicks
-const uniqueClicks = new Set(
-  clickEvents
-    .map((e: any) => e.button_id)
-    .filter((id: any) => id && id.trim() !== "")
-).size;
+        // Calculate UNIQUE clicks
+        const uniqueClicks = new Set(
+          clickEvents
+            .map((e: any) => e.button_id)
+            .filter((id: any) => id && id.trim() !== "")
+        ).size;
 
-console.log('📊 Final totals:', { sessions, pageViews, clicks, uniquePages, uniqueClicks });
+        console.log('📊 Final totals:', { sessions, pageViews, clicks, uniquePages, uniqueClicks });
 
-setDataOrbitAnalytics({
-  sessions,
-  page_views: pageViews,
-  unique_pages: uniquePages,   // 🆕
-  clicks,
-  unique_clicks: uniqueClicks  // 🆕
-});
-
+        setDataOrbitAnalytics({
+          sessions,
+          page_views: pageViews,
+          unique_pages: uniquePages,
+          clicks,
+          unique_clicks: uniqueClicks
+        });
 
         // Build lookup maps for names
         const relatedSearchIds = Array.from(new Set(
@@ -895,164 +1048,95 @@ setDataOrbitAnalytics({
     setIsSearchDialogOpen(false);
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-12">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-4xl font-bold">Admin Panel</h1>
-          
-          <div className="flex gap-2">
-            {activeTab === 'blogs' && (
+  const handleWebsiteSelect = (website: Website) => {
+    if (selectedWebsite === website) {
+      setSelectedWebsite(null);
+      setSelectedSection(null);
+      setExpandedWebsite(null);
+    } else {
+      setSelectedWebsite(website);
+      setSelectedSection(null);
+      setExpandedWebsite(website);
+    }
+  };
+
+  const handleSectionSelect = (section: Section) => {
+    setSelectedSection(section);
+  };
+
+  const getProjectClient = (website: Website) => {
+    switch (website) {
+      case 'topicmingle': return supabase;
+      case 'dataorbitzone': return dataOrbitZoneClient;
+      case 'searchproject': return searchProjectClient;
+      default: return supabase;
+    }
+  };
+
+  const getProjectName = (website: Website) => {
+    switch (website) {
+      case 'topicmingle': return 'TopicMingle';
+      case 'dataorbitzone': return 'DataOrbitZone';
+      case 'searchproject': return 'SearchProject';
+      default: return 'TopicMingle';
+    }
+  };
+
+  // Render content based on selected website and section
+  const renderContent = () => {
+    if (!selectedWebsite || !selectedSection) return null;
+
+    const client = getProjectClient(selectedWebsite);
+    const projectName = getProjectName(selectedWebsite);
+
+    switch (selectedSection) {
+      case 'blogs':
+        return (
+          <div className="bg-card rounded-lg border">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h2 className="text-xl font-bold text-foreground">{projectName} Blogs</h2>
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={resetForm}>
-                <Plus className="mr-2 h-4 w-4" />
-                New Blog
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingBlog ? "Edit Blog" : "Create New Blog"}
-                </DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <Label htmlFor="title">Title *</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => handleTitleChange(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="slug">Slug *</Label>
-                  <Input
-                    id="slug"
-                    value={formData.slug}
-                    onChange={(e) =>
-                      setFormData({ ...formData, slug: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="category">Category *</Label>
-                  <Select
-                    value={formData.category_id}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, category_id: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id.toString()}>
-                          {cat.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="author">Author *</Label>
-                  <Input
-                    id="author"
-                    value={formData.author}
-                    onChange={(e) =>
-                      setFormData({ ...formData, author: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="featured_image">Featured Image URL</Label>
-                  <Input
-                    id="featured_image"
-                    value={formData.featured_image}
-                    onChange={(e) =>
-                      setFormData({ ...formData, featured_image: e.target.value })
-                    }
-                    placeholder="https://example.com/image.jpg"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="content">Content *</Label>
-                  <Textarea
-                    id="content"
-                    value={formData.content}
-                    onChange={(e) =>
-                      setFormData({ ...formData, content: e.target.value })
-                    }
-                    rows={10}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="status">Status</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, status: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="published">Published</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button type="submit" className="flex-1">
-                    {editingBlog ? "Update Blog" : "Create Blog"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={resetForm}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-            )}
-
-            {activeTab === 'searches' && (
-              <Dialog open={isSearchDialogOpen} onOpenChange={setIsSearchDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button onClick={resetSearchForm}>
+                  <Button onClick={resetForm}>
                     <Plus className="mr-2 h-4 w-4" />
-                    New Related Search
+                    New Blog
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>
-                      {editingSearch ? "Edit Related Search" : "Create New Related Search"}
+                      {editingBlog ? "Edit Blog" : "Create New Blog"}
                     </DialogTitle>
                   </DialogHeader>
-                  <form onSubmit={handleSearchSubmit} className="space-y-4">
+                  <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                      <Label htmlFor="search-category">Category *</Label>
+                      <Label htmlFor="title">Title *</Label>
+                      <Input
+                        id="title"
+                        value={formData.title}
+                        onChange={(e) => handleTitleChange(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="slug">Slug *</Label>
+                      <Input
+                        id="slug"
+                        value={formData.slug}
+                        onChange={(e) =>
+                          setFormData({ ...formData, slug: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="category">Category *</Label>
                       <Select
-                        value={searchFormData.category_id}
+                        value={formData.category_id}
                         onValueChange={(value) =>
-                          setSearchFormData({ ...searchFormData, category_id: value })
+                          setFormData({ ...formData, category_id: value })
                         }
                       >
                         <SelectTrigger>
@@ -1069,67 +1153,68 @@ setDataOrbitAnalytics({
                     </div>
 
                     <div>
-                      <Label htmlFor="search-text">Search Text *</Label>
+                      <Label htmlFor="author">Author *</Label>
                       <Input
-                        id="search-text"
-                        value={searchFormData.search_text}
+                        id="author"
+                        value={formData.author}
                         onChange={(e) =>
-                          setSearchFormData({ ...searchFormData, search_text: e.target.value })
+                          setFormData({ ...formData, author: e.target.value })
                         }
                         required
-                        placeholder="e.g., Free Education"
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor="display-order">Display Order</Label>
+                      <Label htmlFor="featured_image">Featured Image URL</Label>
                       <Input
-                        id="display-order"
-                        type="number"
-                        value={searchFormData.display_order}
+                        id="featured_image"
+                        value={formData.featured_image}
                         onChange={(e) =>
-                          setSearchFormData({ ...searchFormData, display_order: parseInt(e.target.value) })
+                          setFormData({ ...formData, featured_image: e.target.value })
                         }
+                        placeholder="https://example.com/image.jpg"
                       />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="is-active"
-                        checked={searchFormData.is_active}
-                        onChange={(e) =>
-                          setSearchFormData({ ...searchFormData, is_active: e.target.checked })
-                        }
-                        className="rounded"
-                      />
-                      <Label htmlFor="is-active">Active</Label>
                     </div>
 
                     <div>
-                      <Label htmlFor="countries">Allowed Countries (comma-separated)</Label>
-                      <Input
-                        id="countries"
-                        placeholder="WW,US,IN (or just WW for worldwide)"
-                        value={searchFormData.allowed_countries.join(',')}
-                        onChange={(e) => {
-                          const countries = e.target.value.split(',').map(c => c.trim().toUpperCase()).filter(c => c);
-                          setSearchFormData({ ...searchFormData, allowed_countries: countries.length > 0 ? countries : ["WW"] });
-                        }}
+                      <Label htmlFor="content">Content *</Label>
+                      <Textarea
+                        id="content"
+                        value={formData.content}
+                        onChange={(e) =>
+                          setFormData({ ...formData, content: e.target.value })
+                        }
+                        rows={10}
+                        required
                       />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Use country codes: US, IN, GB, etc. Use WW for worldwide.
-                      </p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="status">Status</Label>
+                      <Select
+                        value={formData.status}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, status: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="published">Published</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="flex gap-2">
                       <Button type="submit" className="flex-1">
-                        {editingSearch ? "Update Search" : "Create Search"}
+                        {editingBlog ? "Update Blog" : "Create Blog"}
                       </Button>
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={resetSearchForm}
+                        onClick={resetForm}
                       >
                         Cancel
                       </Button>
@@ -1137,378 +1222,117 @@ setDataOrbitAnalytics({
                   </form>
                 </DialogContent>
               </Dialog>
-            )}
-
-            {activeTab === 'dz-analytics' && (
-              <Button onClick={fetchDataOrbitAnalytics} variant="outline">
-                🔄 Refresh Analytics
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-4 mb-6 border-b overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('unified-analytics')}
-            className={`px-4 py-2 font-semibold transition-colors whitespace-nowrap ${
-              activeTab === 'unified-analytics'
-                ? 'border-b-2 border-accent text-accent'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            🌐 Multi-Site Analytics
-          </button>
-          
-          {/* TopicMingle Section */}
-          <div className="border-l pl-4 flex gap-2">
-            <span className="text-xs text-muted-foreground self-center font-semibold">TopicMingle:</span>
-            <button
-              onClick={() => setActiveTab('blogs')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'blogs'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Blogs
-            </button>
-            <button
-              onClick={() => setActiveTab('searches')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'searches'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Related Searches
-            </button>
-            <button
-              onClick={() => setActiveTab('tm-webresults')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'tm-webresults'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Web Results
-            </button>
-            <button
-              onClick={() => setActiveTab('tm-prelanding')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'tm-prelanding'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Pre-Landing
-            </button>
-            <button
-              onClick={() => setActiveTab('tm-emails')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'tm-emails'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Emails
-            </button>
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'analytics'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Analytics
-            </button>
-          </div>
-
-          {/* DataOrbitZone Section */}
-          <div className="border-l pl-4 flex gap-2">
-            <span className="text-xs text-muted-foreground self-center font-semibold">DataOrbitZone:</span>
-            <button
-              onClick={() => setActiveTab('dz-blogs')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'dz-blogs'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Blogs
-            </button>
-            <button
-              onClick={() => setActiveTab('dz-searches')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'dz-searches'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Related Searches
-            </button>
-            <button
-              onClick={() => setActiveTab('dz-webresults')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'dz-webresults'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Web Results
-            </button>
-            <button
-              onClick={() => setActiveTab('dz-prelanding')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'dz-prelanding'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Pre-Landing
-            </button>
-            <button
-              onClick={() => setActiveTab('dz-emails')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'dz-emails'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Emails
-            </button>
-            <button
-              onClick={() => setActiveTab('dz-analytics')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'dz-analytics'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Analytics
-            </button>
-          </div>
-
-          {/* SearchProject Section */}
-          <div className="border-l pl-4 flex gap-2">
-            <span className="text-xs text-muted-foreground self-center font-semibold">SearchProject:</span>
-            <button
-              onClick={() => setActiveTab('sp-webresults')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'sp-webresults'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Web Results
-            </button>
-            <button
-              onClick={() => setActiveTab('sp-searches')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'sp-searches'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Related Searches
-            </button>
-            <button
-              onClick={() => setActiveTab('sp-landing')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'sp-landing'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Landing Pages
-            </button>
-            <button
-              onClick={() => setActiveTab('sp-prelanding')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'sp-prelanding'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Pre-Landing
-            </button>
-            <button
-              onClick={() => setActiveTab('sp-emails')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'sp-emails'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Emails
-            </button>
-            <button
-              onClick={() => setActiveTab('sp-analytics')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'sp-analytics'
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Analytics
-            </button>
-          </div>
-        </div>
-
-        {/* Unified Analytics Dashboard */}
-        {activeTab === 'unified-analytics' && <UnifiedAnalytics />}
-
-        {/* Blogs Table */}
-        {activeTab === 'blogs' && (
-          <div className="bg-card rounded-lg border">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="border-b">
-                <tr>
-                  <th className="text-left p-4 font-semibold">Serial #</th>
-                  <th className="text-left p-4 font-semibold">Title</th>
-                  <th className="text-left p-4 font-semibold">Author</th>
-                  <th className="text-left p-4 font-semibold">Status</th>
-                  <th className="text-left p-4 font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {blogs.map((blog) => (
-                  <tr key={blog.id} className="border-b last:border-0">
-                    <td className="p-4">
-                      <span className="px-2 py-1 bg-accent/10 text-accent text-xs font-bold rounded">
-                        #{blog.serial_number}
-                      </span>
-                    </td>
-                    <td className="p-4">{blog.title}</td>
-                    <td className="p-4">{blog.author}</td>
-                    <td className="p-4">
-                      <span
-                        className={`px-2 py-1 rounded text-xs ${
-                          blog.status === "published"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}
-                      >
-                        {blog.status}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(blog)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleDelete(blog.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="border-b">
+                  <tr>
+                    <th className="text-left p-4 font-semibold">Serial #</th>
+                    <th className="text-left p-4 font-semibold">Title</th>
+                    <th className="text-left p-4 font-semibold">Author</th>
+                    <th className="text-left p-4 font-semibold">Status</th>
+                    <th className="text-left p-4 font-semibold">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        )}
-
-        {/* Related Searches - TopicMingle */}
-        {activeTab === 'searches' && (
-          <RelatedSearchManager projectClient={supabase} projectName="TopicMingle" />
-        )}
-
-        {/* Analytics Dashboard */}
-        {activeTab === 'analytics' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-card rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-2">Total Sessions</h3>
-                <p className="text-4xl font-bold text-accent">{analytics.sessions}</p>
-                <p className="text-sm text-muted-foreground mt-2">Unique visitors tracked</p>
-              </div>
-              <div className="bg-card rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-2">Page Views</h3>
-                <p className="text-4xl font-bold text-accent">{analytics.page_views}</p>
-                <p className="text-sm text-muted-foreground mt-2">Total pages viewed</p>
-              </div>
-              <div className="bg-card rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-2">Total Clicks</h3>
-                <p className="text-4xl font-bold text-accent">{analytics.clicks}</p>
-                <p className="text-sm text-muted-foreground mt-2">Buttons and links clicked</p>
-              </div>
-            </div>
-
-            {/* Filters */}
-            <div className="bg-card rounded-lg border p-4">
-              <h3 className="text-lg font-semibold mb-4">Filters</h3>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <Label>Country</Label>
-                  <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Countries</SelectItem>
-                      <SelectItem value="WW">Worldwide</SelectItem>
-                      <SelectItem value="US">United States</SelectItem>
-                      <SelectItem value="IN">India</SelectItem>
-                      <SelectItem value="GB">United Kingdom</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex-1">
-                  <Label>Source</Label>
-                  <Select value={selectedSource} onValueChange={setSelectedSource}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Sources</SelectItem>
-                      <SelectItem value="direct">Direct</SelectItem>
-                      <SelectItem value="meta">Meta</SelectItem>
-                      <SelectItem value="linkedin">LinkedIn</SelectItem>
-                      <SelectItem value="google">Google</SelectItem>
-                      <SelectItem value="twitter">Twitter</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Detailed Analytics Table */}
-            <div className="bg-card rounded-lg border">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="border-b">
-                    <tr>
-                      <th className="text-left p-4 font-semibold">Session ID</th>
-                      <th className="text-left p-4 font-semibold">IP Address</th>
-                      <th className="text-left p-4 font-semibold">Country</th>
-                      <th className="text-left p-4 font-semibold">Source</th>
-                      <th className="text-left p-4 font-semibold">Device</th>
-                      <th className="text-left p-4 font-semibold">Page Views</th>
-                      <th className="text-left p-4 font-semibold">Clicks</th>
-                      <th className="text-left p-4 font-semibold">Related Searches</th>
-                      <th className="text-left p-4 font-semibold">Blog Clicks</th>
-                      <th className="text-left p-4 font-semibold">Last Active</th>
+                </thead>
+                <tbody>
+                  {blogs.map((blog) => (
+                    <tr key={blog.id} className="border-b last:border-0">
+                      <td className="p-4">
+                        <span className="px-2 py-1 bg-accent/10 text-accent text-xs font-bold rounded">
+                          #{blog.serial_number}
+                        </span>
+                      </td>
+                      <td className="p-4">{blog.title}</td>
+                      <td className="p-4">{blog.author}</td>
+                      <td className="p-4">
+                        <span
+                          className={`px-2 py-1 rounded text-xs ${
+                            blog.status === "published"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-yellow-100 text-yellow-800"
+                          }`}
+                        >
+                          {blog.status}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEdit(blog)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDelete(blog.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {analyticsDetails
-                      .filter(detail => 
-                        (selectedCountry === 'all' || detail.country === selectedCountry) &&
-                        (selectedSource === 'all' || detail.source === selectedSource)
-                      )
-                      .map((detail) => (
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+
+      case 'searches':
+        return <RelatedSearchManager projectClient={client} projectName={projectName} />;
+
+      case 'webresults':
+        return <WebResultsManager projectClient={client} projectName={projectName} />;
+
+      case 'prelanding':
+        return <PreLandingEditor projectClient={client} projectName={projectName} />;
+
+      case 'emails':
+        return <EmailCaptureViewer projectClient={client} />;
+
+      case 'analytics':
+        if (selectedWebsite === 'topicmingle') {
+          return (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-card rounded-lg border p-6">
+                  <h3 className="text-lg font-semibold mb-2">Total Sessions</h3>
+                  <p className="text-4xl font-bold text-accent">{analytics.sessions}</p>
+                  <p className="text-sm text-muted-foreground mt-2">Unique visitors tracked</p>
+                </div>
+                <div className="bg-card rounded-lg border p-6">
+                  <h3 className="text-lg font-semibold mb-2">Page Views</h3>
+                  <p className="text-4xl font-bold text-accent">{analytics.page_views}</p>
+                  <p className="text-sm text-muted-foreground mt-2">Total pages viewed</p>
+                </div>
+                <div className="bg-card rounded-lg border p-6">
+                  <h3 className="text-lg font-semibold mb-2">Total Clicks</h3>
+                  <p className="text-4xl font-bold text-accent">{analytics.clicks}</p>
+                  <p className="text-sm text-muted-foreground mt-2">Buttons and links clicked</p>
+                </div>
+              </div>
+
+              {/* Detailed Analytics Table */}
+              <div className="bg-card rounded-lg border">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="border-b">
+                      <tr>
+                        <th className="text-left p-4 font-semibold">Session ID</th>
+                        <th className="text-left p-4 font-semibold">IP Address</th>
+                        <th className="text-left p-4 font-semibold">Country</th>
+                        <th className="text-left p-4 font-semibold">Source</th>
+                        <th className="text-left p-4 font-semibold">Device</th>
+                        <th className="text-left p-4 font-semibold">Page Views</th>
+                        <th className="text-left p-4 font-semibold">Clicks</th>
+                        <th className="text-left p-4 font-semibold">Last Active</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analyticsDetails.map((detail) => (
                         <tr key={detail.session_id} className="border-b last:border-0">
                           <td className="p-4 font-mono text-xs">{detail.session_id.substring(0, 8)}...</td>
                           <td className="p-4">{detail.ip_address}</td>
@@ -1527,243 +1351,56 @@ setDataOrbitAnalytics({
                           </td>
                           <td className="p-4 text-center">{detail.page_views_count}</td>
                           <td className="p-4 text-center">{detail.clicks_count}</td>
-                          <td className="p-4">
-                            <div className="flex flex-col gap-1">
-                              <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold text-center">
-                                Total: {detail.related_searches_count}
-                              </span>
-                              {detail.related_searches_breakdown.length > 0 && (
-                                <details className="mt-1">
-                                  <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
-                                    View breakdown
-                                  </summary>
-                                  <div className="mt-2 space-y-1">
-                                    {detail.related_searches_breakdown.map((item, idx) => (
-                                      <div key={idx} className="bg-gray-50 p-3 rounded space-y-2">
-                                        <div className="flex justify-between items-center text-xs gap-2">
-                                          <span className="font-medium text-gray-700 flex-1">{item.search_term}</span>
-                                          <div className="flex gap-2">
-                                            <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-semibold">
-                                              Total: {item.click_count}
-                                            </span>
-                                            <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded font-semibold">
-                                              Unique: {item.unique_clicks}
-                                            </span>
-                                          </div>
-                                        </div>
-                                        <div className="flex justify-between items-center text-xs gap-2 pl-4 border-l-2 border-green-300">
-                                          <span className="text-gray-600">Visit Now Button:</span>
-                                          <div className="flex gap-2">
-                                            {item.visit_now_clicks > 0 ? (
-                                              <>
-                                                <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded font-semibold">
-                                                  Clicked: {item.visit_now_clicks}
-                                                </span>
-                                                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-semibold">
-                                                  Unique: {item.visit_now_unique}
-                                                </span>
-                                              </>
-                                            ) : (
-                                              <span className="px-2 py-0.5 bg-gray-200 text-gray-600 rounded font-semibold">
-                                                Not Clicked
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </details>
-                              )}
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <div className="flex flex-col gap-1">
-                              <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-semibold text-center">
-                                Total: {detail.blog_clicks_breakdown.reduce((sum, item) => sum + item.click_count, 0)}
-                              </span>
-                              {detail.blog_clicks_breakdown.length > 0 && (
-                                <details className="mt-1">
-                                  <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
-                                    View breakdown
-                                  </summary>
-                                  <div className="mt-2 space-y-1">
-                                    {detail.blog_clicks_breakdown.map((item, idx) => (
-                                      <div key={idx} className="bg-gray-50 p-3 rounded">
-                                        <div className="flex justify-between items-center text-xs gap-2">
-                                          <span className="font-medium text-gray-700 flex-1">{item.blog_title}</span>
-                                          <div className="flex gap-2">
-                                            <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-semibold">
-                                              Total: {item.click_count}
-                                            </span>
-                                            <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded font-semibold">
-                                              Unique: {item.unique_clicks}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </details>
-                              )}
-                            </div>
-                          </td>
                           <td className="p-4 text-sm">
                             {new Date(detail.last_active).toLocaleString()}
                           </td>
                         </tr>
                       ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* DataOrbitZone Blogs Management */}
-        {activeTab === 'dz-blogs' && (
-          <div className="bg-card rounded-lg border">
-            <div className="p-4 border-b flex justify-between items-center">
-              <h2 className="text-xl font-bold text-foreground">DataOrbitZone Blogs</h2>
-              <Button onClick={() => { setEditingDzBlog(null); setDzBlogDialog(true); }}>
-                <Plus className="h-4 w-4 mr-2" /> Add Blog
-              </Button>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="border-b">
-                  <tr>
-                    <th className="text-left p-4 font-semibold">Title</th>
-                    <th className="text-left p-4 font-semibold">Author</th>
-                    <th className="text-left p-4 font-semibold">Status</th>
-                    <th className="text-left p-4 font-semibold">Created</th>
-                    <th className="text-right p-4 font-semibold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dzBlogs.map((blog) => (
-                    <tr key={blog.id} className="border-b hover:bg-muted/50">
-                      <td className="p-4 font-medium">{blog.title}</td>
-                      <td className="p-4 text-muted-foreground">{blog.author}</td>
-                      <td className="p-4">
-                        <span className={`px-2 py-1 rounded text-xs ${blog.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                          {blog.status}
-                        </span>
-                      </td>
-                      <td className="p-4 text-muted-foreground">{blog.created_at ? new Date(blog.created_at).toLocaleDateString() : 'N/A'}</td>
-                      <td className="p-4 text-right space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => { setEditingDzBlog(blog); setDzBlogDialog(true); }}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleDeleteDzBlog(blog.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* TopicMingle Web Results */}
-        {activeTab === 'tm-webresults' && (
-          <WebResultsManager projectClient={supabase} projectName="TopicMingle" />
-        )}
-
-        {/* DataOrbitZone Related Searches */}
-        {activeTab === 'dz-searches' && (
-          <RelatedSearchManager projectClient={dataOrbitZoneClient} projectName="DataOrbitZone" />
-        )}
-
-        {/* DataOrbitZone Web Results */}
-        {activeTab === 'dz-webresults' && (
-          <WebResultsManager projectClient={dataOrbitZoneClient} projectName="DataOrbitZone" />
-        )}
-
-        {/* DataOrbitZone Analytics Dashboard */}
-        {activeTab === 'dz-analytics' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-card rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-2">Total Sessions</h3>
-                <p className="text-4xl font-bold text-accent">{dataOrbitAnalytics.sessions}</p>
-                <p className="text-sm text-muted-foreground mt-2">Unique visitors tracked</p>
-              </div>
-              <div className="bg-card rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-2">Page Views</h3>
-                <p className="text-4xl font-bold text-accent">{dataOrbitAnalytics.page_views}</p>
-                <p className="text-sm text-muted-foreground mt-2">Total pages viewed</p>
-              </div>
-              <div className="bg-card rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-2">Total Clicks</h3>
-                <p className="text-4xl font-bold text-accent">{dataOrbitAnalytics.clicks}</p>
-                <p className="text-sm text-muted-foreground mt-2">Buttons and links clicked</p>
-              </div>
-            </div>
-
-            {/* Filters */}
-            <div className="bg-card rounded-lg border p-4">
-              <h3 className="text-lg font-semibold mb-4">Filters</h3>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <Label>Country</Label>
-                  <Select value={dataOrbitSelectedCountry} onValueChange={setDataOrbitSelectedCountry}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Countries</SelectItem>
-                      {Array.from(new Set(dataOrbitAnalyticsDetails.map(d => d.country))).map(country => (
-                        <SelectItem key={country} value={country}>{country}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex-1">
-                  <Label>Source</Label>
-                  <Select value={dataOrbitSelectedSiteName} onValueChange={setDataOrbitSelectedSiteName}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Sources</SelectItem>
-                      {Array.from(new Set(dataOrbitAnalyticsDetails.map(d => d.source))).map(source => (
-                        <SelectItem key={source} value={source}>{source}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
+          );
+        } else if (selectedWebsite === 'dataorbitzone') {
+          return (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-card rounded-lg border p-6">
+                  <h3 className="text-lg font-semibold mb-2">Total Sessions</h3>
+                  <p className="text-4xl font-bold text-accent">{dataOrbitAnalytics.sessions}</p>
+                  <p className="text-sm text-muted-foreground mt-2">Unique visitors tracked</p>
+                </div>
+                <div className="bg-card rounded-lg border p-6">
+                  <h3 className="text-lg font-semibold mb-2">Page Views</h3>
+                  <p className="text-4xl font-bold text-accent">{dataOrbitAnalytics.page_views}</p>
+                  <p className="text-sm text-muted-foreground mt-2">Total pages viewed</p>
+                </div>
+                <div className="bg-card rounded-lg border p-6">
+                  <h3 className="text-lg font-semibold mb-2">Total Clicks</h3>
+                  <p className="text-4xl font-bold text-accent">{dataOrbitAnalytics.clicks}</p>
+                  <p className="text-sm text-muted-foreground mt-2">Buttons and links clicked</p>
+                </div>
+              </div>
 
-            {/* Detailed Sessions Table */}
-            <div className="bg-card rounded-lg border">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="border-b">
-                    <tr>
-                      <th className="text-left p-4 font-semibold">Session ID</th>
-                      <th className="text-left p-4 font-semibold">IP Address</th>
-                      <th className="text-left p-4 font-semibold">Country</th>
-                      <th className="text-left p-4 font-semibold">Source</th>
-                      <th className="text-left p-4 font-semibold">Device</th>
-                      <th className="text-left p-4 font-semibold">Page Views</th>
-                      <th className="text-left p-4 font-semibold">Clicks</th>
-                      <th className="text-left p-4 font-semibold">Related Searches</th>
-                      <th className="text-left p-4 font-semibold">Blog Clicks</th>
-                      <th className="text-left p-4 font-semibold">Created At</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dataOrbitAnalyticsDetails
-                      .filter(detail => {
-                        const countryMatch = dataOrbitSelectedCountry === 'all' || detail.country === dataOrbitSelectedCountry;
-                        const sourceMatch = dataOrbitSelectedSiteName === 'all' || detail.source === dataOrbitSelectedSiteName;
-                        return countryMatch && sourceMatch;
-                      })
-                      .map((detail, index) => (
+              {/* Detailed Sessions Table */}
+              <div className="bg-card rounded-lg border">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="border-b">
+                      <tr>
+                        <th className="text-left p-4 font-semibold">Session ID</th>
+                        <th className="text-left p-4 font-semibold">IP Address</th>
+                        <th className="text-left p-4 font-semibold">Country</th>
+                        <th className="text-left p-4 font-semibold">Source</th>
+                        <th className="text-left p-4 font-semibold">Device</th>
+                        <th className="text-left p-4 font-semibold">Page Views</th>
+                        <th className="text-left p-4 font-semibold">Clicks</th>
+                        <th className="text-left p-4 font-semibold">Created At</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dataOrbitAnalyticsDetails.map((detail, index) => (
                         <tr key={index} className="border-b last:border-0 hover:bg-muted/50">
                           <td className="p-4 text-sm font-mono">{detail.session_id.slice(0, 8)}...</td>
                           <td className="p-4 text-sm">{detail.ip_address}</td>
@@ -1788,263 +1425,298 @@ setDataOrbitAnalytics({
                               {detail.clicks}
                             </span>
                           </td>
-                          <td className="p-4">
-                            {detail.related_search_breakdown?.length > 0 ? (
-                              <div className="flex flex-col gap-1">
-                                <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold text-center">
-                                  Total: {detail.related_search_breakdown.reduce((sum: number, item: any) => sum + item.click_count, 0)}
-                                </span>
-                                <details className="mt-1">
-                                  <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-800 font-semibold">
-                                    View breakdown
-                                  </summary>
-                                  <div className="mt-2 space-y-1 max-w-md">
-                                    {detail.related_search_breakdown.map((item: any, idx: number) => (
-                                      <div key={idx} className="bg-green-50 p-2 rounded text-xs">
-                                        <div className="flex justify-between items-center gap-2">
-                                          <span className="font-medium flex-1">{item.search_term}</span>
-                                          <div className="flex gap-2">
-                                            <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-semibold">
-                                              Total: {item.click_count}
-                                            </span>
-                                            <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded font-semibold">
-                                              Unique: {item.unique_clicks}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </details>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-gray-400">No clicks</span>
-                            )}
-                          </td>
-                          <td className="p-4">
-                            {detail.blog_clicks_breakdown?.length > 0 ? (
-                              <div className="flex flex-col gap-1">
-                                <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-semibold text-center">
-                                  Total: {detail.blog_clicks_breakdown.reduce((sum: number, item: any) => sum + item.click_count, 0)}
-                                </span>
-                                <details className="mt-1">
-                                  <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-800 font-semibold">
-                                    View breakdown
-                                  </summary>
-                                  <div className="mt-2 space-y-1 max-w-md">
-                                    {detail.blog_clicks_breakdown.map((item: any, idx: number) => (
-                                      <div key={idx} className="bg-orange-50 p-2 rounded text-xs">
-                                        <div className="flex justify-between items-center gap-2">
-                                          <span className="font-medium flex-1">{item.blog_title}</span>
-                                          <div className="flex gap-2">
-                                            <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-semibold">
-                                              Total: {item.click_count}
-                                            </span>
-                                            <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded font-semibold">
-                                              Unique: {item.unique_clicks}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </details>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-gray-400">No clicks</span>
-                            )}
-                          </td>
                           <td className="p-4 text-sm">
                             {new Date(detail.created_at).toLocaleString()}
                           </td>
                         </tr>
                       ))}
-                  </tbody>
-                </table>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        } else if (selectedWebsite === 'searchproject') {
+          return (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+                <div className="bg-card rounded-lg border p-6">
+                  <h3 className="text-lg font-semibold mb-2">Total Sessions</h3>
+                  <p className="text-4xl font-bold text-accent">{searchProjectAnalytics.length}</p>
+                </div>
+                <div className="bg-card rounded-lg border p-6">
+                  <h3 className="text-lg font-semibold mb-2">Page Views</h3>
+                  <p className="text-4xl font-bold text-accent">
+                    {searchProjectAnalytics.reduce((sum, s) => sum + (s.page_views || 0), 0)}
+                  </p>
+                </div>
+                <div className="bg-card rounded-lg border p-6">
+                  <h3 className="text-lg font-semibold mb-2">Clicks</h3>
+                  <p className="text-4xl font-bold text-accent">
+                    {searchProjectAnalytics.reduce((sum, s) => sum + (s.clicks || 0), 0)}
+                  </p>
+                </div>
+                <div className="bg-card rounded-lg border p-6">
+                  <h3 className="text-lg font-semibold mb-2">Related Searches</h3>
+                  <p className="text-4xl font-bold text-accent">
+                    {searchProjectAnalytics.reduce((sum, s) => sum + (s.related_searches || 0), 0)}
+                  </p>
+                </div>
+                <div className="bg-card rounded-lg border p-6">
+                  <h3 className="text-lg font-semibold mb-2">Result Clicks</h3>
+                  <p className="text-4xl font-bold text-accent">
+                    {searchProjectAnalytics.reduce((sum, s) => sum + (s.result_clicks || 0), 0)}
+                  </p>
+                </div>
+              </div>
 
-        {/* SearchProject Web Results Management */}
-        {activeTab === 'sp-webresults' && (
-          <WebResultsManager projectClient={searchProjectClient} projectName="SearchProject" />
-        )}
-
-        {/* SearchProject Related Searches Management */}
-        {activeTab === 'sp-searches' && (
-          <RelatedSearchManager projectClient={searchProjectClient} projectName="SearchProject" />
-        )}
-
-        {/* SearchProject Landing Pages */}
-        {activeTab === 'sp-landing' && (
-          <div className="bg-card rounded-lg border">
-            <div className="p-4 border-b flex justify-between items-center">
-              <h2 className="text-xl font-bold text-foreground">SearchProject Landing Pages</h2>
-              <Button onClick={() => window.open('/admin/dataorbit', '_blank')} variant="outline">
-                Open Full Manager
-              </Button>
+              <div className="bg-card rounded-lg border">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="border-b">
+                      <tr>
+                        <th className="text-left p-4 font-semibold">Session ID</th>
+                        <th className="text-left p-4 font-semibold">IP Address</th>
+                        <th className="text-left p-4 font-semibold">Country</th>
+                        <th className="text-left p-4 font-semibold">Device</th>
+                        <th className="text-left p-4 font-semibold">Source</th>
+                        <th className="text-left p-4 font-semibold">Page Views</th>
+                        <th className="text-left p-4 font-semibold">Clicks</th>
+                        <th className="text-left p-4 font-semibold">Timestamp</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {searchProjectAnalytics.map((session) => (
+                        <tr key={session.id} className="border-b last:border-0 hover:bg-muted/50">
+                          <td className="p-4 text-sm font-mono">{session.session_id.substring(0, 8)}...</td>
+                          <td className="p-4 text-sm">{session.ip_address || '-'}</td>
+                          <td className="p-4">
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                              {session.country || '-'}
+                            </span>
+                          </td>
+                          <td className="p-4 text-sm">{session.device || '-'}</td>
+                          <td className="p-4">
+                            <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
+                              {session.source || '-'}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">
+                              {session.page_views || 0}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-semibold">
+                              {session.clicks || 0}
+                            </span>
+                          </td>
+                          <td className="p-4 text-sm">{new Date(session.timestamp).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="border-b">
-                  <tr>
-                    <th className="text-left p-4 font-semibold">Title</th>
-                    <th className="text-left p-4 font-semibold">Description</th>
-                    <th className="text-left p-4 font-semibold">Created</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {spLandingPages.map((page) => (
-                    <tr key={page.id} className="border-b hover:bg-muted/50">
-                      <td className="p-4 font-medium">{page.title}</td>
-                      <td className="p-4 text-muted-foreground truncate max-w-md">{page.description}</td>
-                      <td className="p-4 text-muted-foreground">{new Date(page.created_at).toLocaleDateString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+          );
+        }
+        return null;
 
-        {/* SearchProject Analytics Dashboard */}
-        {activeTab === 'sp-analytics' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-              <div className="bg-card rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-2">Total Sessions</h3>
-                <p className="text-4xl font-bold text-accent">{searchProjectAnalytics.length}</p>
-              </div>
-              <div className="bg-card rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-2">Page Views</h3>
-                <p className="text-4xl font-bold text-accent">
-                  {searchProjectAnalytics.reduce((sum, s) => sum + (s.page_views || 0), 0)}
-                </p>
-              </div>
-              <div className="bg-card rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-2">Clicks</h3>
-                <p className="text-4xl font-bold text-accent">
-                  {searchProjectAnalytics.reduce((sum, s) => sum + (s.clicks || 0), 0)}
-                </p>
-              </div>
-              <div className="bg-card rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-2">Related Searches</h3>
-                <p className="text-4xl font-bold text-accent">
-                  {searchProjectAnalytics.reduce((sum, s) => sum + (s.related_searches || 0), 0)}
-                </p>
-              </div>
-              <div className="bg-card rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-2">Result Clicks</h3>
-                <p className="text-4xl font-bold text-accent">
-                  {searchProjectAnalytics.reduce((sum, s) => sum + (s.result_clicks || 0), 0)}
-                </p>
-              </div>
-            </div>
-
+      case 'landing':
+        if (selectedWebsite === 'searchproject') {
+          return (
             <div className="bg-card rounded-lg border">
+              <div className="p-4 border-b flex justify-between items-center">
+                <h2 className="text-xl font-bold text-foreground">SearchProject Landing Pages</h2>
+                <Button onClick={() => window.open('/admin/dataorbit', '_blank')} variant="outline">
+                  Open Full Manager
+                </Button>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="border-b">
                     <tr>
-                      <th className="text-left p-4 font-semibold">Session ID</th>
-                      <th className="text-left p-4 font-semibold">IP Address</th>
-                      <th className="text-left p-4 font-semibold">Country</th>
-                      <th className="text-left p-4 font-semibold">Device</th>
-                      <th className="text-left p-4 font-semibold">Source</th>
-                      <th className="text-left p-4 font-semibold">Page Views</th>
-                      <th className="text-left p-4 font-semibold">Clicks</th>
-                      <th className="text-left p-4 font-semibold">Related Searches</th>
-                      <th className="text-left p-4 font-semibold">Result Clicks</th>
-                      <th className="text-left p-4 font-semibold">Time Spent (s)</th>
-                      <th className="text-left p-4 font-semibold">Timestamp</th>
+                      <th className="text-left p-4 font-semibold">Title</th>
+                      <th className="text-left p-4 font-semibold">Description</th>
+                      <th className="text-left p-4 font-semibold">Created</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {searchProjectAnalytics.map((session) => (
-                      <tr key={session.id} className="border-b last:border-0 hover:bg-muted/50">
-                        <td className="p-4 text-sm font-mono">{session.session_id.substring(0, 8)}...</td>
-                        <td className="p-4 text-sm">{session.ip_address || '-'}</td>
-                        <td className="p-4">
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                            {session.country || '-'}
-                          </span>
-                        </td>
-                        <td className="p-4 text-sm">{session.device || '-'}</td>
-                        <td className="p-4">
-                          <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
-                            {session.source || '-'}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">
-                            {session.page_views || 0}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-semibold">
-                            {session.clicks || 0}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-semibold">
-                            {session.related_searches || 0}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
-                            {session.result_clicks || 0}
-                          </span>
-                        </td>
-                        <td className="p-4 text-sm">{session.time_spent || 0}</td>
-                        <td className="p-4 text-sm">{new Date(session.timestamp).toLocaleString()}</td>
+                    {spLandingPages.map((page) => (
+                      <tr key={page.id} className="border-b hover:bg-muted/50">
+                        <td className="p-4 font-medium">{page.title}</td>
+                        <td className="p-4 text-muted-foreground truncate max-w-md">{page.description}</td>
+                        <td className="p-4 text-muted-foreground">{new Date(page.created_at).toLocaleDateString()}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
+          );
+        }
+        return null;
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl font-bold">Multi-Site Admin Panel</h1>
+            <p className="text-muted-foreground mt-2">Manage all your websites from one place</p>
+          </div>
+          
+          {selectedWebsite && selectedSection && (
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-muted-foreground">
+                Managing: <span className="font-semibold text-foreground">{getProjectName(selectedWebsite)}</span> / <span className="font-semibold text-foreground capitalize">{selectedSection}</span>
+              </div>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSelectedSection(null);
+                  setExpandedWebsite(selectedWebsite);
+                }}
+              >
+                Change Section
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSelectedWebsite(null);
+                  setSelectedSection(null);
+                  setExpandedWebsite(null);
+                }}
+              >
+                Change Website
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Website Selection Cards */}
+        {!selectedWebsite && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {websites.map((website) => (
+              <Card 
+                key={website.id}
+                className={`cursor-pointer transition-all hover:scale-105 hover:shadow-lg border-2 ${
+                  selectedWebsite === website.id 
+                    ? 'border-primary shadow-lg' 
+                    : 'border-border'
+                }`}
+                onClick={() => handleWebsiteSelect(website.id)}
+              >
+                <CardHeader className={`${website.color} text-white rounded-t-lg`}>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-2xl">{website.name}</CardTitle>
+                    <span className="text-2xl">{website.icon}</span>
+                  </div>
+                  <CardDescription className="text-white/90">
+                    {website.description}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      Click to manage
+                    </span>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
 
-        {/* TopicMingle Pre-Landing Pages */}
-        {activeTab === 'tm-prelanding' && (
-          <PreLandingEditor projectClient={supabase} projectName="TopicMingle" />
+        {/* Section Selection */}
+        {selectedWebsite && !selectedSection && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-4 mb-6">
+              <Button 
+                variant="ghost" 
+                onClick={() => {
+                  setSelectedWebsite(null);
+                  setSelectedSection(null);
+                  setExpandedWebsite(null);
+                }}
+                className="flex items-center gap-2"
+              >
+                <ChevronRight className="h-4 w-4 rotate-180" />
+                Back to Websites
+              </Button>
+              <h2 className="text-2xl font-bold">
+                Select Section for {getProjectName(selectedWebsite)}
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {sections[selectedWebsite].map((section) => (
+                <Card 
+                  key={section.id}
+                  className="cursor-pointer transition-all hover:scale-105 hover:shadow-lg border-2 border-border"
+                  onClick={() => handleSectionSelect(section.id)}
+                >
+                  <CardHeader>
+                    <CardTitle className="text-lg">{section.name}</CardTitle>
+                    <CardDescription>{section.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-primary font-medium">
+                        Open Section
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-primary" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
         )}
 
-        {/* TopicMingle Email Captures */}
-        {activeTab === 'tm-emails' && (
-          <EmailCaptureViewer projectClient={supabase} />
+        {/* Content Area */}
+        {selectedWebsite && selectedSection && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-4 mb-6">
+              <Button 
+                variant="ghost" 
+                onClick={() => setSelectedSection(null)}
+                className="flex items-center gap-2"
+              >
+                <ChevronRight className="h-4 w-4 rotate-180" />
+                Back to Sections
+              </Button>
+              <h2 className="text-2xl font-bold">
+                {getProjectName(selectedWebsite)} - {sections[selectedWebsite].find(s => s.id === selectedSection)?.name}
+              </h2>
+            </div>
+
+            {renderContent()}
+          </div>
         )}
 
-        {/* TopicMingle Web Results */}
-        {activeTab === 'tm-webresults' && (
-          <WebResultsManager projectClient={supabase} projectName="TopicMingle" />
-        )}
-
-        {/* DataOrbitZone Web Results */}
-        {activeTab === 'dz-webresults' && (
-          <WebResultsManager projectClient={dataOrbitZoneClient} projectName="DataOrbitZone" />
-        )}
-
-        {/* DataOrbitZone Pre-Landing Pages */}
-        {activeTab === 'dz-prelanding' && (
-          <PreLandingEditor projectClient={dataOrbitZoneClient} projectName="DataOrbitZone" />
-        )}
-
-        {/* DataOrbitZone Email Captures */}
-        {activeTab === 'dz-emails' && (
-          <EmailCaptureViewer projectClient={dataOrbitZoneClient} />
-        )}
-
-        {/* SearchProject Pre-Landing Pages */}
-        {activeTab === 'sp-prelanding' && (
-          <PreLandingEditor projectClient={searchProjectClient} projectName="SearchProject" />
-        )}
-
-        {/* SearchProject Email Captures */}
-        {activeTab === 'sp-emails' && (
-          <EmailCaptureViewer projectClient={searchProjectClient} />
+        {/* Unified Analytics Dashboard (always visible) */}
+        {!selectedWebsite && (
+          <div className="mt-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl">🌐 Multi-Site Analytics Overview</CardTitle>
+                <CardDescription>
+                  Combined analytics across all your websites
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <UnifiedAnalytics />
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
     </div>

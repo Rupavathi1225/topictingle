@@ -15,123 +15,100 @@ interface Blog {
   featured_image: string | null;
   published_at: string;
   content: string;
-  categories: {
-    id: number;
-    name: string;
-    slug: string;
-  };
+  category_id: number;
+}
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
 }
 
 const BlogPost = () => {
   const { categorySlug, blogSlug } = useParams();
   const [blog, setBlog] = useState<Blog | null>(null);
+  const [category, setCategory] = useState<Category | null>(null);
   const [recentPosts, setRecentPosts] = useState<Blog[]>([]);
   const [loading, setLoading] = useState(true);
   const { trackPageView, trackClick } = useTracking();
 
   useEffect(() => {
     const fetchBlog = async () => {
-      const { data } = await supabase
+      // Fetch blog by slug
+      const { data: blogData } = await supabase
         .from("blogs")
-        .select(`
-          id,
-          title,
-          slug,
-          author,
-          featured_image,
-          published_at,
-          content,
-          categories (
-            id,
-            name,
-            slug
-          )
-        `)
+        .select("*")
         .eq("slug", blogSlug)
         .eq("status", "published")
         .single();
 
-      if (data) {
-        setBlog(data as Blog);
-        
-        // Track page view
-        trackPageView(`/blog/${categorySlug}/${blogSlug}`, data.id);
+      if (!blogData) {
+        setLoading(false);
+        return;
+      }
 
-        // First, try to fetch recent posts from same category
-        let { data: recentData } = await supabase
+      setBlog(blogData as Blog);
+
+      trackPageView(`/blog/${categorySlug}/${blogSlug}`, blogData.id);
+
+      // Fetch matching category
+      const { data: categoryData } = await supabase
+        .from("categories")
+        .select("*")
+        .eq("id", blogData.category_id)
+        .single();
+
+      if (categoryData) setCategory(categoryData as Category);
+
+      // Find recent posts in same category
+      let { data: recentCategoryPosts } = await supabase
+        .from("blogs")
+        .select("*")
+        .eq("status", "published")
+        .eq("category_id", blogData.category_id)
+        .neq("id", blogData.id)
+        .order("published_at", { ascending: false })
+        .limit(4);
+
+      // Fallback - fetch from all categories
+      if (!recentCategoryPosts || recentCategoryPosts.length < 4) {
+        const { data: allRecent } = await supabase
           .from("blogs")
-          .select(`
-            id,
-            title,
-            slug,
-            author,
-            featured_image,
-            published_at,
-            content,
-            categories (
-              id,
-              name,
-              slug
-            )
-          `)
+          .select("*")
           .eq("status", "published")
-          .eq("category_id", (data as Blog).categories.id)
-          .neq("id", data.id)
+          .neq("id", blogData.id)
           .order("published_at", { ascending: false })
           .limit(4);
 
-        // If not enough posts from same category, fetch from all categories
-        if (!recentData || recentData.length < 4) {
-          const { data: allRecentData } = await supabase
-            .from("blogs")
-            .select(`
-              id,
-              title,
-              slug,
-              author,
-              featured_image,
-              published_at,
-              content,
-              categories (
-                id,
-                name,
-                slug
-              )
-            `)
-            .eq("status", "published")
-            .neq("id", data.id)
-            .order("published_at", { ascending: false })
-            .limit(4);
-          
-          if (allRecentData) recentData = allRecentData;
-        }
-
-        if (recentData) setRecentPosts(recentData as Blog[]);
+        if (allRecent) recentCategoryPosts = allRecent;
       }
+
+      if (recentCategoryPosts) {
+        setRecentPosts(recentCategoryPosts as Blog[]);
+      }
+
       setLoading(false);
     };
 
     fetchBlog();
   }, [blogSlug, categorySlug, trackPageView]);
 
+  // Loading State
   if (loading) {
     return (
       <>
         <Navbar />
-        <div className="container mx-auto px-4 py-12">
-          <div className="text-center">Loading...</div>
-        </div>
+        <div className="container mx-auto px-4 py-12 text-center">Loading...</div>
       </>
     );
   }
 
+  // Blog Not Found
   if (!blog) {
     return (
       <>
         <Navbar />
-        <div className="container mx-auto px-4 py-12">
-          <div className="text-center">Blog not found</div>
-        </div>
+        <div className="container mx-auto px-4 py-12 text-center">Blog not found</div>
       </>
     );
   }
@@ -140,17 +117,23 @@ const BlogPost = () => {
     <>
       <Navbar />
       <main className="min-h-screen">
-        {/* Category and Date */}
+        {/* Category + Date */}
         <div className="bg-background border-b border-blog-border py-4">
           <div className="container mx-auto px-4">
             <div className="max-w-5xl mx-auto">
-              <span 
-                className="text-sm font-semibold text-accent cursor-pointer hover:underline"
-                onClick={() => trackClick(`category-tag-${blog.categories.slug}`, blog.categories.name)}
-              >
-                {blog.categories.name}
-              </span>
+              {category && (
+                <span
+                  className="text-sm font-semibold text-accent cursor-pointer hover:underline"
+                  onClick={() =>
+                    trackClick(`category-tag-${category.slug}`, category.name)
+                  }
+                >
+                  {category.name}
+                </span>
+              )}
+
               <span className="mx-2 text-blog-meta">•</span>
+
               <time className="text-sm text-blog-meta">
                 {format(new Date(blog.published_at), "MMM dd, yyyy")}
               </time>
@@ -166,9 +149,9 @@ const BlogPost = () => {
               {blog.title}
             </h1>
 
-            {/* Layout: Author Sidebar + Content */}
+            {/* Content Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-8">
-              {/* Left Sidebar - Author Info */}
+              {/* Author Section */}
               <aside className="lg:sticky lg:top-20 self-start">
                 <div className="border border-blog-border rounded-lg p-6 bg-card">
                   <div className="flex flex-col items-center text-center mb-4">
@@ -176,25 +159,22 @@ const BlogPost = () => {
                       {blog.author.charAt(0)}
                     </div>
                     <h3 className="font-bold text-lg text-blog-heading">{blog.author}</h3>
-                    <p className="text-sm text-blog-meta mt-1">
-                      {blog.author} is a passionate health and wellness writer who shares expertise to inspire readers to prioritize self-care. With a background in holistic nutrition and alternative therapies, provides practical advice, mindful living tips, and natural remedies. {blog.author}'s genuine interest in well-being extends beyond writing, enjoying practicing yoga, exploring organic farming, and experimenting with herbal remedies in own garden.
-                    </p>
                   </div>
                 </div>
 
-                {/* Recent Posts in Sidebar */}
+                {/* Sidebar Recent Posts */}
                 {recentPosts.length > 0 && (
                   <div className="mt-8">
                     <h3 className="font-bold text-xl mb-4 text-blog-heading">Recent posts</h3>
+
                     <div className="space-y-4">
                       {recentPosts.map((post) => (
-                        <div 
+                        <div
                           key={post.id}
                           className="group cursor-pointer"
-                          onClick={() => {
-                            trackClick(`recent-post-${post.slug}`, post.title);
-                            window.location.href = `/blog/${post.categories.slug}/${post.slug}`;
-                          }}
+                          onClick={() =>
+                            (window.location.href = `/blog/${category?.slug}/${post.slug}`)
+                          }
                         >
                           <div className="flex gap-3">
                             {post.featured_image && (
@@ -217,9 +197,8 @@ const BlogPost = () => {
                 )}
               </aside>
 
-              {/* Main Content Area */}
+              {/* Blog Content */}
               <div className="space-y-8">
-                {/* Featured Image */}
                 {blog.featured_image && (
                   <div className="aspect-video overflow-hidden rounded-lg">
                     <img
@@ -230,32 +209,27 @@ const BlogPost = () => {
                   </div>
                 )}
 
-                {/* Article Content */}
                 <article className="prose prose-lg max-w-none">
                   <div className="whitespace-pre-wrap text-blog-text leading-relaxed text-base">
                     {blog.content}
                   </div>
                 </article>
 
-                {/* Related Searches */}
-                <RelatedSearches categoryId={blog.categories.id} />
+                {category && <RelatedSearches categoryId={category.id} />}
               </div>
             </div>
           </div>
 
-          {/* Recent Posts Section Above Footer */}
+          {/* Footer Recent Posts */}
           {recentPosts.length > 0 && (
             <div className="max-w-5xl mx-auto mt-16">
               <h2 className="text-3xl font-bold mb-8 text-blog-heading">Recent posts</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {recentPosts.map((post) => (
-                  <div 
+                  <div
                     key={post.id}
                     className="group cursor-pointer border border-blog-border rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
-                    onClick={() => {
-                      trackClick(`recent-post-footer-${post.slug}`, post.title);
-                      window.location.href = `/blog/${post.categories.slug}/${post.slug}`;
-                    }}
+                    onClick={() => (window.location.href = `/blog/${category?.slug}/${post.slug}`)}
                   >
                     {post.featured_image && (
                       <div className="aspect-video overflow-hidden">
@@ -267,15 +241,6 @@ const BlogPost = () => {
                       </div>
                     )}
                     <div className="p-6">
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-sm font-semibold text-accent">
-                          {post.categories.name}
-                        </span>
-                        <span className="text-blog-meta">•</span>
-                        <time className="text-sm text-blog-meta">
-                          {format(new Date(post.published_at), "MMM dd, yyyy")}
-                        </time>
-                      </div>
                       <h3 className="text-xl font-bold mb-2 group-hover:text-accent transition-colors text-blog-heading">
                         {post.title}
                       </h3>
