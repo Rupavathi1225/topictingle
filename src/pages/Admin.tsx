@@ -136,10 +136,33 @@ const Admin = () => {
   // SearchProject state
   const [spWebResults, setSpWebResults] = useState<any[]>([]);
   const [spLandingPages, setSpLandingPages] = useState<any[]>([]);
+  const [spRelatedSearches, setSpRelatedSearches] = useState<any[]>([]);
   const [spWebResultDialog, setSpWebResultDialog] = useState(false);
   const [editingSpWebResult, setEditingSpWebResult] = useState<any>(null);
   const [spLandingDialog, setSpLandingDialog] = useState(false);
   const [editingSpLanding, setEditingSpLanding] = useState<any>(null);
+  const [showSpLandingForm, setShowSpLandingForm] = useState(false);
+  const [spLandingFormData, setSpLandingFormData] = useState({
+    page_key: '',
+    headline: '',
+    description: '',
+    logo_url: '',
+    logo_position: 'top-center',
+    logo_width: 150,
+    main_image_url: '',
+    image_ratio: '16:9',
+    headline_font_size: 32,
+    headline_color: '#000000',
+    headline_align: 'center',
+    description_font_size: 16,
+    description_color: '#333333',
+    description_align: 'center',
+    cta_text: 'Get Started',
+    cta_color: '#10b981',
+    background_color: '#ffffff',
+    background_image_url: '',
+    target_url: '',
+  });
   
   const [analytics, setAnalytics] = useState<Analytics>({ sessions: 0, page_views: 0, clicks: 0 });
   const [dataOrbitAnalytics, setDataOrbitAnalytics] = useState<Analytics>({ sessions: 0, page_views: 0, clicks: 0 });
@@ -270,8 +293,13 @@ const Admin = () => {
   };
 
   const fetchSpLandingPages = async () => {
-    const { data } = await searchProjectClient.from('landing_page').select('*');
+    const { data } = await searchProjectClient.from('pre_landing_pages').select('*').order('created_at', { ascending: false });
     if (data) setSpLandingPages(data);
+  };
+
+  const fetchSpRelatedSearches = async () => {
+    const { data } = await searchProjectClient.from('related_searches').select('*').order('display_order');
+    if (data) setSpRelatedSearches(data);
   };
 
   useEffect(() => {
@@ -285,6 +313,7 @@ const Admin = () => {
     fetchDzRelatedSearches();
     fetchSpWebResults();
     fetchSpLandingPages();
+    fetchSpRelatedSearches();
   }, []);
 
   const fetchCategories = async () => {
@@ -1525,31 +1554,320 @@ const Admin = () => {
 
       case 'landing':
         if (selectedWebsite === 'searchproject') {
+          const handleSpLandingSubmit = async (e: React.FormEvent) => {
+            e.preventDefault();
+            
+            if (!spLandingFormData.page_key || !spLandingFormData.headline || !spLandingFormData.target_url) {
+              toast.error("Please fill in required fields: Page Key, Headline, and Target URL");
+              return;
+            }
+
+            try {
+              if (editingSpLanding) {
+                const { error } = await searchProjectClient
+                  .from('pre_landing_pages')
+                  .update(spLandingFormData)
+                  .eq('id', editingSpLanding.id);
+
+                if (error) {
+                  toast.error("Failed to update landing page");
+                } else {
+                  toast.success("Landing page updated successfully");
+                  fetchSpLandingPages();
+                  setShowSpLandingForm(false);
+                  setEditingSpLanding(null);
+                  setSpLandingFormData({
+                    page_key: '',
+                    headline: '',
+                    description: '',
+                    logo_url: '',
+                    logo_position: 'top-center',
+                    logo_width: 150,
+                    main_image_url: '',
+                    image_ratio: '16:9',
+                    headline_font_size: 32,
+                    headline_color: '#000000',
+                    headline_align: 'center',
+                    description_font_size: 16,
+                    description_color: '#333333',
+                    description_align: 'center',
+                    cta_text: 'Get Started',
+                    cta_color: '#10b981',
+                    background_color: '#ffffff',
+                    background_image_url: '',
+                    target_url: '',
+                  });
+                }
+              } else {
+                const { error } = await searchProjectClient
+                  .from('pre_landing_pages')
+                  .insert([spLandingFormData]);
+
+                if (error) {
+                  toast.error("Failed to create landing page");
+                } else {
+                  toast.success("Landing page created successfully");
+                  fetchSpLandingPages();
+                  setShowSpLandingForm(false);
+                  setSpLandingFormData({
+                    page_key: '',
+                    headline: '',
+                    description: '',
+                    logo_url: '',
+                    logo_position: 'top-center',
+                    logo_width: 150,
+                    main_image_url: '',
+                    image_ratio: '16:9',
+                    headline_font_size: 32,
+                    headline_color: '#000000',
+                    headline_align: 'center',
+                    description_font_size: 16,
+                    description_color: '#333333',
+                    description_align: 'center',
+                    cta_text: 'Get Started',
+                    cta_color: '#10b981',
+                    background_color: '#ffffff',
+                    background_image_url: '',
+                    target_url: '',
+                  });
+                }
+              }
+            } catch (error) {
+              console.error('Error saving landing page:', error);
+              toast.error("Failed to save landing page");
+            }
+          };
+
+          const handleEditSpLanding = (page: any) => {
+            setEditingSpLanding(page);
+            setSpLandingFormData({
+              page_key: page.page_key || '',
+              headline: page.headline || '',
+              description: page.description || '',
+              logo_url: page.logo_url || '',
+              logo_position: page.logo_position || 'top-center',
+              logo_width: page.logo_width || 150,
+              main_image_url: page.main_image_url || '',
+              image_ratio: page.image_ratio || '16:9',
+              headline_font_size: page.headline_font_size || 32,
+              headline_color: page.headline_color || '#000000',
+              headline_align: page.headline_align || 'center',
+              description_font_size: page.description_font_size || 16,
+              description_color: page.description_color || '#333333',
+              description_align: page.description_align || 'center',
+              cta_text: page.cta_text || 'Get Started',
+              cta_color: page.cta_color || '#10b981',
+              background_color: page.background_color || '#ffffff',
+              background_image_url: page.background_image_url || '',
+              target_url: page.target_url || '',
+            });
+            setShowSpLandingForm(true);
+          };
+
+          const handleDeleteSpLanding = async (id: string) => {
+            if (!confirm('Are you sure you want to delete this landing page?')) return;
+
+            const { error } = await searchProjectClient
+              .from('pre_landing_pages')
+              .delete()
+              .eq('id', id);
+
+            if (error) {
+              toast.error("Failed to delete landing page");
+            } else {
+              toast.success("Landing page deleted successfully");
+              fetchSpLandingPages();
+            }
+          };
+
+          const getRelatedSearchesForPage = (pageKey: string) => {
+            return spRelatedSearches.filter(search => search.pre_landing_page_key === pageKey);
+          };
+
           return (
             <div className="bg-card rounded-lg border">
               <div className="p-4 border-b flex justify-between items-center">
-                <h2 className="text-xl font-bold text-foreground">SearchProject Landing Pages</h2>
-                <Button onClick={() => window.open('/admin/dataorbit', '_blank')} variant="outline">
-                  Open Full Manager
+                <h2 className="text-xl font-bold text-foreground">SearchProject - Landing Pages</h2>
+                <Button 
+                  onClick={() => {
+                    setShowSpLandingForm(!showSpLandingForm);
+                    setEditingSpLanding(null);
+                    setSpLandingFormData({
+                      page_key: '',
+                      headline: '',
+                      description: '',
+                      logo_url: '',
+                      logo_position: 'top-center',
+                      logo_width: 150,
+                      main_image_url: '',
+                      image_ratio: '16:9',
+                      headline_font_size: 32,
+                      headline_color: '#000000',
+                      headline_align: 'center',
+                      description_font_size: 16,
+                      description_color: '#333333',
+                      description_align: 'center',
+                      cta_text: 'Get Started',
+                      cta_color: '#10b981',
+                      background_color: '#ffffff',
+                      background_image_url: '',
+                      target_url: '',
+                    });
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Landing Page
                 </Button>
               </div>
+
+              {/* Add/Edit Form */}
+              {showSpLandingForm && (
+                <form onSubmit={handleSpLandingSubmit} className="p-6 border-b bg-muted/30">
+                  <h3 className="text-lg font-semibold mb-4">
+                    {editingSpLanding ? 'Edit Landing Page' : 'Add New Landing Page'}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="sp-page-key">Page Key *</Label>
+                      <Input
+                        id="sp-page-key"
+                        value={spLandingFormData.page_key}
+                        onChange={(e) => setSpLandingFormData({ ...spLandingFormData, page_key: e.target.value })}
+                        placeholder="unique-page-key"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sp-headline">Headline *</Label>
+                      <Input
+                        id="sp-headline"
+                        value={spLandingFormData.headline}
+                        onChange={(e) => setSpLandingFormData({ ...spLandingFormData, headline: e.target.value })}
+                        placeholder="Enter headline"
+                        required
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label htmlFor="sp-description">Description</Label>
+                      <Textarea
+                        id="sp-description"
+                        value={spLandingFormData.description}
+                        onChange={(e) => setSpLandingFormData({ ...spLandingFormData, description: e.target.value })}
+                        placeholder="Enter description"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sp-target-url">Target URL *</Label>
+                      <Input
+                        id="sp-target-url"
+                        value={spLandingFormData.target_url}
+                        onChange={(e) => setSpLandingFormData({ ...spLandingFormData, target_url: e.target.value })}
+                        placeholder="https://example.com"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sp-cta-text">CTA Text</Label>
+                      <Input
+                        id="sp-cta-text"
+                        value={spLandingFormData.cta_text}
+                        onChange={(e) => setSpLandingFormData({ ...spLandingFormData, cta_text: e.target.value })}
+                        placeholder="Get Started"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sp-logo-url">Logo URL</Label>
+                      <Input
+                        id="sp-logo-url"
+                        value={spLandingFormData.logo_url}
+                        onChange={(e) => setSpLandingFormData({ ...spLandingFormData, logo_url: e.target.value })}
+                        placeholder="https://example.com/logo.png"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sp-main-image">Main Image URL</Label>
+                      <Input
+                        id="sp-main-image"
+                        value={spLandingFormData.main_image_url}
+                        onChange={(e) => setSpLandingFormData({ ...spLandingFormData, main_image_url: e.target.value })}
+                        placeholder="https://example.com/image.jpg"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-4">
+                    <Button type="submit">
+                      {editingSpLanding ? 'Update' : 'Save'} Landing Page
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => {
+                        setShowSpLandingForm(false);
+                        setEditingSpLanding(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              )}
+
+              {/* Landing Pages Table */}
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="border-b">
                     <tr>
-                      <th className="text-left p-4 font-semibold">Title</th>
+                      <th className="text-left p-4 font-semibold">Page Key</th>
+                      <th className="text-left p-4 font-semibold">Headline</th>
                       <th className="text-left p-4 font-semibold">Description</th>
+                      <th className="text-left p-4 font-semibold">Related Searches</th>
                       <th className="text-left p-4 font-semibold">Created</th>
+                      <th className="text-left p-4 font-semibold">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {spLandingPages.map((page) => (
-                      <tr key={page.id} className="border-b hover:bg-muted/50">
-                        <td className="p-4 font-medium">{page.title}</td>
-                        <td className="p-4 text-muted-foreground truncate max-w-md">{page.description}</td>
-                        <td className="p-4 text-muted-foreground">{new Date(page.created_at).toLocaleDateString()}</td>
-                      </tr>
-                    ))}
+                    {spLandingPages.map((page) => {
+                      const relatedSearches = getRelatedSearchesForPage(page.page_key);
+                      return (
+                        <tr key={page.id} className="border-b hover:bg-muted/50">
+                          <td className="p-4 font-mono text-sm">{page.page_key}</td>
+                          <td className="p-4 font-medium">{page.headline}</td>
+                          <td className="p-4 text-muted-foreground truncate max-w-md">
+                            {page.description || '-'}
+                          </td>
+                          <td className="p-4 text-sm">
+                            {relatedSearches.length > 0 ? (
+                              <span className="text-xs">
+                                {relatedSearches.map(s => s.search_text).join(' >>> ')}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground italic">No related searches</span>
+                            )}
+                          </td>
+                          <td className="p-4 text-muted-foreground">
+                            {new Date(page.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="p-4">
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEditSpLanding(page)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDeleteSpLanding(page.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

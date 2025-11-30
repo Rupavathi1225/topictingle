@@ -124,6 +124,204 @@ export type Database = {
         }
         Relationships: []
       }
+      dz_blogs: {
+        Row: {
+          author: string
+          author_bio: string | null
+          author_image: string | null
+          category_id: number | null
+          content: string
+          created_at: string | null
+          featured_image: string | null
+          id: string
+          slug: string
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          author: string
+          author_bio?: string | null
+          author_image?: string | null
+          category_id?: number | null
+          content: string
+          created_at?: string | null
+          featured_image?: string | null
+          id?: string
+          slug: string
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          author?: string
+          author_bio?: string | null
+          author_image?: string | null
+          category_id?: number | null
+          content?: string
+          created_at?: string | null
+          featured_image?: string | null
+          id?: string
+          slug?: string
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dz_blogs_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "dz_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dz_categories: {
+        Row: {
+          code_range: string | null
+          created_at: string | null
+          id: number
+          name: string
+          slug: string
+        }
+        Insert: {
+          code_range?: string | null
+          created_at?: string | null
+          id?: number
+          name: string
+          slug: string
+        }
+        Update: {
+          code_range?: string | null
+          created_at?: string | null
+          id?: number
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      dz_prelanding_pages: {
+        Row: {
+          background_color: string | null
+          background_image_url: string | null
+          button_color: string | null
+          button_text: string | null
+          button_text_color: string | null
+          created_at: string | null
+          description: string | null
+          description_color: string | null
+          description_font_size: number | null
+          email_box_border_color: string | null
+          email_box_color: string | null
+          headline: string
+          headline_color: string | null
+          headline_font_size: number | null
+          id: string
+          image_ratio: string | null
+          logo_position: string | null
+          logo_size: number | null
+          logo_url: string | null
+          main_image_url: string | null
+          related_search_id: string | null
+          text_alignment: string | null
+        }
+        Insert: {
+          background_color?: string | null
+          background_image_url?: string | null
+          button_color?: string | null
+          button_text?: string | null
+          button_text_color?: string | null
+          created_at?: string | null
+          description?: string | null
+          description_color?: string | null
+          description_font_size?: number | null
+          email_box_border_color?: string | null
+          email_box_color?: string | null
+          headline: string
+          headline_color?: string | null
+          headline_font_size?: number | null
+          id?: string
+          image_ratio?: string | null
+          logo_position?: string | null
+          logo_size?: number | null
+          logo_url?: string | null
+          main_image_url?: string | null
+          related_search_id?: string | null
+          text_alignment?: string | null
+        }
+        Update: {
+          background_color?: string | null
+          background_image_url?: string | null
+          button_color?: string | null
+          button_text?: string | null
+          button_text_color?: string | null
+          created_at?: string | null
+          description?: string | null
+          description_color?: string | null
+          description_font_size?: number | null
+          email_box_border_color?: string | null
+          email_box_color?: string | null
+          headline?: string
+          headline_color?: string | null
+          headline_font_size?: number | null
+          id?: string
+          image_ratio?: string | null
+          logo_position?: string | null
+          logo_size?: number | null
+          logo_url?: string | null
+          main_image_url?: string | null
+          related_search_id?: string | null
+          text_alignment?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dz_prelanding_pages_related_search_id_fkey"
+            columns: ["related_search_id"]
+            isOneToOne: false
+            referencedRelation: "dz_related_searches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dz_related_searches: {
+        Row: {
+          blog_id: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string
+          is_active: boolean | null
+          search_text: string
+          target_url: string
+        }
+        Insert: {
+          blog_id?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          search_text: string
+          target_url: string
+        }
+        Update: {
+          blog_id?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          search_text?: string
+          target_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dz_related_searches_blog_id_fkey"
+            columns: ["blog_id"]
+            isOneToOne: false
+            referencedRelation: "dz_blogs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_captures: {
         Row: {
           captured_at: string | null
