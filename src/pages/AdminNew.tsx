@@ -1,5 +1,6 @@
 import { DataOrbitZoneManager } from "@/components/admin/DataOrbitZoneManager";
 import { SearchProjectManager } from "@/components/admin/SearchProjectManager";
+import { TejaStarinManager } from "@/components/admin/TejaStarinManager";
 import { PreLandingEditor } from "@/components/admin/PreLandingEditor";
 import { RelatedSearchManager } from "@/components/admin/RelatedSearchManager";
 import { EmailCaptureViewer } from "@/components/admin/EmailCaptureViewer";
@@ -14,9 +15,10 @@ export default function AdminNew() {
       <div className="container mx-auto px-4 py-12">
         <h1 className="text-4xl font-bold mb-8">External Projects Admin</h1>
         <Tabs defaultValue="dataorbitzone">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="dataorbitzone">DataOrbitZone</TabsTrigger>
             <TabsTrigger value="searchproject">SearchProject</TabsTrigger>
+            <TabsTrigger value="tejastarin">Teja Starin</TabsTrigger>
             <TabsTrigger value="topicmingle">TopicMingle</TabsTrigger>
           </TabsList>
           
@@ -50,6 +52,13 @@ export default function AdminNew() {
             <div>
               <h2 className="text-2xl font-bold mb-4">SearchProject Management</h2>
               <SearchProjectManager />
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="tejastarin" className="space-y-8">
+            <div>
+              <h2 className="text-2xl font-bold mb-4">Teja Starin Management</h2>
+              <TejaStarinManager />
             </div>
           </TabsContent>
           
