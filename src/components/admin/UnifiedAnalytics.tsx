@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { dataOrbitZoneClient } from '@/integrations/dataorbitzone/client';
 import { searchProjectClient } from '@/integrations/searchproject/client';
+import { tejaStarinClient } from '@/integrations/tejastarin/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -66,6 +67,7 @@ export function UnifiedAnalytics() {
   const sites = [
     { id: 'dataorbitzone', name: 'DataOrbitZone', icon: ShoppingCart, color: 'from-orange-500 to-orange-600' },
     { id: 'searchproject', name: 'SearchProject', icon: Home, color: 'from-pink-500 to-pink-600' },
+    { id: 'tejastarin', name: 'Teja Starin', icon: FileText, color: 'from-purple-500 to-purple-600' },
     { id: 'main', name: 'TopicMingle', icon: Palette, color: 'from-cyan-500 to-cyan-600' },
   ];
 
@@ -77,15 +79,17 @@ export function UnifiedAnalytics() {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const [dataOrbit, searchProj, mainProj] = await Promise.all([
+      const [dataOrbit, searchProj, tejaStarin, mainProj] = await Promise.all([
         fetchDataOrbitZone(),
         fetchSearchProject(),
+        fetchTejaStarin(),
         fetchMainProject(),
       ]);
 
       const allStats: SiteStats[] = [
         { siteName: 'DataOrbitZone', icon: ShoppingCart, color: 'from-orange-500 to-orange-600', ...dataOrbit.stats },
         { siteName: 'SearchProject', icon: Home, color: 'from-pink-500 to-pink-600', ...searchProj.stats },
+        { siteName: 'Teja Starin', icon: FileText, color: 'from-purple-500 to-purple-600', ...tejaStarin.stats },
         { siteName: 'TopicMingle', icon: Palette, color: 'from-cyan-500 to-cyan-600', ...mainProj.stats },
       ];
 
@@ -94,6 +98,7 @@ export function UnifiedAnalytics() {
       const allSessions = [
         ...dataOrbit.sessions,
         ...searchProj.sessions,
+        ...tejaStarin.sessions,
         ...mainProj.sessions,
       ];
 
@@ -365,6 +370,78 @@ export function UnifiedAnalytics() {
       uniquePages: globalUniquePagesSet.size || (sessions.reduce((sum, s) => sum + (s.uniquePages || 0), 0)),
       totalClicks: (analytics || []).reduce((sum: number, a: any) => sum + (a.clicks || 0), 0),
       uniqueClicks: globalUniqueClicksSet.size || (sessions.reduce((sum, s) => sum + (s.uniqueClicks || 0), 0)),
+    };
+
+    return { stats, sessions };
+  };
+
+  /**
+   * Fetch & process Teja Starin analytics
+   */
+  const fetchTejaStarin = async () => {
+    // Fetch email submissions as session-like data
+    const { data: emailSubmissions } = await tejaStarinClient
+      .from('email_submissions')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    const sessionMap = new Map<string, any>();
+    const globalUniquePages = new Set<string>();
+    const globalUniqueClicks = new Set<string>();
+
+    (emailSubmissions || []).forEach((submission: any) => {
+      const sid = submission.session_id || submission.ip_address || `ts-${submission.id}`;
+      
+      if (!sessionMap.has(sid)) {
+        sessionMap.set(sid, {
+          sessionId: sid,
+          device: 'Desktop • Chrome',
+          ipAddress: submission.ip_address || 'N/A',
+          country: 'Unknown',
+          timeSpent: '0s',
+          timestamp: submission.created_at || new Date().toISOString(),
+          pageViews: 1,
+          uniquePagesSet: new Set<string>(),
+          totalClicks: 1,
+          uniqueClicksSet: new Set<string>(),
+          searchResults: [],
+          blogClicks: [],
+          buttonInteractions: [],
+        });
+      }
+
+      const session = sessionMap.get(sid);
+      session.uniquePagesSet.add(`pre-landing-${submission.related_search_id || 'unknown'}`);
+      session.uniqueClicksSet.add(`email-submit-${submission.id}`);
+      globalUniquePages.add(`pre-landing-${submission.related_search_id || 'unknown'}`);
+      globalUniqueClicks.add(`email-submit-${submission.id}`);
+    });
+
+    const sessions = Array.from(sessionMap.values()).map((s: any) => ({
+      sessionId: s.sessionId,
+      siteName: 'Teja Starin',
+      siteIcon: FileText,
+      siteColor: 'from-purple-500 to-purple-600',
+      device: s.device,
+      ipAddress: s.ipAddress,
+      country: s.country,
+      timeSpent: s.timeSpent,
+      timestamp: s.timestamp,
+      pageViews: s.pageViews,
+      uniquePages: s.uniquePagesSet.size,
+      totalClicks: s.totalClicks,
+      uniqueClicks: s.uniqueClicksSet.size,
+      searchResults: s.searchResults,
+      blogClicks: s.blogClicks,
+      buttonInteractions: s.buttonInteractions,
+    })) as SessionDetail[];
+
+    const stats = {
+      sessions: sessionMap.size,
+      pageViews: sessions.reduce((sum: number, s: any) => sum + s.pageViews, 0),
+      uniquePages: globalUniquePages.size,
+      totalClicks: sessions.reduce((sum: number, s: any) => sum + s.totalClicks, 0),
+      uniqueClicks: globalUniqueClicks.size,
     };
 
     return { stats, sessions };
