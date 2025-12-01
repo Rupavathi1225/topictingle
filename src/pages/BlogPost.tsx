@@ -215,7 +215,9 @@ const BlogPost = () => {
                   </div>
                 </article>
 
-                {category && <RelatedSearches categoryId={category.id} />}
+                {category && (
+                  <RelatedSearches blogId={blog.id} categoryId={category.id} />
+                )}
               </div>
             </div>
           </div>

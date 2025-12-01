@@ -15,10 +15,11 @@ interface RelatedSearch {
 }
 
 interface RelatedSearchesProps {
-  categoryId: number;
+  blogId: string;
+  categoryId?: number;
 }
 
-const RelatedSearches = ({ categoryId }: RelatedSearchesProps) => {
+const RelatedSearches = ({ blogId, categoryId }: RelatedSearchesProps) => {
   const { trackClick } = useTracking();
   const [searches, setSearches] = useState<RelatedSearch[]>([]);
   const [userCountry, setUserCountry] = useState<string>('WW');
@@ -39,19 +40,44 @@ const RelatedSearches = ({ categoryId }: RelatedSearchesProps) => {
 
   useEffect(() => {
     const fetchRelatedSearches = async () => {
-      const { data } = await supabase
+      // First try to load searches linked directly to this blog
+      let { data, error } = await supabase
         .from('related_searches')
         .select('*')
-        .eq('category_id', categoryId)
+        .eq('blog_id', blogId)
         .eq('is_active', true)
         .order('display_order', { ascending: true });
-      
+
+      if (error) {
+        console.error('Error fetching related searches by blog:', error);
+        return;
+      }
+
+      // If no blog-specific searches, fall back to category-based ones
+      if ((!data || data.length === 0) && categoryId) {
+        const { data: categoryData, error: categoryError } = await supabase
+          .from('related_searches')
+          .select('*')
+          .eq('category_id', categoryId)
+          .eq('is_active', true)
+          .order('display_order', { ascending: true });
+
+        if (categoryError) {
+          console.error('Error fetching related searches by category:', categoryError);
+          return;
+        }
+
+        data = categoryData || [];
+      }
+
       if (data) {
         // Filter by country
-        const filteredSearches = data.filter(search => 
-          search.allowed_countries.includes('WW') || 
-          search.allowed_countries.includes(userCountry)
-        ).slice(0, 4);
+        const filteredSearches = data
+          .filter((search: any) =>
+            search.allowed_countries.includes('WW') ||
+            search.allowed_countries.includes(userCountry)
+          )
+          .slice(0, 4);
         setSearches(filteredSearches);
       }
     };
@@ -59,7 +85,7 @@ const RelatedSearches = ({ categoryId }: RelatedSearchesProps) => {
     if (userCountry) {
       fetchRelatedSearches();
     }
-  }, [categoryId, userCountry]);
+  }, [blogId, categoryId, userCountry]);
 
   const handleSearchClick = async (search: RelatedSearch) => {
     try {
