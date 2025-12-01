@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { dataOrbitZoneClient } from "@/integrations/dataorbitzone/client";
 import { searchProjectClient } from "@/integrations/searchproject/client";
+import { tejaStarinClient } from "@/integrations/tejastarin/client";
 import { useTracking } from "@/hooks/useTracking";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -114,7 +115,7 @@ interface Analytics {
   unique_clicks?: number;
 }
 
-type Website = 'topicmingle' | 'dataorbitzone' | 'searchproject';
+type Website = 'topicmingle' | 'dataorbitzone' | 'searchproject' | 'tejastarin';
 type Section = 'blogs' | 'searches' | 'analytics' | 'webresults' | 'prelanding' | 'emails' | 'landing';
 
 const Admin = () => {
@@ -146,6 +147,12 @@ const Admin = () => {
     title: '',
     description: '',
   });
+
+  // TejaStarin state
+  const [tsBlogs, setTsBlogs] = useState<any[]>([]);
+  const [tsWebResults, setTsWebResults] = useState<any[]>([]);
+  const [tsLandingPages, setTsLandingPages] = useState<any[]>([]);
+  const [tsRelatedSearches, setTsRelatedSearches] = useState<any[]>([]);
   
   const [analytics, setAnalytics] = useState<Analytics>({ sessions: 0, page_views: 0, clicks: 0 });
   const [dataOrbitAnalytics, setDataOrbitAnalytics] = useState<Analytics>({ sessions: 0, page_views: 0, clicks: 0 });
@@ -217,6 +224,13 @@ const Admin = () => {
       description: 'Search Engine & Results',
       color: 'bg-purple-500',
       icon: '🔍'
+    },
+    {
+      id: 'tejastarin' as Website,
+      name: 'Teja Starin',
+      description: 'Blog & Web Results Platform',
+      color: 'bg-orange-500',
+      icon: '📄'
     }
   ];
 
@@ -238,6 +252,15 @@ const Admin = () => {
       { id: 'analytics', name: 'Analytics', description: 'View website analytics and metrics' }
     ],
     searchproject: [
+      { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
+      { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
+      { id: 'landing', name: 'Landing Pages', description: 'Manage landing pages' },
+      { id: 'prelanding', name: 'Pre-Landing Pages', description: 'Edit pre-landing page designs' },
+      { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' },
+      { id: 'analytics', name: 'Analytics', description: 'View website analytics and metrics' }
+    ],
+    tejastarin: [
+      { id: 'blogs', name: 'Blogs', description: 'Manage blog posts and content' },
       { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
       { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
       { id: 'landing', name: 'Landing Pages', description: 'Manage landing pages' },
@@ -285,6 +308,27 @@ const Admin = () => {
     if (data) setSpRelatedSearches(data);
   };
 
+  // Fetch TejaStarin content
+  const fetchTsBlogs = async () => {
+    const { data } = await tejaStarinClient.from('blogs').select('*').order('created_at', { ascending: false });
+    if (data) setTsBlogs(data);
+  };
+
+  const fetchTsWebResults = async () => {
+    const { data } = await tejaStarinClient.from('web_results').select('*').order('order_index');
+    if (data) setTsWebResults(data);
+  };
+
+  const fetchTsLandingPages = async () => {
+    const { data } = await tejaStarinClient.from('pre_landing_config').select('*').order('created_at', { ascending: false });
+    if (data) setTsLandingPages(data);
+  };
+
+  const fetchTsRelatedSearches = async () => {
+    const { data } = await tejaStarinClient.from('related_searches').select('*').order('order_index');
+    if (data) setTsRelatedSearches(data);
+  };
+
   useEffect(() => {
     fetchCategories();
     fetchBlogs();
@@ -297,6 +341,10 @@ const Admin = () => {
     fetchSpWebResults();
     fetchSpLandingPages();
     fetchSpRelatedSearches();
+    fetchTsBlogs();
+    fetchTsWebResults();
+    fetchTsLandingPages();
+    fetchTsRelatedSearches();
   }, []);
 
   const fetchCategories = async () => {
@@ -1081,6 +1129,7 @@ const Admin = () => {
       case 'topicmingle': return supabase;
       case 'dataorbitzone': return dataOrbitZoneClient;
       case 'searchproject': return searchProjectClient;
+      case 'tejastarin': return tejaStarinClient;
       default: return supabase;
     }
   };
@@ -1090,6 +1139,7 @@ const Admin = () => {
       case 'topicmingle': return 'TopicMingle';
       case 'dataorbitzone': return 'DataOrbitZone';
       case 'searchproject': return 'SearchProject';
+      case 'tejastarin': return 'Teja Starin';
       default: return 'TopicMingle';
     }
   };
