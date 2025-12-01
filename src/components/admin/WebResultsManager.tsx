@@ -19,11 +19,15 @@ interface WebResult {
   is_active: boolean;
   is_sponsored?: boolean;
   pre_landing_page_key?: string;
+  related_search_id?: string;
 }
 
-interface Blog {
+interface RelatedSearch {
   id: string;
-  title: string;
+  search_text: string;
+  title?: string;
+  web_result_page: number;
+  blogs?: { title: string };
 }
 
 interface WebResultsManagerProps {
@@ -33,11 +37,11 @@ interface WebResultsManagerProps {
 
 export const WebResultsManager = ({ projectClient, projectName }: WebResultsManagerProps) => {
   const [webResults, setWebResults] = useState<WebResult[]>([]);
-  const [blogs, setBlogs] = useState<Blog[]>([]);
+  const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingResult, setEditingResult] = useState<WebResult | null>(null);
   const [formData, setFormData] = useState({
-    blog_id: '',
+    related_search_id: '',
     title: '',
     description: '',
     logo_url: '',
@@ -51,27 +55,27 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
 
   useEffect(() => {
     fetchWebResults();
-    fetchBlogs();
+    fetchRelatedSearches();
   }, []);
 
-  const fetchBlogs = async () => {
+  const fetchRelatedSearches = async () => {
     const { data, error } = await projectClient
-      .from('blogs')
-      .select('id, title')
-      .order('title');
+      .from('related_searches')
+      .select('*, blogs(title)')
+      .order('display_order');
     
     if (error) {
-      console.error('Error fetching blogs:', error);
-      toast.error('Failed to load blogs');
+      console.error('Error fetching related searches:', error);
+      toast.error('Failed to fetch related searches');
       return;
     }
-    if (data) setBlogs(data);
+    if (data) setRelatedSearches(data);
   };
 
   const fetchWebResults = async () => {
     const { data, error } = await projectClient
       .from('web_results')
-      .select('*, blogs(title)')
+      .select('*, related_searches(search_text, title, web_result_page, blogs(title))')
       .order('page_number', { ascending: true })
       .order('position', { ascending: true });
     
@@ -84,6 +88,11 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.related_search_id) {
+      toast.error('Please select a related search');
+      return;
+    }
     
     const payload = {
       ...formData,
@@ -124,7 +133,7 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
   const handleEdit = (result: WebResult) => {
     setEditingResult(result);
     setFormData({
-      blog_id: (result as any).blog_id || '',
+      related_search_id: result.related_search_id || '',
       title: result.title,
       description: result.description || '',
       logo_url: result.logo_url || '',
@@ -153,7 +162,7 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
 
   const resetForm = () => {
     setFormData({
-      blog_id: '',
+      related_search_id: '',
       title: '',
       description: '',
       logo_url: '',
@@ -192,8 +201,11 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
                 <td className="p-4">
                   <div>
                     <p className="font-medium">{result.title}</p>
-                    {(result as any).blogs?.title && (
-                      <p className="text-xs text-primary font-medium">Blog: {(result as any).blogs.title}</p>
+                    {(result as any).related_searches && (
+                      <p className="text-xs text-primary font-medium">
+                        {(result as any).related_searches.search_text} ››› WR-{(result as any).related_searches.web_result_page}
+                        {(result as any).related_searches.blogs?.title && ` ››› ${(result as any).related_searches.blogs.title}`}
+                      </p>
                     )}
                     {result.description && (
                       <p className="text-sm text-muted-foreground line-clamp-1">{result.description}</p>
@@ -243,22 +255,25 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label>Blog *</Label>
-              <Select value={formData.blog_id} onValueChange={(value) => setFormData({ ...formData, blog_id: value })}>
+              <Label>Related Search *</Label>
+              <Select value={formData.related_search_id} onValueChange={(value) => setFormData({ ...formData, related_search_id: value })}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select blog" />
+                  <SelectValue placeholder="Select related search" />
                 </SelectTrigger>
                 <SelectContent>
-                  {blogs.map((blog) => (
-                    <SelectItem key={blog.id} value={blog.id}>
-                      {blog.title}
+                  {relatedSearches.map((search) => (
+                    <SelectItem key={search.id} value={search.id}>
+                      {search.search_text} ››› WR-{search.web_result_page}
+                      {search.blogs?.title && ` ››› ${search.blogs.title}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {formData.blog_id && (
+              {formData.related_search_id && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Adding to: <span className="font-medium">{blogs.find(b => b.id === formData.blog_id)?.title}</span>
+                  Adding to: <span className="font-medium">
+                    {relatedSearches.find(s => s.id === formData.related_search_id)?.search_text}
+                  </span>
                 </p>
               )}
             </div>
