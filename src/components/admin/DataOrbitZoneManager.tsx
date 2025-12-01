@@ -393,6 +393,11 @@ export const DataOrbitZoneManager = () => {
                         <SelectTrigger><SelectValue placeholder="Select blog (optional)" /></SelectTrigger>
                         <SelectContent>{blogs.map((blog) => <SelectItem key={blog.id} value={blog.id}>{blog.title}</SelectItem>)}</SelectContent>
                       </Select>
+                      {searchForm.blog_id && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Adding related search to: <span className="font-semibold">{blogs.find(b => b.id === searchForm.blog_id)?.title}</span>
+                        </p>
+                      )}
                     </div>
                     <div><Label>Search Text *</Label><Input value={searchForm.search_text} onChange={(e) => setSearchForm({...searchForm, search_text: e.target.value})} required /></div>
                     <div><Label>Target URL *</Label><Input value={searchForm.target_url} onChange={(e) => setSearchForm({...searchForm, target_url: e.target.value})} required /></div>
@@ -434,8 +439,13 @@ export const DataOrbitZoneManager = () => {
                     <div><Label>Related Search *</Label>
                       <Select value={prelandingForm.related_search_id} onValueChange={(value) => setPrelandingForm({...prelandingForm, related_search_id: value})} required>
                         <SelectTrigger><SelectValue placeholder="Select search" /></SelectTrigger>
-                        <SelectContent>{relatedSearches.map((search) => <SelectItem key={search.id} value={search.id}>{search.search_text}</SelectItem>)}</SelectContent>
+                        <SelectContent>{relatedSearches.map((search) => <SelectItem key={search.id} value={search.id}>{search.search_text} ››› {search.target_url}</SelectItem>)}</SelectContent>
                       </Select>
+                      {prelandingForm.related_search_id && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Adding pre-landing page to: <span className="font-semibold">{relatedSearches.find(s => s.id === prelandingForm.related_search_id)?.search_text}</span>
+                        </p>
+                      )}
                     </div>
                     <div><Label>Logo URL</Label><Input value={prelandingForm.logo_url} onChange={(e) => setPrelandingForm({...prelandingForm, logo_url: e.target.value})} /></div>
                     <div><Label>Main Image URL</Label><Input value={prelandingForm.main_image_url} onChange={(e) => setPrelandingForm({...prelandingForm, main_image_url: e.target.value})} /></div>
