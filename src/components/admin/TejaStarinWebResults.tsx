@@ -35,7 +35,7 @@ export const TejaStarinWebResults = () => {
   const fetchRelatedSearches = async () => {
     const { data, error } = await tejaStarinClient
       .from('related_searches')
-      .select('*')
+      .select('*, blogs(title)')
       .order('order_index', { ascending: true });
     
     if (error) {
@@ -64,12 +64,13 @@ export const TejaStarinWebResults = () => {
     e.preventDefault();
     
     if (!selectedSearchId) {
-      toast.error('Please select a related search');
+      toast.error('Please select a related search first');
       return;
     }
 
-    const nextOrderIndex = webResults.length > 0 
-      ? Math.max(...webResults.map(r => r.order_index ?? 0)) + 1 
+    const currentForSearch = webResults.filter(r => r.related_search_id === selectedSearchId);
+    const nextOrderIndex = currentForSearch.length > 0 
+      ? Math.max(...currentForSearch.map(r => r.order_index ?? 0)) + 1 
       : 0;
 
     const payload = {
@@ -132,11 +133,16 @@ export const TejaStarinWebResults = () => {
             <SelectContent>
               {relatedSearches.map((search) => (
                 <SelectItem key={search.id} value={search.id}>
-                  {search.search_text}
+                  {search.search_text} {search.wr && `››› WR-${search.wr}`} {(search as any).blogs?.title && `››› ${(search as any).blogs.title}`}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {selectedSearchId && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Adding web result to: <span className="font-medium">{relatedSearches.find(s => s.id === selectedSearchId)?.search_text}</span>
+            </p>
+          )}
         </CardContent>
       </Card>
 

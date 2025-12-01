@@ -18,6 +18,11 @@ interface RelatedSearch {
   allowed_countries: string[];
 }
 
+interface Blog {
+  id: string;
+  title: string;
+}
+
 interface RelatedSearchManagerProps {
   projectClient: any;
   categoryId?: number;
@@ -26,9 +31,11 @@ interface RelatedSearchManagerProps {
 
 export const RelatedSearchManager = ({ projectClient, categoryId, projectName }: RelatedSearchManagerProps) => {
   const [searches, setSearches] = useState<RelatedSearch[]>([]);
+  const [blogs, setBlogs] = useState<Blog[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSearch, setEditingSearch] = useState<RelatedSearch | null>(null);
   const [formData, setFormData] = useState({
+    blog_id: '',
     title: '',
     search_text: '',
     web_result_page: 1,
@@ -41,11 +48,26 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
 
   useEffect(() => {
     fetchSearches();
+    fetchBlogs();
   }, [categoryId]);
+
+  const fetchBlogs = async () => {
+    const { data, error } = await projectClient
+      .from('blogs')
+      .select('id, title')
+      .order('title');
+    
+    if (error) {
+      console.error('Error fetching blogs:', error);
+      toast.error('Failed to load blogs');
+      return;
+    }
+    if (data) setBlogs(data);
+  };
 
   const fetchSearches = async () => {
     try {
-      let query = projectClient.from('related_searches').select('*');
+      let query = projectClient.from('related_searches').select('*, blogs(title)');
       
       if (categoryId) {
         query = query.eq('category_id', categoryId);
@@ -122,6 +144,7 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
   const handleEdit = (search: RelatedSearch) => {
     setEditingSearch(search);
     setFormData({
+      blog_id: (search as any).blog_id || '',
       title: search.title || '',
       search_text: search.search_text,
       web_result_page: search.web_result_page,
@@ -149,6 +172,7 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
 
   const resetForm = () => {
     setFormData({
+      blog_id: '',
       title: '',
       search_text: '',
       web_result_page: 1,
@@ -171,13 +195,14 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
       <div className="space-y-2">
         {searches.map((search) => (
           <div key={search.id} className="flex items-center justify-between p-4 bg-card rounded-lg border">
-            <div>
-              <p className="font-medium">{search.title || search.search_text}</p>
-              <p className="text-sm text-muted-foreground">
-                Page: wr-{search.web_result_page} | Position: {search.position}
-                {search.pre_landing_page_key && ` | Landing: ${search.pre_landing_page_key}`}
-              </p>
-            </div>
+          <div>
+            <p className="font-medium">{search.title || search.search_text}</p>
+            <p className="text-sm text-muted-foreground">
+              {(search as any).blogs?.title && <span className="text-primary font-medium">Blog: {(search as any).blogs.title} | </span>}
+              Page: wr-{search.web_result_page} | Position: {search.position}
+              {search.pre_landing_page_key && ` | Landing: ${search.pre_landing_page_key}`}
+            </p>
+          </div>
             <div className="space-x-2">
               <Button onClick={() => handleEdit(search)} variant="outline" size="sm">Edit</Button>
               <Button onClick={() => handleDelete(search.id)} variant="destructive" size="sm">Delete</Button>
@@ -192,6 +217,27 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
             <DialogTitle>{editingSearch ? 'Edit' : 'Add'} Related Search</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label>Blog *</Label>
+              <Select value={formData.blog_id} onValueChange={(value) => setFormData({ ...formData, blog_id: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select blog" />
+                </SelectTrigger>
+                <SelectContent>
+                  {blogs.map((blog) => (
+                    <SelectItem key={blog.id} value={blog.id}>
+                      {blog.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formData.blog_id && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Adding to: <span className="font-medium">{blogs.find(b => b.id === formData.blog_id)?.title}</span>
+                </p>
+              )}
+            </div>
+
             <div>
               <Label>Title (visible to users)</Label>
               <Input
