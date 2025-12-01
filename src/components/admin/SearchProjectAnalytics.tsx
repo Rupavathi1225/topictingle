@@ -3,7 +3,14 @@ import { searchProjectClient } from '@/integrations/searchproject/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+
+interface ClickBreakdown {
+  relatedSearches: { text: string; count: number }[];
+  blogClicks: { title: string; count: number }[];
+}
 
 interface SessionData {
   sessionId: string;
@@ -12,9 +19,11 @@ interface SessionData {
   source: string;
   device: string;
   pageViews: number;
-  clicks: number;
+  totalClicks: number;
+  uniqueClicks: number;
   relatedSearches: number;
   blogClicks: number;
+  clickBreakdown: ClickBreakdown;
 }
 
 export function SearchProjectAnalytics() {
@@ -33,18 +42,79 @@ export function SearchProjectAnalytics() {
         .select('*')
         .order('timestamp', { ascending: false });
 
-      // Process sessions
-      const sessionsData: SessionData[] = (analytics || []).map((a: any) => ({
-        sessionId: a.session_id || `sp-${a.id || Math.random().toString(36).slice(2, 9)}`,
-        ipAddress: a.ip_address || 'N/A',
-        country: a.country || 'Unknown',
-        source: a.source || 'direct',
-        device: a.device || 'desktop',
-        pageViews: a.page_views || 0,
-        clicks: a.clicks || 0,
-        relatedSearches: a.related_searches || a.result_clicks || 0,
-        blogClicks: 0,
-      }));
+      // Group by session and aggregate
+      const sessionMap = new Map<string, SessionData>();
+      const sessionClickIds = new Map<string, Set<string>>();
+
+      (analytics || []).forEach((a: any) => {
+        const sid = a.session_id || `sp-${a.id || Math.random().toString(36).slice(2, 9)}`;
+        
+        if (!sessionMap.has(sid)) {
+          sessionMap.set(sid, {
+            sessionId: sid,
+            ipAddress: a.ip_address || 'N/A',
+            country: a.country || 'Unknown',
+            source: a.source || 'direct',
+            device: a.device || 'desktop',
+            pageViews: 0,
+            totalClicks: 0,
+            uniqueClicks: 0,
+            relatedSearches: 0,
+            blogClicks: 0,
+            clickBreakdown: {
+              relatedSearches: [],
+              blogClicks: [],
+            },
+          });
+          sessionClickIds.set(sid, new Set());
+        }
+
+        const session = sessionMap.get(sid)!;
+        
+        // Aggregate data
+        session.pageViews += a.page_views || 0;
+        session.totalClicks += a.clicks || 0;
+        
+        // Track related searches with breakdown
+        const relSearchCount = a.related_searches || a.result_clicks || 0;
+        session.relatedSearches += relSearchCount;
+        if (relSearchCount > 0 && a.search_query) {
+          const existing = session.clickBreakdown.relatedSearches.find(s => s.text === a.search_query);
+          if (existing) {
+            existing.count += relSearchCount;
+          } else {
+            session.clickBreakdown.relatedSearches.push({ text: a.search_query, count: relSearchCount });
+          }
+        }
+        
+        // Track blog clicks with breakdown
+        if (a.blog_clicks) {
+          session.blogClicks += a.blog_clicks;
+          if (a.blog_title) {
+            const existing = session.clickBreakdown.blogClicks.find(b => b.title === a.blog_title);
+            if (existing) {
+              existing.count += a.blog_clicks;
+            } else {
+              session.clickBreakdown.blogClicks.push({ title: a.blog_title, count: a.blog_clicks });
+            }
+          }
+        }
+        
+        // Track unique button IDs
+        if (a.button_id) {
+          sessionClickIds.get(sid)!.add(a.button_id);
+        }
+      });
+
+      // Set unique clicks
+      sessionClickIds.forEach((clickIds, sid) => {
+        const session = sessionMap.get(sid);
+        if (session) {
+          session.uniqueClicks = clickIds.size || session.totalClicks;
+        }
+      });
+
+      const sessionsData = Array.from(sessionMap.values());
 
       setSessions(sessionsData);
     } catch (error) {
@@ -75,7 +145,7 @@ export function SearchProjectAnalytics() {
                 <TableHead>Source</TableHead>
                 <TableHead>Device</TableHead>
                 <TableHead>Page Views</TableHead>
-                <TableHead>Clicks</TableHead>
+                <TableHead>Clicks (Total/Unique)</TableHead>
                 <TableHead>Related Searches</TableHead>
                 <TableHead>Blog Clicks</TableHead>
               </TableRow>
@@ -96,16 +166,62 @@ export function SearchProjectAnalytics() {
                     <TableCell>{session.source}</TableCell>
                     <TableCell>{session.device}</TableCell>
                     <TableCell>{session.pageViews}</TableCell>
-                    <TableCell>{session.clicks}</TableCell>
+                    <TableCell>{session.totalClicks} / {session.uniqueClicks}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100">
-                        Total: {session.relatedSearches}
-                      </Badge>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-auto p-0">
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800">
+                              Total: {session.relatedSearches}
+                            </Badge>
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Related Search Clicks Breakdown</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-2">
+                            {session.clickBreakdown.relatedSearches.length > 0 ? (
+                              session.clickBreakdown.relatedSearches.map((item, idx) => (
+                                <div key={idx} className="flex justify-between items-center p-2 bg-muted rounded">
+                                  <span className="text-sm">{item.text}</span>
+                                  <Badge>{item.count} clicks</Badge>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-sm text-muted-foreground">No related search clicks</p>
+                            )}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100">
-                        Total: {session.blogClicks}
-                      </Badge>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-auto p-0">
+                            <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100 cursor-pointer hover:bg-orange-200 dark:hover:bg-orange-800">
+                              Total: {session.blogClicks}
+                            </Badge>
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Blog Clicks Breakdown</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-2">
+                            {session.clickBreakdown.blogClicks.length > 0 ? (
+                              session.clickBreakdown.blogClicks.map((item, idx) => (
+                                <div key={idx} className="flex justify-between items-center p-2 bg-muted rounded">
+                                  <span className="text-sm">{item.title}</span>
+                                  <Badge>{item.count} clicks</Badge>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-sm text-muted-foreground">No blog clicks</p>
+                            )}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     </TableCell>
                   </TableRow>
                 ))
