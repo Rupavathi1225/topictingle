@@ -32,6 +32,12 @@ import { PreLandingEditor } from "@/components/admin/PreLandingEditor";
 import { EmailCaptureViewer } from "@/components/admin/EmailCaptureViewer";
 import { RelatedSearchManager } from "@/components/admin/RelatedSearchManager";
 import { WebResultsManager } from "@/components/admin/WebResultsManager";
+import { TejaStarinBlogs } from "@/components/admin/TejaStarinBlogs";
+import { TejaStarinWebResults } from "@/components/admin/TejaStarinWebResults";
+import { TejaStarinRelatedSearches } from "@/components/admin/TejaStarinRelatedSearches";
+import { TejaStarinPreLanding } from "@/components/admin/TejaStarinPreLanding";
+import { TejaStarinEmailCaptures } from "@/components/admin/TejaStarinEmailCaptures";
+import { TejaStarinAnalytics } from "@/components/admin/TejaStarinAnalytics";
 
 interface Category {
   id: number;
@@ -263,7 +269,6 @@ const Admin = () => {
       { id: 'blogs', name: 'Blogs', description: 'Manage blog posts and content' },
       { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
       { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
-      { id: 'landing', name: 'Landing Pages', description: 'Manage landing pages' },
       { id: 'prelanding', name: 'Pre-Landing Pages', description: 'Edit pre-landing page designs' },
       { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' },
       { id: 'analytics', name: 'Analytics', description: 'View website analytics and metrics' }
@@ -1153,6 +1158,9 @@ const Admin = () => {
 
     switch (selectedSection) {
       case 'blogs':
+        if (selectedWebsite === 'tejastarin') {
+          return <TejaStarinBlogs />;
+        }
         return (
           <div className="bg-card rounded-lg border">
             <div className="p-4 border-b flex justify-between items-center">
@@ -1344,18 +1352,33 @@ const Admin = () => {
         );
 
       case 'searches':
+        if (selectedWebsite === 'tejastarin') {
+          return <TejaStarinRelatedSearches />;
+        }
         return <RelatedSearchManager projectClient={client} projectName={projectName} />;
 
       case 'webresults':
+        if (selectedWebsite === 'tejastarin') {
+          return <TejaStarinWebResults />;
+        }
         return <WebResultsManager projectClient={client} projectName={projectName} />;
 
       case 'prelanding':
+        if (selectedWebsite === 'tejastarin') {
+          return <TejaStarinPreLanding />;
+        }
         return <PreLandingEditor projectClient={client} projectName={projectName} />;
 
       case 'emails':
+        if (selectedWebsite === 'tejastarin') {
+          return <TejaStarinEmailCaptures />;
+        }
         return <EmailCaptureViewer projectClient={client} />;
 
       case 'analytics':
+        if (selectedWebsite === 'tejastarin') {
+          return <TejaStarinAnalytics />;
+        }
         if (selectedWebsite === 'topicmingle') {
           return (
             <div className="space-y-6">
