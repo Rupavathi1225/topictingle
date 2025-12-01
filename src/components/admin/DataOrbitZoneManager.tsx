@@ -131,9 +131,16 @@ export const DataOrbitZoneManager = () => {
   };
 
   const fetchRelatedSearches = async () => {
-    const { data, error } = await (supabase as any).from("dz_related_searches").select("*, dz_blogs(title)").order("display_order");
-    if (error) toast.error("Failed to fetch related searches: " + error.message);
-    else setRelatedSearches((data as any) || []);
+    const { data, error } = await (supabase as any)
+      .from("dz_related_searches")
+      .select("*, dz_blogs(title)")
+      .order("display_order");
+    if (error) {
+      console.error('Error fetching related searches:', error);
+      toast.error("Failed to fetch related searches");
+    } else {
+      setRelatedSearches((data as any) || []);
+    }
   };
 
   const fetchPrelandingPages = async () => {
@@ -208,6 +215,12 @@ export const DataOrbitZoneManager = () => {
   // Related Search CRUD
   const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!searchForm.blog_id) {
+      toast.error('Please select a blog');
+      return;
+    }
+    
     const data = { ...searchForm, blog_id: searchForm.blog_id || null };
     
     if (editingSearch) {
@@ -388,9 +401,9 @@ export const DataOrbitZoneManager = () => {
                 <DialogContent>
                   <DialogHeader><DialogTitle>{editingSearch ? "Edit" : "Create"} Related Search</DialogTitle></DialogHeader>
                   <form onSubmit={handleSearchSubmit} className="space-y-4">
-                    <div><Label>Blog</Label>
-                      <Select value={searchForm.blog_id} onValueChange={(value) => setSearchForm({...searchForm, blog_id: value})}>
-                        <SelectTrigger><SelectValue placeholder="Select blog (optional)" /></SelectTrigger>
+                    <div><Label>Blog *</Label>
+                      <Select value={searchForm.blog_id} onValueChange={(value) => setSearchForm({...searchForm, blog_id: value})} required>
+                        <SelectTrigger><SelectValue placeholder="Select blog" /></SelectTrigger>
                         <SelectContent>{blogs.map((blog) => <SelectItem key={blog.id} value={blog.id}>{blog.title}</SelectItem>)}</SelectContent>
                       </Select>
                       {searchForm.blog_id && (

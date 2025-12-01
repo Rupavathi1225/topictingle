@@ -92,7 +92,13 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!formData.blog_id) {
+      toast.error('Please select a blog');
+      return;
+    }
+    
     const basePayload: any = {
+      blog_id: formData.blog_id,
       title: formData.title,
       search_text: formData.search_text,
       web_result_page: formData.web_result_page,
