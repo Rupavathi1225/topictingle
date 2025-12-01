@@ -30,7 +30,7 @@ const App = () => (
           <Route path="/category/:categorySlug" element={<CategoryPage />} />
           <Route path="/blog/:categorySlug/:blogSlug" element={<BlogPost />} />
           <Route path="/admin" element={<Admin />} />
-          <Route path="/admin/dataorbit" element={<AdminNew />} />
+          <Route path="/admin2" element={<AdminNew />} />
           <Route path="/related-search" element={<RelatedSearchPage />} />
           <Route path="/prelanding" element={<PreLandingPage />} />
           
