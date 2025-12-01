@@ -56,8 +56,13 @@ interface SessionDetail {
   }>;
 }
 
-export function UnifiedAnalytics() {
-  const [selectedSite, setSelectedSite] = useState<string>('all');
+interface UnifiedAnalyticsProps {
+  defaultSite?: string;
+  hideControls?: boolean;
+}
+
+export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: UnifiedAnalyticsProps = {}) {
+  const [selectedSite, setSelectedSite] = useState<string>(defaultSite);
   const [selectedPeriod, setSelectedPeriod] = useState<string>('today');
   const [siteStats, setSiteStats] = useState<SiteStats[]>([]);
   const [sessions, setSessions] = useState<SessionDetail[]>([]);
@@ -70,6 +75,15 @@ export function UnifiedAnalytics() {
     { id: 'tejastarin', name: 'Teja Starin', icon: FileText, color: 'from-purple-500 to-purple-600' },
     { id: 'main', name: 'TopicMingle', icon: Palette, color: 'from-cyan-500 to-cyan-600' },
   ];
+
+  useEffect(() => {
+    // Reset to default site when component mounts with a specific defaultSite
+    if (defaultSite !== 'all') {
+      setSelectedSite(defaultSite);
+    }
+    fetchAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultSite]);
 
   useEffect(() => {
     fetchAnalytics();
@@ -627,25 +641,35 @@ export function UnifiedAnalytics() {
   return (
     <div className="space-y-6 p-6">
       {/* Header Controls */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-foreground">Multi-Site Analytics Hub</h2>
-        <div className="flex gap-3">
-          <Select value={selectedSite} onValueChange={setSelectedSite}>
-            <SelectTrigger className="w-[200px] bg-background border-border">
-              <SelectValue placeholder="Select site" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sites</SelectItem>
-              {sites.map(site => (
-                <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {!hideControls && (
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-foreground">Multi-Site Analytics Hub</h2>
+          <div className="flex gap-3">
+            <Select value={selectedSite} onValueChange={setSelectedSite}>
+              <SelectTrigger className="w-[200px] bg-background border-border">
+                <SelectValue placeholder="Select site" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sites</SelectItem>
+                {sites.map(site => (
+                  <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={fetchAnalytics} variant="outline" size="icon">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+      
+      {hideControls && (
+        <div className="flex justify-end">
           <Button onClick={fetchAnalytics} variant="outline" size="icon">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
-      </div>
+      )}
 
       {/* Stats Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
