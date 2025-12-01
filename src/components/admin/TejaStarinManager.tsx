@@ -33,7 +33,7 @@ export const TejaStarinManager = () => {
   const [searchForm, setSearchForm] = useState({
     search_text: "",
     blog_id: "",
-    wr_parameter: 1
+    wr: 1,
   });
 
   // Web Results state
@@ -45,7 +45,6 @@ export const TejaStarinManager = () => {
     description: "",
     logo_url: "",
     is_sponsored: false,
-    wr_parameter: 1
   });
 
   // Pre-Landing state
@@ -53,11 +52,14 @@ export const TejaStarinManager = () => {
   const [preLandingForm, setPreLandingForm] = useState({
     related_search_id: "",
     headline: "",
-    subtitle: "",
     description: "",
     logo_url: "",
     main_image_url: "",
-    background_color: "#ffffff"
+    background_color: "#ffffff",
+    background_image_url: "",
+    button_text: "Visit Now",
+    destination_url: "",
+    logo_position: "top-center",
   });
 
   useEffect(() => {
@@ -106,7 +108,8 @@ export const TejaStarinManager = () => {
     const { data, error } = await tejaStarinClient
       .from("related_searches")
       .select("*, blog:blogs(title)")
-      .order("search_text");
+      .order("order_index", { ascending: true })
+      .order("created_at", { ascending: true });
     if (error) {
       toast.error("Failed to fetch related searches");
       console.error(error);
@@ -121,7 +124,8 @@ export const TejaStarinManager = () => {
       .from("web_results")
       .select("*")
       .eq("related_search_id", selectedSearchForResults)
-      .order("is_sponsored", { ascending: false });
+      .order("is_sponsored", { ascending: false })
+      .order("order_index", { ascending: true });
     if (error) {
       toast.error("Failed to fetch web results");
       console.error(error);
@@ -227,11 +231,19 @@ export const TejaStarinManager = () => {
       return;
     }
 
+    const currentForBlog = relatedSearches.filter((s) => s.blog_id === searchForm.blog_id);
+    const nextOrderIndex =
+      currentForBlog.length > 0
+        ? Math.max(...currentForBlog.map((s) => s.order_index ?? 0)) + 1
+        : 0;
+
     const { error } = await tejaStarinClient
       .from("related_searches")
       .insert({
-        ...searchForm,
-        blog_id: searchForm.blog_id
+        blog_id: searchForm.blog_id,
+        search_text: searchForm.search_text,
+        wr: searchForm.wr,
+        order_index: nextOrderIndex,
       });
 
     if (error) {
@@ -239,7 +251,7 @@ export const TejaStarinManager = () => {
       console.error(error);
     } else {
       toast.success("Related search added!");
-      setSearchForm({ search_text: "", blog_id: "", wr_parameter: 1 });
+      setSearchForm({ search_text: "", blog_id: "", wr: 1 });
       fetchRelatedSearches();
     }
   };
@@ -267,11 +279,21 @@ export const TejaStarinManager = () => {
       return;
     }
 
+    const nextOrderIndex =
+      webResults.length > 0
+        ? Math.max(...webResults.map((r) => r.order_index ?? 0)) + 1
+        : 0;
+
     const { error } = await tejaStarinClient
       .from("web_results")
       .insert({
-        ...webResultForm,
-        related_search_id: selectedSearchForResults
+        related_search_id: selectedSearchForResults,
+        title: webResultForm.title,
+        url: webResultForm.url,
+        description: webResultForm.description,
+        logo_url: webResultForm.logo_url || null,
+        is_sponsored: webResultForm.is_sponsored,
+        order_index: nextOrderIndex,
       });
 
     if (error) {
@@ -285,7 +307,6 @@ export const TejaStarinManager = () => {
         description: "",
         logo_url: "",
         is_sponsored: false,
-        wr_parameter: 1
       });
       fetchWebResults();
     }
@@ -314,9 +335,22 @@ export const TejaStarinManager = () => {
       return;
     }
 
+    const payload = {
+      related_search_id: preLandingForm.related_search_id,
+      headline: preLandingForm.headline,
+      description: preLandingForm.description || null,
+      logo_url: preLandingForm.logo_url || null,
+      main_image_url: preLandingForm.main_image_url || null,
+      background_color: preLandingForm.background_color || "#ffffff",
+      background_image_url: preLandingForm.background_image_url || null,
+      button_text: preLandingForm.button_text || "Visit Now",
+      destination_url: preLandingForm.destination_url || null,
+      logo_position: preLandingForm.logo_position || "top-center",
+    };
+
     const { error } = await tejaStarinClient
       .from("pre_landing_config")
-      .insert(preLandingForm);
+      .insert(payload);
 
     if (error) {
       toast.error("Failed to save pre-landing page");
@@ -326,11 +360,14 @@ export const TejaStarinManager = () => {
       setPreLandingForm({
         related_search_id: "",
         headline: "",
-        subtitle: "",
         description: "",
         logo_url: "",
         main_image_url: "",
-        background_color: "#ffffff"
+        background_color: "#ffffff",
+        background_image_url: "",
+        button_text: "Visit Now",
+        destination_url: "",
+        logo_position: "top-center",
       });
       fetchPreLandingPages();
     }
@@ -554,11 +591,11 @@ export const TejaStarinManager = () => {
                 />
               </div>
               <div>
-                <Label>WR Parameter</Label>
+                <Label>WR</Label>
                 <Input
                   type="number"
-                  value={searchForm.wr_parameter}
-                  onChange={(e) => setSearchForm({ ...searchForm, wr_parameter: parseInt(e.target.value) || 1 })}
+                  value={searchForm.wr}
+                  onChange={(e) => setSearchForm({ ...searchForm, wr: parseInt(e.target.value) || 1 })}
                 />
               </div>
               <Button onClick={handleSaveSearch} className="w-full">
@@ -576,7 +613,7 @@ export const TejaStarinManager = () => {
                     <tr>
                       <th className="text-left p-4">Search Text</th>
                       <th className="text-left p-4">Blog</th>
-                      <th className="text-left p-4">WR Parameter</th>
+                      <th className="text-left p-4">WR</th>
                       <th className="text-right p-4">Actions</th>
                     </tr>
                   </thead>
@@ -585,7 +622,7 @@ export const TejaStarinManager = () => {
                       <tr key={search.id} className="border-b">
                         <td className="p-4 font-medium">{search.search_text}</td>
                         <td className="p-4">{search.blog?.title || "-"}</td>
-                        <td className="p-4">{search.wr_parameter}</td>
+                        <td className="p-4">{search.wr}</td>
                         <td className="p-4 text-right">
                           <Button size="sm" variant="destructive" onClick={() => handleDeleteSearch(search.id)}>
                             <Trash2 className="w-4 h-4" />
@@ -758,14 +795,6 @@ export const TejaStarinManager = () => {
                 />
               </div>
               <div>
-                <Label>Subtitle</Label>
-                <Input
-                  value={preLandingForm.subtitle}
-                  onChange={(e) => setPreLandingForm({ ...preLandingForm, subtitle: e.target.value })}
-                  placeholder="Subtitle"
-                />
-              </div>
-              <div>
                 <Label>Description</Label>
                 <Textarea
                   value={preLandingForm.description}
@@ -783,6 +812,22 @@ export const TejaStarinManager = () => {
                 />
               </div>
               <div>
+                <Label>Logo Position</Label>
+                <Select
+                  value={preLandingForm.logo_position}
+                  onValueChange={(value) => setPreLandingForm({ ...preLandingForm, logo_position: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="top-center">Top Center</SelectItem>
+                    <SelectItem value="top-left">Top Left</SelectItem>
+                    <SelectItem value="top-right">Top Right</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label>Main Image URL</Label>
                 <Input
                   value={preLandingForm.main_image_url}
@@ -796,6 +841,30 @@ export const TejaStarinManager = () => {
                   type="color"
                   value={preLandingForm.background_color}
                   onChange={(e) => setPreLandingForm({ ...preLandingForm, background_color: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Background Image URL</Label>
+                <Input
+                  value={preLandingForm.background_image_url}
+                  onChange={(e) => setPreLandingForm({ ...preLandingForm, background_image_url: e.target.value })}
+                  placeholder="https://..."
+                />
+              </div>
+              <div>
+                <Label>Button Text</Label>
+                <Input
+                  value={preLandingForm.button_text}
+                  onChange={(e) => setPreLandingForm({ ...preLandingForm, button_text: e.target.value })}
+                  placeholder="Visit Now"
+                />
+              </div>
+              <div>
+                <Label>Destination URL</Label>
+                <Input
+                  value={preLandingForm.destination_url}
+                  onChange={(e) => setPreLandingForm({ ...preLandingForm, destination_url: e.target.value })}
+                  placeholder="https://destination-url.com"
                 />
               </div>
               <Button onClick={handleSavePreLanding} className="w-full">
