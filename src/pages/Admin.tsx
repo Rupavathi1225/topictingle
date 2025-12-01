@@ -27,7 +27,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { UnifiedAnalytics } from "@/components/admin/UnifiedAnalytics";
 import { PreLandingEditor } from "@/components/admin/PreLandingEditor";
 import { EmailCaptureViewer } from "@/components/admin/EmailCaptureViewer";
 import { RelatedSearchManager } from "@/components/admin/RelatedSearchManager";
@@ -37,7 +36,6 @@ import { TejaStarinWebResults } from "@/components/admin/TejaStarinWebResults";
 import { TejaStarinRelatedSearches } from "@/components/admin/TejaStarinRelatedSearches";
 import { TejaStarinPreLanding } from "@/components/admin/TejaStarinPreLanding";
 import { TejaStarinEmailCaptures } from "@/components/admin/TejaStarinEmailCaptures";
-import { TejaStarinAnalytics } from "@/components/admin/TejaStarinAnalytics";
 
 interface Category {
   id: number;
@@ -246,32 +244,28 @@ const Admin = () => {
       { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
       { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
       { id: 'prelanding', name: 'Pre-Landing Pages', description: 'Edit pre-landing page designs' },
-      { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' },
-      { id: 'analytics', name: 'Analytics', description: 'View website analytics and metrics' }
+      { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' }
     ],
     dataorbitzone: [
       { id: 'blogs', name: 'Blogs', description: 'Manage blog posts and content' },
       { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
       { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
       { id: 'prelanding', name: 'Pre-Landing Pages', description: 'Edit pre-landing page designs' },
-      { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' },
-      { id: 'analytics', name: 'Analytics', description: 'View website analytics and metrics' }
+      { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' }
     ],
     searchproject: [
       { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
       { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
       { id: 'landing', name: 'Landing Pages', description: 'Manage landing pages' },
       { id: 'prelanding', name: 'Pre-Landing Pages', description: 'Edit pre-landing page designs' },
-      { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' },
-      { id: 'analytics', name: 'Analytics', description: 'View website analytics and metrics' }
+      { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' }
     ],
     tejastarin: [
       { id: 'blogs', name: 'Blogs', description: 'Manage blog posts and content' },
       { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
       { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
       { id: 'prelanding', name: 'Pre-Landing Pages', description: 'Edit pre-landing page designs' },
-      { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' },
-      { id: 'analytics', name: 'Analytics', description: 'View website analytics and metrics' }
+      { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' }
     ]
   };
 
@@ -1375,239 +1369,6 @@ const Admin = () => {
         }
         return <EmailCaptureViewer projectClient={client} />;
 
-      case 'analytics':
-        if (selectedWebsite === 'tejastarin') {
-          return <TejaStarinAnalytics />;
-        }
-        if (selectedWebsite === 'topicmingle') {
-          return (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-card rounded-lg border p-6">
-                  <h3 className="text-lg font-semibold mb-2">Total Sessions</h3>
-                  <p className="text-4xl font-bold text-accent">{analytics.sessions}</p>
-                  <p className="text-sm text-muted-foreground mt-2">Unique visitors tracked</p>
-                </div>
-                <div className="bg-card rounded-lg border p-6">
-                  <h3 className="text-lg font-semibold mb-2">Page Views</h3>
-                  <p className="text-4xl font-bold text-accent">{analytics.page_views}</p>
-                  <p className="text-sm text-muted-foreground mt-2">Total pages viewed</p>
-                </div>
-                <div className="bg-card rounded-lg border p-6">
-                  <h3 className="text-lg font-semibold mb-2">Total Clicks</h3>
-                  <p className="text-4xl font-bold text-accent">{analytics.clicks}</p>
-                  <p className="text-sm text-muted-foreground mt-2">Buttons and links clicked</p>
-                </div>
-              </div>
-
-              {/* Detailed Analytics Table */}
-              <div className="bg-card rounded-lg border">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="border-b">
-                      <tr>
-                        <th className="text-left p-4 font-semibold">Session ID</th>
-                        <th className="text-left p-4 font-semibold">IP Address</th>
-                        <th className="text-left p-4 font-semibold">Country</th>
-                        <th className="text-left p-4 font-semibold">Source</th>
-                        <th className="text-left p-4 font-semibold">Device</th>
-                        <th className="text-left p-4 font-semibold">Page Views</th>
-                        <th className="text-left p-4 font-semibold">Clicks</th>
-                        <th className="text-left p-4 font-semibold">Last Active</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {analyticsDetails.map((detail) => (
-                        <tr key={detail.session_id} className="border-b last:border-0">
-                          <td className="p-4 font-mono text-xs">{detail.session_id.substring(0, 8)}...</td>
-                          <td className="p-4">{detail.ip_address}</td>
-                          <td className="p-4">
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                              {detail.country}
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
-                              {detail.source}
-                            </span>
-                          </td>
-                          <td className="p-4 text-xs max-w-xs truncate" title={detail.user_agent}>
-                            {detail.user_agent.includes('Mobile') ? '📱 Mobile' : '💻 Desktop'}
-                          </td>
-                          <td className="p-4 text-center">{detail.page_views_count}</td>
-                          <td className="p-4 text-center">{detail.clicks_count}</td>
-                          <td className="p-4 text-sm">
-                            {new Date(detail.last_active).toLocaleString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          );
-        } else if (selectedWebsite === 'dataorbitzone') {
-          return (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-card rounded-lg border p-6">
-                  <h3 className="text-lg font-semibold mb-2">Total Sessions</h3>
-                  <p className="text-4xl font-bold text-accent">{dataOrbitAnalytics.sessions}</p>
-                  <p className="text-sm text-muted-foreground mt-2">Unique visitors tracked</p>
-                </div>
-                <div className="bg-card rounded-lg border p-6">
-                  <h3 className="text-lg font-semibold mb-2">Page Views</h3>
-                  <p className="text-4xl font-bold text-accent">{dataOrbitAnalytics.page_views}</p>
-                  <p className="text-sm text-muted-foreground mt-2">Total pages viewed</p>
-                </div>
-                <div className="bg-card rounded-lg border p-6">
-                  <h3 className="text-lg font-semibold mb-2">Total Clicks</h3>
-                  <p className="text-4xl font-bold text-accent">{dataOrbitAnalytics.clicks}</p>
-                  <p className="text-sm text-muted-foreground mt-2">Buttons and links clicked</p>
-                </div>
-              </div>
-
-              {/* Detailed Sessions Table */}
-              <div className="bg-card rounded-lg border">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="border-b">
-                      <tr>
-                        <th className="text-left p-4 font-semibold">Session ID</th>
-                        <th className="text-left p-4 font-semibold">IP Address</th>
-                        <th className="text-left p-4 font-semibold">Country</th>
-                        <th className="text-left p-4 font-semibold">Source</th>
-                        <th className="text-left p-4 font-semibold">Device</th>
-                        <th className="text-left p-4 font-semibold">Page Views</th>
-                        <th className="text-left p-4 font-semibold">Clicks</th>
-                        <th className="text-left p-4 font-semibold">Created At</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dataOrbitAnalyticsDetails.map((detail, index) => (
-                        <tr key={index} className="border-b last:border-0 hover:bg-muted/50">
-                          <td className="p-4 text-sm font-mono">{detail.session_id.slice(0, 8)}...</td>
-                          <td className="p-4 text-sm">{detail.ip_address}</td>
-                          <td className="p-4">
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                              {detail.country}
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
-                              {detail.source}
-                            </span>
-                          </td>
-                          <td className="p-4 text-sm">{detail.device}</td>
-                          <td className="p-4">
-                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">
-                              {detail.page_views}
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-semibold">
-                              {detail.clicks}
-                            </span>
-                          </td>
-                          <td className="p-4 text-sm">
-                            {new Date(detail.created_at).toLocaleString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          );
-        } else if (selectedWebsite === 'searchproject') {
-          return (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-                <div className="bg-card rounded-lg border p-6">
-                  <h3 className="text-lg font-semibold mb-2">Total Sessions</h3>
-                  <p className="text-4xl font-bold text-accent">{searchProjectAnalytics.length}</p>
-                </div>
-                <div className="bg-card rounded-lg border p-6">
-                  <h3 className="text-lg font-semibold mb-2">Page Views</h3>
-                  <p className="text-4xl font-bold text-accent">
-                    {searchProjectAnalytics.reduce((sum, s) => sum + (s.page_views || 0), 0)}
-                  </p>
-                </div>
-                <div className="bg-card rounded-lg border p-6">
-                  <h3 className="text-lg font-semibold mb-2">Clicks</h3>
-                  <p className="text-4xl font-bold text-accent">
-                    {searchProjectAnalytics.reduce((sum, s) => sum + (s.clicks || 0), 0)}
-                  </p>
-                </div>
-                <div className="bg-card rounded-lg border p-6">
-                  <h3 className="text-lg font-semibold mb-2">Related Searches</h3>
-                  <p className="text-4xl font-bold text-accent">
-                    {searchProjectAnalytics.reduce((sum, s) => sum + (s.related_searches || 0), 0)}
-                  </p>
-                </div>
-                <div className="bg-card rounded-lg border p-6">
-                  <h3 className="text-lg font-semibold mb-2">Result Clicks</h3>
-                  <p className="text-4xl font-bold text-accent">
-                    {searchProjectAnalytics.reduce((sum, s) => sum + (s.result_clicks || 0), 0)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-card rounded-lg border">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="border-b">
-                      <tr>
-                        <th className="text-left p-4 font-semibold">Session ID</th>
-                        <th className="text-left p-4 font-semibold">IP Address</th>
-                        <th className="text-left p-4 font-semibold">Country</th>
-                        <th className="text-left p-4 font-semibold">Device</th>
-                        <th className="text-left p-4 font-semibold">Source</th>
-                        <th className="text-left p-4 font-semibold">Page Views</th>
-                        <th className="text-left p-4 font-semibold">Clicks</th>
-                        <th className="text-left p-4 font-semibold">Timestamp</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {searchProjectAnalytics.map((session) => (
-                        <tr key={session.id} className="border-b last:border-0 hover:bg-muted/50">
-                          <td className="p-4 text-sm font-mono">{session.session_id.substring(0, 8)}...</td>
-                          <td className="p-4 text-sm">{session.ip_address || '-'}</td>
-                          <td className="p-4">
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                              {session.country || '-'}
-                            </span>
-                          </td>
-                          <td className="p-4 text-sm">{session.device || '-'}</td>
-                          <td className="p-4">
-                            <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
-                              {session.source || '-'}
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">
-                              {session.page_views || 0}
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-semibold">
-                              {session.clicks || 0}
-                            </span>
-                          </td>
-                          <td className="p-4 text-sm">{new Date(session.timestamp).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          );
-        }
-        return null;
-
       case 'landing':
         if (selectedWebsite === 'searchproject') {
           const handleSpLandingSubmit = async (e: React.FormEvent) => {
@@ -1971,23 +1732,6 @@ const Admin = () => {
             </div>
 
             {renderContent()}
-          </div>
-        )}
-
-        {/* Unified Analytics Dashboard (always visible) */}
-        {!selectedWebsite && (
-          <div className="mt-8">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-2xl">🌐 Multi-Site Analytics Overview</CardTitle>
-                <CardDescription>
-                  Combined analytics across all your websites
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <UnifiedAnalytics />
-              </CardContent>
-            </Card>
           </div>
         )}
       </div>
