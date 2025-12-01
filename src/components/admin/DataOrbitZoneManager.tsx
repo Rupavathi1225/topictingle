@@ -131,7 +131,7 @@ export const DataOrbitZoneManager = () => {
   };
 
   const fetchRelatedSearches = async () => {
-    const { data, error } = await (supabase as any).from("dz_related_searches").select("*").order("display_order");
+    const { data, error } = await (supabase as any).from("dz_related_searches").select("*, dz_blogs(title)").order("display_order");
     if (error) toast.error("Failed to fetch related searches: " + error.message);
     else setRelatedSearches((data as any) || []);
   };
@@ -415,7 +415,10 @@ export const DataOrbitZoneManager = () => {
                 <div key={search.id} className="flex items-center justify-between p-4 border rounded">
                   <div>
                     <h3 className="font-semibold">{search.search_text}</h3>
-                    <p className="text-sm text-muted-foreground">{search.target_url} • Order: {search.display_order}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {(search as any).dz_blogs?.title && <span className="text-primary font-medium">Blog: {(search as any).dz_blogs.title} | </span>}
+                      {search.target_url} • Order: {search.display_order}
+                    </p>
                   </div>
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={() => { setEditingSearch(search); setSearchForm({blog_id: search.blog_id || "", search_text: search.search_text, target_url: search.target_url, display_order: search.display_order}); setSearchDialog(true); }}><Edit className="h-4 w-4" /></Button>
@@ -439,7 +442,7 @@ export const DataOrbitZoneManager = () => {
                     <div><Label>Related Search *</Label>
                       <Select value={prelandingForm.related_search_id} onValueChange={(value) => setPrelandingForm({...prelandingForm, related_search_id: value})} required>
                         <SelectTrigger><SelectValue placeholder="Select search" /></SelectTrigger>
-                        <SelectContent>{relatedSearches.map((search) => <SelectItem key={search.id} value={search.id}>{search.search_text} ››› {search.target_url}</SelectItem>)}</SelectContent>
+                        <SelectContent>{relatedSearches.map((search) => <SelectItem key={search.id} value={search.id}>{search.search_text} ››› {search.target_url} {(search as any).dz_blogs?.title && `››› ${(search as any).dz_blogs.title}`}</SelectItem>)}</SelectContent>
                       </Select>
                       {prelandingForm.related_search_id && (
                         <p className="text-xs text-muted-foreground mt-1">

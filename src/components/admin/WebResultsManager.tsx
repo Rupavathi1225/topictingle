@@ -21,6 +21,11 @@ interface WebResult {
   pre_landing_page_key?: string;
 }
 
+interface Blog {
+  id: string;
+  title: string;
+}
+
 interface WebResultsManagerProps {
   projectClient: any;
   projectName: string;
@@ -28,9 +33,11 @@ interface WebResultsManagerProps {
 
 export const WebResultsManager = ({ projectClient, projectName }: WebResultsManagerProps) => {
   const [webResults, setWebResults] = useState<WebResult[]>([]);
+  const [blogs, setBlogs] = useState<Blog[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingResult, setEditingResult] = useState<WebResult | null>(null);
   const [formData, setFormData] = useState({
+    blog_id: '',
     title: '',
     description: '',
     logo_url: '',
@@ -44,12 +51,27 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
 
   useEffect(() => {
     fetchWebResults();
+    fetchBlogs();
   }, []);
+
+  const fetchBlogs = async () => {
+    const { data, error } = await projectClient
+      .from('blogs')
+      .select('id, title')
+      .order('title');
+    
+    if (error) {
+      console.error('Error fetching blogs:', error);
+      toast.error('Failed to load blogs');
+      return;
+    }
+    if (data) setBlogs(data);
+  };
 
   const fetchWebResults = async () => {
     const { data, error } = await projectClient
       .from('web_results')
-      .select('*')
+      .select('*, blogs(title)')
       .order('page_number', { ascending: true })
       .order('position', { ascending: true });
     
@@ -102,6 +124,7 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
   const handleEdit = (result: WebResult) => {
     setEditingResult(result);
     setFormData({
+      blog_id: (result as any).blog_id || '',
       title: result.title,
       description: result.description || '',
       logo_url: result.logo_url || '',
@@ -130,6 +153,7 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
 
   const resetForm = () => {
     setFormData({
+      blog_id: '',
       title: '',
       description: '',
       logo_url: '',
@@ -168,6 +192,9 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
                 <td className="p-4">
                   <div>
                     <p className="font-medium">{result.title}</p>
+                    {(result as any).blogs?.title && (
+                      <p className="text-xs text-primary font-medium">Blog: {(result as any).blogs.title}</p>
+                    )}
                     {result.description && (
                       <p className="text-sm text-muted-foreground line-clamp-1">{result.description}</p>
                     )}
@@ -215,6 +242,27 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
             <DialogTitle>{editingResult ? 'Edit' : 'Add'} Web Result</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label>Blog *</Label>
+              <Select value={formData.blog_id} onValueChange={(value) => setFormData({ ...formData, blog_id: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select blog" />
+                </SelectTrigger>
+                <SelectContent>
+                  {blogs.map((blog) => (
+                    <SelectItem key={blog.id} value={blog.id}>
+                      {blog.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formData.blog_id && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Adding to: <span className="font-medium">{blogs.find(b => b.id === formData.blog_id)?.title}</span>
+                </p>
+              )}
+            </div>
+
             <div>
               <Label>Title *</Label>
               <Input
