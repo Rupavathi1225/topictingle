@@ -170,18 +170,14 @@ export const TejaStarinAnalytics = () => {
                     <TableCell>{session.source}</TableCell>
                     <TableCell>{session.device}</TableCell>
                     <TableCell className="text-center">{session.pageViews}</TableCell>
+                    <TableCell className="text-center">{session.clicks}</TableCell>
                     <TableCell className="text-center">
-                      <Badge variant="secondary" className="bg-green-100 text-green-800">
-                        Total: {session.clicks}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                      <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100">
                         Total: {session.relatedSearches}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+                      <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100">
                         Total: {session.blogClicks}
                       </Badge>
                     </TableCell>
