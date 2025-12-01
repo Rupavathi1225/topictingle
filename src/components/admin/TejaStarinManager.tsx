@@ -581,6 +581,11 @@ export const TejaStarinManager = () => {
                     ))}
                   </SelectContent>
                 </Select>
+                {searchForm.blog_id && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Adding related search to: <span className="font-semibold">{blogs.find(b => b.id === searchForm.blog_id)?.title}</span>
+                  </p>
+                )}
               </div>
               <div>
                 <Label>Search Text</Label>
@@ -659,11 +664,18 @@ export const TejaStarinManager = () => {
                 <SelectContent>
                   {relatedSearches.map((search) => (
                     <SelectItem key={search.id} value={search.id}>
-                      {search.search_text}
+                      {search.search_text} ››› WR-{search.wr} ››› {search.blog?.title || 'No blog'}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {selectedSearchForResults && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Adding web result to: <span className="font-semibold">
+                    {relatedSearches.find(s => s.id === selectedSearchForResults)?.search_text} ››› WR-{relatedSearches.find(s => s.id === selectedSearchForResults)?.wr}
+                  </span>
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -780,11 +792,18 @@ export const TejaStarinManager = () => {
                   <SelectContent>
                     {relatedSearches.map((search) => (
                       <SelectItem key={search.id} value={search.id}>
-                        {search.search_text}
+                        {search.search_text} ››› WR-{search.wr} ››› {search.blog?.title || 'No blog'}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {preLandingForm.related_search_id && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Adding pre-landing page to: <span className="font-semibold">
+                      {relatedSearches.find(s => s.id === preLandingForm.related_search_id)?.search_text} ››› WR-{relatedSearches.find(s => s.id === preLandingForm.related_search_id)?.wr}
+                    </span>
+                  </p>
+                )}
               </div>
               <div>
                 <Label>Headline *</Label>
