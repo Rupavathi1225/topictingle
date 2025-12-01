@@ -1,4 +1,8 @@
 import { UnifiedAnalytics } from "@/components/admin/UnifiedAnalytics";
+import { TopicMingleAnalytics } from "@/components/admin/TopicMingleAnalytics";
+import { DataOrbitZoneAnalytics } from "@/components/admin/DataOrbitZoneAnalytics";
+import { SearchProjectAnalytics } from "@/components/admin/SearchProjectAnalytics";
+import { TejaStarinAnalytics } from "@/components/admin/TejaStarinAnalytics";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AdminNew() {
@@ -28,7 +32,7 @@ export default function AdminNew() {
               <h2 className="text-2xl font-bold">TopicMingle Analytics</h2>
               <p className="text-muted-foreground">Detailed analytics for TopicMingle website</p>
             </div>
-            <UnifiedAnalytics defaultSite="main" hideControls />
+            <TopicMingleAnalytics />
           </TabsContent>
           
           <TabsContent value="dataorbitzone" className="space-y-4">
@@ -36,7 +40,7 @@ export default function AdminNew() {
               <h2 className="text-2xl font-bold">DataOrbitZone Analytics</h2>
               <p className="text-muted-foreground">Detailed analytics for DataOrbitZone website</p>
             </div>
-            <UnifiedAnalytics defaultSite="dataorbitzone" hideControls />
+            <DataOrbitZoneAnalytics />
           </TabsContent>
           
           <TabsContent value="searchproject" className="space-y-4">
@@ -44,7 +48,7 @@ export default function AdminNew() {
               <h2 className="text-2xl font-bold">SearchProject Analytics</h2>
               <p className="text-muted-foreground">Detailed analytics for SearchProject website</p>
             </div>
-            <UnifiedAnalytics defaultSite="searchproject" hideControls />
+            <SearchProjectAnalytics />
           </TabsContent>
           
           <TabsContent value="tejastarin" className="space-y-4">
@@ -52,7 +56,7 @@ export default function AdminNew() {
               <h2 className="text-2xl font-bold">Teja Starin Analytics</h2>
               <p className="text-muted-foreground">Detailed analytics for Teja Starin website</p>
             </div>
-            <UnifiedAnalytics defaultSite="tejastarin" hideControls />
+            <TejaStarinAnalytics />
           </TabsContent>
         </Tabs>
       </div>
