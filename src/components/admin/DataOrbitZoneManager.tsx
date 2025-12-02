@@ -37,7 +37,6 @@ interface RelatedSearch {
   id: string;
   blog_id?: string;
   search_text: string;
-  target_url: string;
   display_order: number;
 }
 
@@ -103,7 +102,7 @@ export const DataOrbitZoneManager = () => {
   const [searchDialog, setSearchDialog] = useState(false);
   const [editingSearch, setEditingSearch] = useState<RelatedSearch | null>(null);
   const [searchForm, setSearchForm] = useState({
-    blog_id: "", search_text: "", target_url: "", display_order: 0
+    blog_id: "", search_text: "", display_order: 0
   });
 
   // Prelanding Form
@@ -259,7 +258,6 @@ export const DataOrbitZoneManager = () => {
     const data = {
       blog_id: searchForm.blog_id || null,
       search_text: searchForm.search_text,
-      target_url: searchForm.target_url,
       display_order: searchForm.display_order,
       // Ensure DataOrbitZone-related searches are clearly scoped
       session_id: 'dataorbitzone',
@@ -297,7 +295,7 @@ export const DataOrbitZoneManager = () => {
   };
 
   const resetSearchForm = () => {
-    setSearchForm({ blog_id: "", search_text: "", target_url: "", display_order: 0 });
+    setSearchForm({ blog_id: "", search_text: "", display_order: 0 });
     setEditingSearch(null);
     setSearchDialog(false);
   };
@@ -508,7 +506,6 @@ export const DataOrbitZoneManager = () => {
                       )}
                     </div>
                     <div><Label>Search Text *</Label><Input value={searchForm.search_text} onChange={(e) => setSearchForm({...searchForm, search_text: e.target.value})} required /></div>
-                    <div><Label>Target URL *</Label><Input value={searchForm.target_url} onChange={(e) => setSearchForm({...searchForm, target_url: e.target.value})} required /></div>
                     <div><Label>Display Order</Label><Input type="number" value={searchForm.display_order} onChange={(e) => setSearchForm({...searchForm, display_order: parseInt(e.target.value)})} /></div>
                     <div className="flex gap-2">
                       <Button type="submit" className="flex-1">{editingSearch ? "Update" : "Create"}</Button>
@@ -524,12 +521,12 @@ export const DataOrbitZoneManager = () => {
                   <div>
                     <h3 className="font-semibold">{search.search_text}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {(search as any).dz_blogs?.title && <span className="text-primary font-medium">Blog: {(search as any).dz_blogs.title} | </span>}
-                      {search.target_url} • Order: {search.display_order}
+                      {(search as any).blogs?.title && <span className="text-primary font-medium">Blog: {(search as any).blogs.title} | </span>}
+                      Order: {search.display_order}
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => { setEditingSearch(search); setSearchForm({blog_id: search.blog_id || "", search_text: search.search_text, target_url: search.target_url, display_order: search.display_order}); setSearchDialog(true); }}><Edit className="h-4 w-4" /></Button>
+                    <Button size="sm" variant="outline" onClick={() => { setEditingSearch(search); setSearchForm({blog_id: search.blog_id || "", search_text: search.search_text, display_order: search.display_order}); setSearchDialog(true); }}><Edit className="h-4 w-4" /></Button>
                     <Button size="sm" variant="destructive" onClick={() => handleDeleteSearch(search.id)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 </div>
