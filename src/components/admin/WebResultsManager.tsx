@@ -27,7 +27,6 @@ interface RelatedSearch {
   search_text: string;
   title?: string;
   web_result_page: number;
-  blogs?: { title: string };
 }
 
 interface WebResultsManagerProps {
@@ -61,7 +60,7 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
   const fetchRelatedSearches = async () => {
     const { data, error } = await projectClient
       .from('related_searches')
-      .select('*, blogs(title)')
+      .select('id, search_text, title, web_result_page')
       .order('display_order');
     
     if (error) {
@@ -75,11 +74,12 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
   const fetchWebResults = async () => {
     const { data, error } = await projectClient
       .from('web_results')
-      .select('*, related_searches(search_text, title, web_result_page, blogs(title))')
+      .select('*')
       .order('page_number', { ascending: true })
       .order('position', { ascending: true });
     
     if (error) {
+      console.error('Error fetching web results:', error);
       toast.error('Failed to fetch web results');
       return;
     }
@@ -201,10 +201,9 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
                 <td className="p-4">
                   <div>
                     <p className="font-medium">{result.title}</p>
-                    {(result as any).related_searches && (
+                    {result.related_search_id && (
                       <p className="text-xs text-primary font-medium">
-                        {(result as any).related_searches.search_text} ››› WR-{(result as any).related_searches.web_result_page}
-                        {(result as any).related_searches.blogs?.title && ` ››› ${(result as any).related_searches.blogs.title}`}
+                        Linked to related search ID: {result.related_search_id}
                       </p>
                     )}
                     {result.description && (
@@ -264,7 +263,6 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
                   {relatedSearches.map((search) => (
                     <SelectItem key={search.id} value={search.id}>
                       {search.search_text} ››› WR-{search.web_result_page}
-                      {search.blogs?.title && ` ››› ${search.blogs.title}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
