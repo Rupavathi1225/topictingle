@@ -67,7 +67,7 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
 
   const fetchSearches = async () => {
     try {
-      let query = projectClient.from('related_searches').select('*, blogs(title)');
+      let query = projectClient.from('related_searches').select('*');
       
       if (categoryId) {
         query = query.eq('category_id', categoryId);

@@ -133,7 +133,7 @@ export const DataOrbitZoneManager = () => {
   const fetchRelatedSearches = async () => {
     const { data, error } = await (supabase as any)
       .from("dz_related_searches")
-      .select("*, dz_blogs(title)")
+      .select("*")
       .order("display_order");
     if (error) {
       console.error('Error fetching related searches:', error);
