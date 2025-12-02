@@ -16,6 +16,9 @@ import { DataOrbitZoneWebResults } from "./pages/DataOrbitZoneWebResults";
 import { SearchProjectWebResults } from "./pages/SearchProjectWebResults";
 import DataOrbitZonePreLanding from "./pages/DataOrbitZonePreLanding";
 import SearchProjectPreLanding from "./pages/SearchProjectPreLanding";
+import DataOrbitZoneHome from "./pages/DataOrbitZoneHome";
+import DataOrbitZoneCategoryPage from "./pages/DataOrbitZoneCategoryPage";
+import DataOrbitZoneBlogPost from "./pages/DataOrbitZoneBlogPost";
 
 const queryClient = new QueryClient();
 
@@ -37,7 +40,10 @@ const App = () => (
           {/* TopicMingle Web Results */}
           <Route path="/wr" element={<WebResults />} />
           
-          {/* DataOrbitZone Routes */}
+          {/* DataOrbitZone Site */}
+          <Route path="/dataorbit" element={<DataOrbitZoneHome />} />
+          <Route path="/dataorbit/category/:categorySlug" element={<DataOrbitZoneCategoryPage />} />
+          <Route path="/dataorbit/blog/:categorySlug/:blogSlug" element={<DataOrbitZoneBlogPost />} />
           <Route path="/dataorbit/wr" element={<DataOrbitZoneWebResults />} />
           <Route path="/dataorbit/prelanding" element={<DataOrbitZonePreLanding />} />
           
