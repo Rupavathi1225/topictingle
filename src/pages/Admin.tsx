@@ -36,6 +36,7 @@ import { TejaStarinWebResults } from "@/components/admin/TejaStarinWebResults";
 import { TejaStarinRelatedSearches } from "@/components/admin/TejaStarinRelatedSearches";
 import { TejaStarinPreLanding } from "@/components/admin/TejaStarinPreLanding";
 import { TejaStarinEmailCaptures } from "@/components/admin/TejaStarinEmailCaptures";
+import { DataOrbitZoneManager } from "@/components/admin/DataOrbitZoneManager";
 
 interface Category {
   id: number;
@@ -1154,6 +1155,9 @@ const Admin = () => {
       case 'blogs':
         if (selectedWebsite === 'tejastarin') {
           return <TejaStarinBlogs />;
+        }
+        if (selectedWebsite === 'dataorbitzone') {
+          return <DataOrbitZoneManager />;
         }
         return (
           <div className="bg-card rounded-lg border">
