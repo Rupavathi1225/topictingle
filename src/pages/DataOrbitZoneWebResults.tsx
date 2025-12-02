@@ -50,14 +50,13 @@ export const DataOrbitZoneWebResults = () => {
   useEffect(() => {
     fetchWebResults();
     fetchRelatedSearches();
-  }, [pageNumber, userCountry]);
+  }, [pageNumber]);
 
   const fetchWebResults = async () => {
     const { data } = await dataOrbitZoneClient
       .from('web_results')
       .select('*')
       .eq('page_number', pageNumber)
-      .eq('is_active', true)
       .order('position', { ascending: true });
     
     if (data) {
@@ -73,18 +72,13 @@ export const DataOrbitZoneWebResults = () => {
       .from('related_searches')
       .select('*')
       .eq('web_result_page', pageNumber)
-      .eq('is_active', true)
       .order('position', { ascending: true });
     
     if (data) {
-      const filteredSearches = data.filter((search: any) => 
-        search.allowed_countries?.includes('WW') || 
-        search.allowed_countries?.includes(userCountry)
-      ).slice(0, 4);
-      setRelatedSearches(filteredSearches);
+      const limited = data.slice(0, 4);
+      setRelatedSearches(limited as any);
     }
   };
-
   const handleResultClick = (result: WebResult) => {
     if (result.pre_landing_page_key) {
       window.location.href = `/dataorbit/prelanding?page=${result.pre_landing_page_key}`;
