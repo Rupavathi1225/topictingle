@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { dataOrbitZoneClient } from '@/integrations/dataorbitzone/client';
-import { ChevronRight, ExternalLink } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface WebResult {
@@ -14,16 +14,15 @@ interface WebResult {
   position: number;
   is_active: boolean;
   is_sponsored?: boolean;
-  pre_landing_page_key?: string;
+  related_search_id?: string | null;
 }
 
 interface RelatedSearch {
   id: string;
-  title: string;
   search_text: string;
-  web_result_page: number;
-  position: number;
-  pre_landing_page_key: string | null;
+  target_url: string;
+  display_order: number | null;
+  is_active: boolean | null;
 }
 
 export const DataOrbitZoneWebResults = () => {
@@ -32,20 +31,6 @@ export const DataOrbitZoneWebResults = () => {
   const [webResults, setWebResults] = useState<WebResult[]>([]);
   const [sponsoredResults, setSponsoredResults] = useState<WebResult[]>([]);
   const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
-  const [userCountry, setUserCountry] = useState<string>('WW');
-
-  useEffect(() => {
-    const getUserCountry = async () => {
-      try {
-        const response = await fetch('https://ipapi.co/json/');
-        const data = await response.json();
-        setUserCountry(data.country_code || 'WW');
-      } catch {
-        setUserCountry('WW');
-      }
-    };
-    getUserCountry();
-  }, []);
 
   useEffect(() => {
     fetchWebResults();
@@ -53,49 +38,54 @@ export const DataOrbitZoneWebResults = () => {
   }, [pageNumber]);
 
   const fetchWebResults = async () => {
-    const { data } = await dataOrbitZoneClient
-      .from('web_results')
+    const { data, error } = await supabase
+      .from('dz_web_results')
       .select('*')
       .eq('page_number', pageNumber)
       .order('position', { ascending: true });
-    
+
+    if (error) {
+      console.error('Error fetching web results', error);
+      return;
+    }
+
     if (data) {
-      const sponsored = data.filter(r => r.is_sponsored);
-      const organic = data.filter(r => !r.is_sponsored);
-      setSponsoredResults(sponsored);
-      setWebResults(organic);
+      const sponsored = data.filter((r: any) => r.is_sponsored);
+      const organic = data.filter((r: any) => !r.is_sponsored);
+      setSponsoredResults(sponsored as WebResult[]);
+      setWebResults(organic as WebResult[]);
     }
   };
 
   const fetchRelatedSearches = async () => {
-    const { data } = await dataOrbitZoneClient
-      .from('related_searches')
+    const { data, error } = await supabase
+      .from('dz_related_searches')
       .select('*')
-      .eq('web_result_page', pageNumber)
-      .order('position', { ascending: true });
-    
+      .eq('is_active', true)
+      .order('display_order', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching related searches', error);
+      return;
+    }
+
     if (data) {
-      const limited = data.slice(0, 4);
-      setRelatedSearches(limited as any);
+      const limited = (data as any[]).slice(0, 4);
+      setRelatedSearches(limited as RelatedSearch[]);
     }
   };
+
   const handleResultClick = (result: WebResult) => {
-    if (result.pre_landing_page_key) {
-      window.location.href = `/dataorbit/prelanding?page=${result.pre_landing_page_key}`;
+    if (result.related_search_id) {
+      window.location.href = `/dataorbit/prelanding?search=${result.related_search_id}`;
     } else {
       window.location.href = result.target_url;
     }
   };
 
   const handleSearchClick = (search: RelatedSearch) => {
-    if (search.pre_landing_page_key) {
-      window.location.href = `/dataorbit/prelanding?page=${search.pre_landing_page_key}`;
-    } else {
-      // Redirect to the web result page specified in the search
-      window.location.href = `/dataorbit/wr?wr=${search.web_result_page}`;
-    }
+    window.location.href = `/dataorbit/prelanding?search=${search.id}`;
   };
-
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-5xl">
@@ -202,7 +192,7 @@ export const DataOrbitZoneWebResults = () => {
                   onClick={() => handleSearchClick(search)}
                   className="flex items-center justify-between p-4 bg-card hover:bg-accent/10 text-foreground rounded-lg transition-colors duration-200 group border"
                 >
-                  <span className="text-left font-medium">{search.title || search.search_text}</span>
+                  <span className="text-left font-medium">{search.search_text}</span>
                   <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </button>
               ))}

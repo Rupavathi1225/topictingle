@@ -1,69 +1,96 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { dataOrbitZoneClient } from '@/integrations/dataorbitzone/client';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 
 interface PreLandingPageData {
   id: string;
-  page_key: string;
+  related_search_id: string | null;
   logo_url: string | null;
-  logo_position: string;
-  logo_width: number;
+  logo_position: string | null;
+  logo_size: number | null;
   main_image_url: string | null;
-  image_ratio: string;
+  image_ratio: string | null;
   headline: string;
   description: string | null;
-  headline_font_size: number;
-  headline_color: string;
-  headline_align: string;
-  description_font_size: number;
-  description_color: string;
-  description_align: string;
-  cta_text: string;
-  cta_color: string;
-  background_color: string;
+  headline_font_size: number | null;
+  headline_color: string | null;
+  description_font_size: number | null;
+  description_color: string | null;
+  text_alignment: string | null;
+  email_box_color: string | null;
+  email_box_border_color: string | null;
+  button_text: string | null;
+  button_color: string | null;
+  button_text_color: string | null;
+  background_color: string | null;
   background_image_url: string | null;
+}
+
+interface RelatedSearchData {
+  id: string;
+  search_text: string;
   target_url: string;
 }
 
 export default function DataOrbitZonePreLanding() {
   const [searchParams] = useSearchParams();
-  const pageKey = searchParams.get('page');
+  const searchId = searchParams.get('search');
   const [pageData, setPageData] = useState<PreLandingPageData | null>(null);
+  const [searchData, setSearchData] = useState<RelatedSearchData | null>(null);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (pageKey) {
-      fetchPageData();
+    if (searchId) {
+      fetchPageData(searchId);
+    } else {
+      setLoading(false);
     }
-  }, [pageKey]);
+  }, [searchId]);
 
-  const fetchPageData = async () => {
-    const { data, error } = await dataOrbitZoneClient
-      .from('pre_landing_pages')
+  const fetchPageData = async (id: string) => {
+    // Fetch the related search first
+    const { data: related, error: relatedError } = await supabase
+      .from('dz_related_searches')
       .select('*')
-      .eq('page_key', pageKey)
-      .eq('is_active', true)
+      .eq('id', id)
       .maybeSingle();
 
-    if (error || !data) {
+    if (relatedError || !related) {
+      console.error('Error fetching related search', relatedError);
       toast.error('Page not found');
       setLoading(false);
       return;
     }
 
-    setPageData(data);
+    setSearchData(related as RelatedSearchData);
+
+    // Then fetch the prelanding configuration for this related search
+    const { data, error } = await supabase
+      .from('dz_prelanding_pages')
+      .select('*')
+      .eq('related_search_id', id)
+      .maybeSingle();
+
+    if (error || !data) {
+      console.error('Error fetching prelanding page', error);
+      toast.error('Page not found');
+      setLoading(false);
+      return;
+    }
+
+    setPageData(data as PreLandingPageData);
     setLoading(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!email || !pageData) return;
+
+    if (!email || !pageData || !searchData) return;
 
     setSubmitting(true);
 
@@ -77,10 +104,10 @@ export default function DataOrbitZonePreLanding() {
         console.error('Failed to get country:', err);
       }
 
-      const { error } = await dataOrbitZoneClient.from('email_captures').insert([
+      const { error } = await supabase.from('email_captures').insert([
         {
           email,
-          page_key: pageData.page_key,
+          page_key: searchData.id,
           source: window.location.href,
           country,
         },
@@ -93,9 +120,9 @@ export default function DataOrbitZonePreLanding() {
       }
 
       toast.success('Email captured successfully!');
-      
+
       setTimeout(() => {
-        window.location.href = pageData.target_url;
+        window.location.href = searchData.target_url;
       }, 1000);
     } catch (err) {
       toast.error('Something went wrong');
@@ -104,31 +131,56 @@ export default function DataOrbitZonePreLanding() {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center"><p>Loading...</p></div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    );
   }
 
-  if (!pageData) {
-    return <div className="min-h-screen flex items-center justify-center"><p>Page not found</p></div>;
+  if (!pageData || !searchData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Page not found</p>
+      </div>
+    );
   }
 
-  const aspectRatioClass = 
-    pageData.image_ratio === '16:9' ? 'aspect-video' :
-    pageData.image_ratio === '4:3' ? 'aspect-[4/3]' :
-    'aspect-square';
+  const aspectRatioClass =
+    pageData.image_ratio === '16:9'
+      ? 'aspect-video'
+      : pageData.image_ratio === '4:3'
+      ? 'aspect-[4/3]'
+      : 'aspect-square';
+
+  const headlineFontSize = pageData.headline_font_size ?? 32;
+  const descriptionFontSize = pageData.description_font_size ?? 16;
+  const textAlign = (pageData.text_alignment || 'center') as any;
 
   return (
     <div
       className="min-h-screen flex flex-col"
       style={{
-        backgroundColor: pageData.background_color,
-        backgroundImage: pageData.background_image_url ? `url(${pageData.background_image_url})` : undefined,
+        backgroundColor: pageData.background_color || '#ffffff',
+        backgroundImage: pageData.background_image_url
+          ? `url(${pageData.background_image_url})`
+          : undefined,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}
     >
       {pageData.logo_url && (
-        <div className={`p-6 ${pageData.logo_position === 'top-center' ? 'flex justify-center' : ''}`}>
-          <img src={pageData.logo_url} alt="Logo" style={{ width: `${pageData.logo_width}px` }} className="object-contain" />
+        <div
+          className={`p-6 ${
+            pageData.logo_position === 'top-center' ? 'flex justify-center' : ''
+          }`}
+        >
+          <img
+            src={pageData.logo_url}
+            alt="Logo"
+            style={{ width: `${pageData.logo_size || 100}px` }}
+            className="object-contain"
+          />
         </div>
       )}
 
@@ -136,15 +188,19 @@ export default function DataOrbitZonePreLanding() {
         <div className="max-w-2xl w-full space-y-8">
           {pageData.main_image_url && (
             <div className={`w-full ${aspectRatioClass} overflow-hidden rounded-lg`}>
-              <img src={pageData.main_image_url} alt="Main" className="w-full h-full object-cover" />
+              <img
+                src={pageData.main_image_url}
+                alt="Main"
+                className="w-full h-full object-cover"
+              />
             </div>
           )}
 
           <h1
             style={{
-              fontSize: `${pageData.headline_font_size}px`,
-              color: pageData.headline_color,
-              textAlign: pageData.headline_align as any,
+              fontSize: `${headlineFontSize}px`,
+              color: pageData.headline_color || '#000000',
+              textAlign: textAlign,
             }}
             className="font-bold leading-tight"
           >
@@ -154,9 +210,9 @@ export default function DataOrbitZonePreLanding() {
           {pageData.description && (
             <p
               style={{
-                fontSize: `${pageData.description_font_size}px`,
-                color: pageData.description_color,
-                textAlign: pageData.description_align as any,
+                fontSize: `${descriptionFontSize}px`,
+                color: pageData.description_color || '#666666',
+                textAlign: textAlign,
               }}
               className="leading-relaxed"
             >
@@ -172,15 +228,21 @@ export default function DataOrbitZonePreLanding() {
               placeholder="Enter your email"
               required
               className="h-12 text-lg bg-white border-2"
-              style={{ borderColor: pageData.cta_color }}
+              style={{
+                borderColor: pageData.email_box_border_color || '#cccccc',
+                backgroundColor: pageData.email_box_color || '#ffffff',
+              }}
             />
             <Button
               type="submit"
               disabled={submitting}
               className="w-full h-12 text-lg font-semibold"
-              style={{ backgroundColor: pageData.cta_color, color: '#ffffff' }}
+              style={{
+                backgroundColor: pageData.button_color || '#1a2942',
+                color: pageData.button_text_color || '#ffffff',
+              }}
             >
-              {submitting ? 'Submitting...' : pageData.cta_text}
+              {submitting ? 'Submitting...' : pageData.button_text || 'Continue'}
             </Button>
           </form>
         </div>
