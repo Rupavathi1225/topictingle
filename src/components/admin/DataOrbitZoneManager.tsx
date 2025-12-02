@@ -156,7 +156,7 @@ export const DataOrbitZoneManager = () => {
     const { data, error } = await dataOrbitZoneClient
       .from("related_searches")
       .select("*")
-      .eq("session_id", "dataorbitzone")
+      .eq("site_name", "dataorbitzone")
       .order("display_order");
     if (error) {
       console.error('Error fetching related searches:', error);
@@ -167,7 +167,7 @@ export const DataOrbitZoneManager = () => {
   };
 
   const fetchPrelandingPages = async () => {
-    const { data, error } = await dataOrbitZoneClient.from("pre_landing_pages").select("*").eq("is_active", true).order("created_at", { ascending: false });
+    const { data, error } = await dataOrbitZoneClient.from("pre_landing_pages").select("*").eq("site_name", "dataorbitzone").eq("is_active", true).order("created_at", { ascending: false });
     if (error) toast.error("Failed to fetch prelanding pages: " + error.message);
     else setPrelandingPages((data as any) || []);
   };
@@ -259,8 +259,7 @@ export const DataOrbitZoneManager = () => {
       blog_id: searchForm.blog_id || null,
       search_text: searchForm.search_text,
       display_order: searchForm.display_order,
-      // Ensure DataOrbitZone-related searches are clearly scoped
-      session_id: 'dataorbitzone',
+      site_name: 'dataorbitzone',
       is_active: true,
     };
     
@@ -303,7 +302,7 @@ export const DataOrbitZoneManager = () => {
   // Prelanding CRUD
   const handlePrelandingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = { ...prelandingForm };
+    const data = { ...prelandingForm, site_name: 'dataorbitzone' };
     
     if (editingPrelanding) {
       const { error} = await dataOrbitZoneClient.from("pre_landing_pages").update(data).eq("id", editingPrelanding.id);
