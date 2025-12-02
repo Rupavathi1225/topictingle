@@ -92,13 +92,14 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.blog_id) {
+    const isDataOrbitZone = projectName === 'DataOrbitZone';
+
+    if (!isDataOrbitZone && !formData.blog_id) {
       toast.error('Please select a blog');
       return;
     }
     
     const basePayload: any = {
-      blog_id: formData.blog_id,
       title: formData.title,
       search_text: formData.search_text,
       web_result_page: formData.web_result_page,
@@ -108,6 +109,7 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
 
     const payload = {
       ...basePayload,
+      ...(formData.blog_id && !isDataOrbitZone && { blog_id: formData.blog_id }),
       ...(categoryId && { category_id: categoryId }),
       ...(projectName === 'TopicMingle' && {
         is_active: formData.is_active,
@@ -115,7 +117,6 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
         allowed_countries: formData.allowed_countries,
       }),
     };
-
     if (editingSearch) {
       const { error } = await projectClient
         .from('related_searches')
