@@ -32,10 +32,11 @@ const DataOrbitZoneBlogPost = () => {
   useEffect(() => {
     const load = async () => {
       const { data: blogData, error } = await supabase
-        .from("dz_blogs")
+        .from("blogs")
         .select("*")
         .eq("slug", blogSlug)
         .eq("status", "published")
+        .eq("site_name", "dataorbitzone")
         .maybeSingle();
 
       if (error || !blogData) {
@@ -47,17 +48,19 @@ const DataOrbitZoneBlogPost = () => {
 
       if (blogData.category_id) {
         const { data: categoryData } = await supabase
-          .from("dz_categories")
+          .from("categories")
           .select("id, name, slug")
           .eq("id", blogData.category_id)
+          .eq("site_name", "dataorbitzone")
           .maybeSingle();
 
         if (categoryData) setCategory(categoryData as DzCategory);
 
         const { data: recent } = await supabase
-          .from("dz_blogs")
+          .from("blogs")
           .select("*")
           .eq("status", "published")
+          .eq("site_name", "dataorbitzone")
           .eq("category_id", blogData.category_id)
           .neq("id", blogData.id)
           .order("created_at", { ascending: false })

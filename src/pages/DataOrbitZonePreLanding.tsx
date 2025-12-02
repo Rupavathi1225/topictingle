@@ -7,32 +7,33 @@ import { toast } from 'sonner';
 
 interface PreLandingPageData {
   id: string;
-  related_search_id: string | null;
+  page_key: string;
   logo_url: string | null;
   logo_position: string | null;
-  logo_size: number | null;
+  logo_width: number | null;
   main_image_url: string | null;
   image_ratio: string | null;
   headline: string;
   description: string | null;
   headline_font_size: number | null;
   headline_color: string | null;
+  headline_align: string | null;
   description_font_size: number | null;
   description_color: string | null;
-  text_alignment: string | null;
-  email_box_color: string | null;
-  email_box_border_color: string | null;
-  button_text: string | null;
-  button_color: string | null;
-  button_text_color: string | null;
+  description_align: string | null;
+  cta_text: string | null;
+  cta_color: string | null;
   background_color: string | null;
   background_image_url: string | null;
+  target_url: string;
 }
 
 interface RelatedSearchData {
   id: string;
   search_text: string;
-  target_url: string;
+  target_url?: string;
+  title?: string;
+  pre_landing_page_key?: string;
 }
 
 export default function DataOrbitZonePreLanding() {
@@ -55,9 +56,10 @@ export default function DataOrbitZonePreLanding() {
   const fetchPageData = async (id: string) => {
     // Fetch the related search first
     const { data: related, error: relatedError } = await supabase
-      .from('dz_related_searches')
+      .from('related_searches')
       .select('*')
       .eq('id', id)
+      .eq('session_id', 'dataorbitzone')
       .maybeSingle();
 
     if (relatedError || !related) {
@@ -69,11 +71,20 @@ export default function DataOrbitZonePreLanding() {
 
     setSearchData(related as RelatedSearchData);
 
-    // Then fetch the prelanding configuration for this related search
+    // Then fetch the prelanding configuration using pre_landing_page_key
+    const preLandingKey = related.pre_landing_page_key;
+    if (!preLandingKey) {
+      console.error('No pre-landing page key found');
+      toast.error('Page configuration not found');
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
-      .from('dz_prelanding_pages')
+      .from('pre_landing_pages')
       .select('*')
-      .eq('related_search_id', id)
+      .eq('page_key', preLandingKey)
+      .eq('is_active', true)
       .maybeSingle();
 
     if (error || !data) {
@@ -122,7 +133,11 @@ export default function DataOrbitZonePreLanding() {
       toast.success('Email captured successfully!');
 
       setTimeout(() => {
-        window.location.href = searchData.target_url;
+        if (searchData.target_url) {
+          window.location.href = searchData.target_url;
+        } else if (pageData.target_url) {
+          window.location.href = pageData.target_url;
+        }
       }, 1000);
     } catch (err) {
       toast.error('Something went wrong');
@@ -155,7 +170,7 @@ export default function DataOrbitZonePreLanding() {
 
   const headlineFontSize = pageData.headline_font_size ?? 32;
   const descriptionFontSize = pageData.description_font_size ?? 16;
-  const textAlign = (pageData.text_alignment || 'center') as any;
+  const textAlign = (pageData.headline_align || 'center') as any;
 
   return (
     <div
@@ -178,7 +193,7 @@ export default function DataOrbitZonePreLanding() {
           <img
             src={pageData.logo_url}
             alt="Logo"
-            style={{ width: `${pageData.logo_size || 100}px` }}
+            style={{ width: `${pageData.logo_width || 150}px` }}
             className="object-contain"
           />
         </div>
@@ -228,21 +243,17 @@ export default function DataOrbitZonePreLanding() {
               placeholder="Enter your email"
               required
               className="h-12 text-lg bg-white border-2"
-              style={{
-                borderColor: pageData.email_box_border_color || '#cccccc',
-                backgroundColor: pageData.email_box_color || '#ffffff',
-              }}
             />
             <Button
               type="submit"
               disabled={submitting}
               className="w-full h-12 text-lg font-semibold"
               style={{
-                backgroundColor: pageData.button_color || '#1a2942',
-                color: pageData.button_text_color || '#ffffff',
+                backgroundColor: pageData.cta_color || '#10b981',
+                color: '#ffffff',
               }}
             >
-              {submitting ? 'Submitting...' : pageData.button_text || 'Continue'}
+              {submitting ? 'Submitting...' : pageData.cta_text || 'Get Started'}
             </Button>
           </form>
         </div>

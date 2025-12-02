@@ -26,7 +26,7 @@ const DataOrbitZoneHome = () => {
   useEffect(() => {
     const fetchBlogs = async () => {
       const { data, error } = await supabase
-        .from("dz_blogs")
+        .from("blogs")
         .select(`
           id,
           title,
@@ -35,17 +35,22 @@ const DataOrbitZoneHome = () => {
           featured_image,
           created_at,
           content,
-          dz_categories:category_id (
+          categories:category_id (
             id,
             name,
             slug
           )
         `)
         .eq("status", "published")
+        .eq("site_name", "dataorbitzone")
         .order("created_at", { ascending: false });
 
       if (!error && data) {
-        setBlogs(data as DzBlog[]);
+        const transformedData = data.map(blog => ({
+          ...blog,
+          dz_categories: blog.categories
+        }));
+        setBlogs(transformedData as DzBlog[]);
       }
       setLoading(false);
     };
