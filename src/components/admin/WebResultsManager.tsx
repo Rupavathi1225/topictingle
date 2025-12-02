@@ -54,9 +54,11 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
 
   useEffect(() => {
     fetchWebResults();
-    fetchRelatedSearches();
-  }, []);
-
+    if (projectName !== 'DataOrbitZone') {
+      fetchRelatedSearches();
+    }
+  }, [projectName]);
+ 
   const fetchRelatedSearches = async () => {
     const { data, error } = await projectClient
       .from('related_searches')
@@ -89,18 +91,28 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.related_search_id) {
+    const isDataOrbitZone = projectName === 'DataOrbitZone';
+    
+    if (!isDataOrbitZone && !formData.related_search_id) {
       toast.error('Please select a related search');
       return;
     }
     
-    const payload = {
-      ...formData,
+    const payload: any = {
+      title: formData.title,
       description: formData.description || null,
       logo_url: formData.logo_url || null,
+      target_url: formData.target_url,
+      page_number: formData.page_number,
+      position: formData.position,
+      is_active: formData.is_active,
+      is_sponsored: formData.is_sponsored,
       pre_landing_page_key: formData.pre_landing_page_key || null,
     };
 
+    if (!isDataOrbitZone && formData.related_search_id) {
+      payload.related_search_id = formData.related_search_id;
+    }
     if (editingResult) {
       const { error } = await projectClient
         .from('web_results')
@@ -254,10 +266,14 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label>Related Search *</Label>
-              <Select value={formData.related_search_id} onValueChange={(value) => setFormData({ ...formData, related_search_id: value })}>
+              <Label>Related Search {projectName !== 'DataOrbitZone' && '*'} </Label>
+              <Select
+                value={formData.related_search_id}
+                onValueChange={(value) => setFormData({ ...formData, related_search_id: value })}
+                disabled={projectName === 'DataOrbitZone'}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select related search" />
+                  <SelectValue placeholder={projectName === 'DataOrbitZone' ? 'Not used for DataOrbitZone' : 'Select related search'} />
                 </SelectTrigger>
                 <SelectContent>
                   {relatedSearches.map((search) => (
@@ -267,7 +283,7 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
                   ))}
                 </SelectContent>
               </Select>
-              {formData.related_search_id && (
+              {formData.related_search_id && projectName !== 'DataOrbitZone' && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Adding to: <span className="font-medium">
                     {relatedSearches.find(s => s.id === formData.related_search_id)?.search_text}
