@@ -322,6 +322,59 @@ export type Database = {
           },
         ]
       }
+      dz_web_results: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          is_sponsored: boolean | null
+          logo_url: string | null
+          page_number: number
+          position: number
+          related_search_id: string | null
+          target_url: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_sponsored?: boolean | null
+          logo_url?: string | null
+          page_number?: number
+          position?: number
+          related_search_id?: string | null
+          target_url: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_sponsored?: boolean | null
+          logo_url?: string | null
+          page_number?: number
+          position?: number
+          related_search_id?: string | null
+          target_url?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dz_web_results_related_search_id_fkey"
+            columns: ["related_search_id"]
+            isOneToOne: false
+            referencedRelation: "dz_related_searches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_captures: {
         Row: {
           captured_at: string | null
