@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { dataOrbitZoneClient } from "@/integrations/dataorbitzone/client";
 import { searchProjectClient } from "@/integrations/searchproject/client";
 import { tejaStarinClient } from "@/integrations/tejastarin/client";
-import { topicMingleClient } from "@/integrations/topicmingle/client";
 import { useTracking } from "@/hooks/useTracking";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -348,7 +347,7 @@ const Admin = () => {
   }, []);
 
   const fetchCategories = async () => {
-    const { data } = await topicMingleClient
+    const { data } = await supabase
       .from("categories")
       .select("*")
       .order("id");
@@ -356,7 +355,7 @@ const Admin = () => {
   };
 
   const fetchBlogs = async () => {
-    const { data } = await topicMingleClient
+    const { data } = await supabase
       .from("blogs")
       .select("*")
       .order("created_at", { ascending: false });
@@ -364,7 +363,7 @@ const Admin = () => {
   };
 
   const fetchRelatedSearches = async () => {
-    const { data } = await topicMingleClient
+    const { data } = await supabase
       .from("related_searches")
       .select("*")
       .order("category_id", { ascending: true })
@@ -570,7 +569,7 @@ const Admin = () => {
     };
 
     if (editingBlog) {
-      const { error } = await topicMingleClient
+      const { error } = await supabase
         .from("blogs")
         .update(blogData)
         .eq("id", editingBlog.id);
@@ -583,7 +582,7 @@ const Admin = () => {
         resetForm();
       }
     } else {
-      const { error } = await topicMingleClient.from("blogs").insert([blogData]);
+      const { error } = await supabase.from("blogs").insert([blogData]);
 
       if (error) {
         toast.error("Failed to create blog");
@@ -734,7 +733,7 @@ const Admin = () => {
     };
 
     if (editingSearch) {
-      const { error } = await topicMingleClient
+      const { error } = await supabase
         .from("related_searches")
         .update(searchData)
         .eq("id", editingSearch.id);
@@ -747,7 +746,7 @@ const Admin = () => {
         resetSearchForm();
       }
     } else {
-      const { error } = await topicMingleClient.from("related_searches").insert([searchData]);
+      const { error } = await supabase.from("related_searches").insert([searchData]);
 
       if (error) {
         toast.error("Failed to create search");
@@ -798,7 +797,7 @@ const Admin = () => {
 
   const handleDeleteSearch = async (id: string) => {
     if (confirm("Are you sure you want to delete this related search?")) {
-      const { error } = await topicMingleClient.from("related_searches").delete().eq("id", id);
+      const { error } = await supabase.from("related_searches").delete().eq("id", id);
 
       if (error) {
         toast.error("Failed to delete search");
@@ -1126,11 +1125,11 @@ const Admin = () => {
 
   const getProjectClient = (website: Website) => {
     switch (website) {
-      case 'topicmingle': return topicMingleClient;
+      case 'topicmingle': return supabase;
       case 'dataorbitzone': return dataOrbitZoneClient;
       case 'searchproject': return searchProjectClient;
       case 'tejastarin': return tejaStarinClient;
-      default: return topicMingleClient;
+      default: return supabase;
     }
   };
 
