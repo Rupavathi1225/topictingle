@@ -1353,17 +1353,26 @@ const Admin = () => {
         if (selectedWebsite === 'tejastarin') {
           return <TejaStarinRelatedSearches />;
         }
+        if (selectedWebsite === 'dataorbitzone') {
+          return <DataOrbitZoneManager />;
+        }
         return <RelatedSearchManager projectClient={client} projectName={projectName} />;
 
       case 'webresults':
         if (selectedWebsite === 'tejastarin') {
           return <TejaStarinWebResults />;
         }
+        if (selectedWebsite === 'dataorbitzone') {
+          return <DataOrbitZoneManager />;
+        }
         return <WebResultsManager projectClient={client} projectName={projectName} />;
 
       case 'prelanding':
         if (selectedWebsite === 'tejastarin') {
           return <TejaStarinPreLanding />;
+        }
+        if (selectedWebsite === 'dataorbitzone') {
+          return <DataOrbitZoneManager />;
         }
         return <PreLandingEditor projectClient={client} projectName={projectName} />;
 
