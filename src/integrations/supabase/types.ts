@@ -24,6 +24,7 @@ export type Database = {
           id: string
           published_at: string | null
           serial_number: number
+          site_name: string | null
           slug: string
           status: string | null
           title: string
@@ -38,6 +39,7 @@ export type Database = {
           id?: string
           published_at?: string | null
           serial_number?: number
+          site_name?: string | null
           slug: string
           status?: string | null
           title: string
@@ -52,6 +54,7 @@ export type Database = {
           id?: string
           published_at?: string | null
           serial_number?: number
+          site_name?: string | null
           slug?: string
           status?: string | null
           title?: string
@@ -73,6 +76,7 @@ export type Database = {
           created_at: string | null
           id: number
           name: string
+          site_name: string | null
           slug: string
         }
         Insert: {
@@ -80,6 +84,7 @@ export type Database = {
           created_at?: string | null
           id?: number
           name: string
+          site_name?: string | null
           slug: string
         }
         Update: {
@@ -87,6 +92,7 @@ export type Database = {
           created_at?: string | null
           id?: number
           name?: string
+          site_name?: string | null
           slug?: string
         }
         Relationships: []
@@ -455,6 +461,7 @@ export type Database = {
           logo_width: number | null
           main_image_url: string | null
           page_key: string
+          site_name: string | null
           target_url: string
           updated_at: string | null
         }
@@ -480,6 +487,7 @@ export type Database = {
           logo_width?: number | null
           main_image_url?: string | null
           page_key: string
+          site_name?: string | null
           target_url: string
           updated_at?: string | null
         }
@@ -505,6 +513,7 @@ export type Database = {
           logo_width?: number | null
           main_image_url?: string | null
           page_key?: string
+          site_name?: string | null
           target_url?: string
           updated_at?: string | null
         }
@@ -524,6 +533,7 @@ export type Database = {
           pre_landing_page_key: string | null
           search_text: string
           session_id: string | null
+          site_name: string | null
           title: string | null
           updated_at: string
           web_result_page: number | null
@@ -541,6 +551,7 @@ export type Database = {
           pre_landing_page_key?: string | null
           search_text: string
           session_id?: string | null
+          site_name?: string | null
           title?: string | null
           updated_at?: string
           web_result_page?: number | null
@@ -558,6 +569,7 @@ export type Database = {
           pre_landing_page_key?: string | null
           search_text?: string
           session_id?: string | null
+          site_name?: string | null
           title?: string | null
           updated_at?: string
           web_result_page?: number | null
@@ -624,6 +636,7 @@ export type Database = {
           position: number
           pre_landing_page_key: string | null
           related_search_id: string | null
+          site_name: string | null
           target_url: string
           title: string
           updated_at: string
@@ -639,6 +652,7 @@ export type Database = {
           position?: number
           pre_landing_page_key?: string | null
           related_search_id?: string | null
+          site_name?: string | null
           target_url: string
           title: string
           updated_at?: string
@@ -654,6 +668,7 @@ export type Database = {
           position?: number
           pre_landing_page_key?: string | null
           related_search_id?: string | null
+          site_name?: string | null
           target_url?: string
           title?: string
           updated_at?: string

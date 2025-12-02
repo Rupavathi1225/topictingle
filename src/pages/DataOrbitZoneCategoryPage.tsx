@@ -32,9 +32,10 @@ const DataOrbitZoneCategoryPage = () => {
       if (!categorySlug) return;
 
       const { data: categoryData, error: catError } = await supabase
-        .from("dz_categories")
+        .from("categories")
         .select("id, name, slug")
         .eq("slug", categorySlug)
+        .eq("site_name", "dataorbitzone")
         .maybeSingle();
 
       if (catError || !categoryData) {
@@ -45,9 +46,10 @@ const DataOrbitZoneCategoryPage = () => {
       setCategory(categoryData as DzCategory);
 
       const { data: blogsData } = await supabase
-        .from("dz_blogs")
+        .from("blogs")
         .select("id, title, slug, author, featured_image, created_at, content")
         .eq("status", "published")
+        .eq("site_name", "dataorbitzone")
         .eq("category_id", categoryData.id)
         .order("created_at", { ascending: false });
 

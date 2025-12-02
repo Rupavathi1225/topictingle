@@ -39,8 +39,9 @@ export const DataOrbitZoneWebResults = () => {
 
   const fetchWebResults = async () => {
     const { data, error } = await supabase
-      .from('dz_web_results')
+      .from('web_results')
       .select('*')
+      .eq('site_name', 'dataorbitzone')
       .eq('page_number', pageNumber)
       .order('position', { ascending: true });
 
@@ -59,9 +60,10 @@ export const DataOrbitZoneWebResults = () => {
 
   const fetchRelatedSearches = async () => {
     const { data, error } = await supabase
-      .from('dz_related_searches')
+      .from('related_searches')
       .select('*')
       .eq('is_active', true)
+      .eq('session_id', 'dataorbitzone')
       .order('display_order', { ascending: true });
 
     if (error) {
