@@ -260,11 +260,14 @@ export const DataOrbitZoneManager = () => {
       blog_id: searchForm.blog_id || null,
       search_text: searchForm.search_text,
       target_url: searchForm.target_url,
-      display_order: searchForm.display_order
+      display_order: searchForm.display_order,
+      // Ensure DataOrbitZone-related searches are clearly scoped
+      session_id: 'dataorbitzone',
+      is_active: true,
     };
     
     if (editingSearch) {
-      const { error } = await dataOrbitZoneClient.from("dz_related_searches").update(data).eq("id", editingSearch.id);
+      const { error } = await dataOrbitZoneClient.from("related_searches").update(data).eq("id", editingSearch.id);
       if (error) {
         console.error('Update error:', error);
         toast.error("Failed to update search: " + error.message);
@@ -274,7 +277,7 @@ export const DataOrbitZoneManager = () => {
         resetSearchForm();
       }
     } else {
-      const { error } = await dataOrbitZoneClient.from("dz_related_searches").insert([data]);
+      const { error } = await dataOrbitZoneClient.from("related_searches").insert([data]);
       if (error) {
         console.error('Insert error:', error);
         toast.error("Failed to create search: " + error.message);
@@ -285,7 +288,6 @@ export const DataOrbitZoneManager = () => {
       }
     }
   };
-
   const handleDeleteSearch = async (id: string) => {
     if (confirm("Delete this search?")) {
       const { error } = await dataOrbitZoneClient.from("related_searches").delete().eq("id", id);
