@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { dataOrbitZoneClient } from "@/integrations/dataorbitzone/client";
 import { searchProjectClient } from "@/integrations/searchproject/client";
 import { tejaStarinClient } from "@/integrations/tejastarin/client";
+import { fastMoneyClient } from "@/integrations/fastmoney/client";
 import { useTracking } from "@/hooks/useTracking";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ import { TejaStarinRelatedSearches } from "@/components/admin/TejaStarinRelatedS
 import { TejaStarinPreLanding } from "@/components/admin/TejaStarinPreLanding";
 import { TejaStarinEmailCaptures } from "@/components/admin/TejaStarinEmailCaptures";
 import { DataOrbitZoneManager } from "@/components/admin/DataOrbitZoneManager";
+import { FastMoneyManager } from "@/components/admin/FastMoneyManager";
 
 interface Category {
   id: number;
@@ -120,7 +122,7 @@ interface Analytics {
   unique_clicks?: number;
 }
 
-type Website = 'topicmingle' | 'dataorbitzone' | 'searchproject' | 'tejastarin';
+type Website = 'topicmingle' | 'dataorbitzone' | 'searchproject' | 'tejastarin' | 'fastmoney';
 type Section = 'blogs' | 'searches' | 'analytics' | 'webresults' | 'prelanding' | 'emails' | 'landing';
 
 const Admin = () => {
@@ -236,6 +238,13 @@ const Admin = () => {
       description: 'Blog & Web Results Platform',
       color: 'bg-orange-500',
       icon: '📄'
+    },
+    {
+      id: 'fastmoney' as Website,
+      name: 'FastMoney',
+      description: 'Money Earning Platform',
+      color: 'bg-yellow-500',
+      icon: '💰'
     }
   ];
 
@@ -267,6 +276,12 @@ const Admin = () => {
       { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
       { id: 'prelanding', name: 'Pre-Landing Pages', description: 'Edit pre-landing page designs' },
       { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' }
+    ],
+    fastmoney: [
+      { id: 'landing', name: 'Landing', description: 'Manage landing page settings' },
+      { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
+      { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
+      { id: 'prelanding', name: 'Prelanders', description: 'Edit prelander page designs' }
     ]
   };
 
@@ -1356,6 +1371,9 @@ const Admin = () => {
         if (selectedWebsite === 'dataorbitzone') {
           return <DataOrbitZoneManager />;
         }
+        if (selectedWebsite === 'fastmoney') {
+          return <FastMoneyManager />;
+        }
         return <RelatedSearchManager projectClient={client} projectName={projectName} />;
 
       case 'webresults':
@@ -1364,6 +1382,9 @@ const Admin = () => {
         }
         if (selectedWebsite === 'dataorbitzone') {
           return <DataOrbitZoneManager />;
+        }
+        if (selectedWebsite === 'fastmoney') {
+          return <FastMoneyManager />;
         }
         return <WebResultsManager projectClient={client} projectName={projectName} />;
 
@@ -1374,6 +1395,9 @@ const Admin = () => {
         if (selectedWebsite === 'dataorbitzone') {
           return <DataOrbitZoneManager />;
         }
+        if (selectedWebsite === 'fastmoney') {
+          return <FastMoneyManager />;
+        }
         return <PreLandingEditor projectClient={client} projectName={projectName} />;
 
       case 'emails':
@@ -1383,6 +1407,9 @@ const Admin = () => {
         return <EmailCaptureViewer projectClient={client} />;
 
       case 'landing':
+        if (selectedWebsite === 'fastmoney') {
+          return <FastMoneyManager />;
+        }
         if (selectedWebsite === 'searchproject') {
           const handleSpLandingSubmit = async (e: React.FormEvent) => {
             e.preventDefault();

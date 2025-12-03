@@ -4,10 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { dataOrbitZoneClient } from '@/integrations/dataorbitzone/client';
 import { searchProjectClient } from '@/integrations/searchproject/client';
 import { tejaStarinClient } from '@/integrations/tejastarin/client';
+import { fastMoneyClient } from '@/integrations/fastmoney/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp, RefreshCw, Download, ShoppingCart, Home, Palette, Search, FileText, MousePointerClick } from 'lucide-react';
+import { ChevronDown, ChevronUp, RefreshCw, Download, ShoppingCart, Home, Palette, Search, FileText, MousePointerClick, DollarSign } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface SiteStats {
@@ -74,6 +75,7 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
     { id: 'searchproject', name: 'SearchProject', icon: Home, color: 'from-pink-500 to-pink-600' },
     { id: 'tejastarin', name: 'Teja Starin', icon: FileText, color: 'from-purple-500 to-purple-600' },
     { id: 'main', name: 'TopicMingle', icon: Palette, color: 'from-cyan-500 to-cyan-600' },
+    { id: 'fastmoney', name: 'FastMoney', icon: DollarSign, color: 'from-yellow-500 to-yellow-600' },
   ];
 
   useEffect(() => {
@@ -93,11 +95,12 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const [dataOrbit, searchProj, tejaStarin, mainProj] = await Promise.all([
+      const [dataOrbit, searchProj, tejaStarin, mainProj, fastMoney] = await Promise.all([
         fetchDataOrbitZone(),
         fetchSearchProject(),
         fetchTejaStarin(),
         fetchMainProject(),
+        fetchFastMoney(),
       ]);
 
       const allStats: SiteStats[] = [
@@ -105,6 +108,7 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
         { siteName: 'SearchProject', icon: Home, color: 'from-pink-500 to-pink-600', ...searchProj.stats },
         { siteName: 'Teja Starin', icon: FileText, color: 'from-purple-500 to-purple-600', ...tejaStarin.stats },
         { siteName: 'TopicMingle', icon: Palette, color: 'from-cyan-500 to-cyan-600', ...mainProj.stats },
+        { siteName: 'FastMoney', icon: DollarSign, color: 'from-yellow-500 to-yellow-600', ...fastMoney.stats },
       ];
 
       setSiteStats(allStats);
@@ -114,6 +118,7 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
         ...searchProj.sessions,
         ...tejaStarin.sessions,
         ...mainProj.sessions,
+        ...fastMoney.sessions,
       ];
 
       // keep newest first
@@ -590,6 +595,131 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
         unique: bi.uniqueSet.size,
       })),
     })) as SessionDetail[];
+
+    const stats = {
+      sessions: sessionMap.size,
+      pageViews: sessions.reduce((sum: number, s: any) => sum + s.pageViews, 0),
+      uniquePages: globalUniquePages.size,
+      totalClicks: sessions.reduce((sum: number, s: any) => sum + s.totalClicks, 0),
+      uniqueClicks: globalUniqueClicks.size,
+    };
+
+    return { stats, sessions };
+  };
+
+  /**
+   * Fetch & process FastMoney data from link_tracking/sessions/web_results/related_searches tables
+   */
+  const fetchFastMoney = async () => {
+    const { data: sessionsData } = await fastMoneyClient
+      .from('sessions')
+      .select('*')
+      .order('last_activity', { ascending: false });
+
+    const { data: clicks } = await fastMoneyClient
+      .from('link_tracking')
+      .select('*');
+
+    const { data: webResults } = await fastMoneyClient
+      .from('web_results')
+      .select('id, title');
+
+    const { data: relatedSearches } = await fastMoneyClient
+      .from('related_searches')
+      .select('id, title');
+
+    const webResultsMap = new Map((webResults || []).map((w: any) => [w.id, w.title]));
+    const searchesMap = new Map((relatedSearches || []).map((s: any) => [s.id, s.title]));
+
+    const sessionMap = new Map<string, any>();
+    const globalUniquePages = new Set<string>();
+    const globalUniqueClicks = new Set<string>();
+
+    (sessionsData || []).forEach((s: any) => {
+      sessionMap.set(s.session_id, {
+        sessionId: s.session_id,
+        siteName: 'FastMoney',
+        siteIcon: DollarSign,
+        siteColor: 'from-yellow-500 to-yellow-600',
+        device: s.device_type || 'Unknown',
+        ipAddress: s.ip_address || 'N/A',
+        country: s.country || 'Unknown',
+        timeSpent: '0s',
+        timestamp: s.started_at || new Date().toISOString(),
+        pageViews: 1,
+        uniquePagesSet: new Set<string>(),
+        totalClicks: 0,
+        uniqueClicksSet: new Set<string>(),
+        searchResults: [] as Array<any>,
+        blogClicks: [] as Array<any>,
+        buttonInteractions: [] as Array<any>,
+        webResultClicksMap: new Map<string, any>(),
+        searchClicksMap: new Map<string, any>(),
+      });
+    });
+
+    (clicks || []).forEach((c: any) => {
+      const session = sessionMap.get(c.session_id);
+      if (session) {
+        session.totalClicks++;
+        const clickKey = c.web_result_id || c.related_search_id || `click-${c.id}`;
+        session.uniqueClicksSet.add(clickKey);
+        globalUniqueClicks.add(clickKey);
+
+        if (c.web_result_id) {
+          const title = webResultsMap.get(c.web_result_id) || 'Unknown Result';
+          const entry = session.webResultClicksMap.get(c.web_result_id) || { title, total: 0, uniqueIps: new Set() };
+          entry.total++;
+          if (c.ip_address) entry.uniqueIps.add(c.ip_address);
+          session.webResultClicksMap.set(c.web_result_id, entry);
+        }
+
+        if (c.related_search_id) {
+          const title = searchesMap.get(c.related_search_id) || 'Unknown Search';
+          const entry = session.searchClicksMap.get(c.related_search_id) || { title, total: 0, uniqueIps: new Set() };
+          entry.total++;
+          if (c.ip_address) entry.uniqueIps.add(c.ip_address);
+          session.searchClicksMap.set(c.related_search_id, entry);
+        }
+      }
+    });
+
+    const sessions: SessionDetail[] = [];
+    sessionMap.forEach((session) => {
+      const searchResults = Array.from(session.searchClicksMap.values()).map((e: any) => ({
+        term: e.title,
+        views: 0,
+        totalClicks: e.total,
+        uniqueClicks: e.uniqueIps.size,
+        visitNowClicks: 0,
+        visitNowUnique: 0,
+      }));
+
+      const blogClicks = Array.from(session.webResultClicksMap.values()).map((e: any) => ({
+        title: e.title,
+        totalClicks: e.total,
+        uniqueClicks: e.uniqueIps.size,
+      }));
+
+      sessions.push({
+        sessionId: session.sessionId,
+        siteName: session.siteName,
+        siteIcon: session.siteIcon,
+        siteColor: session.siteColor,
+        device: session.device,
+        ipAddress: session.ipAddress,
+        country: session.country,
+        timeSpent: session.timeSpent,
+        timestamp: session.timestamp,
+        pageViews: session.pageViews,
+        uniquePages: session.uniquePagesSet.size,
+        totalClicks: session.totalClicks,
+        uniqueClicks: session.uniqueClicksSet.size,
+        searchResults,
+        blogClicks,
+        buttonInteractions: [],
+      });
+    });
 
     const stats = {
       sessions: sessionMap.size,

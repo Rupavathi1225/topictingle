@@ -1,0 +1,562 @@
+import { useState, useEffect } from "react";
+import { fastMoneyClient } from "@/integrations/fastmoney/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import { Trash2, Edit, Plus, Search } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+interface RelatedSearch {
+  id: string;
+  search_text: string;
+  title: string;
+  web_result_page: number;
+  position: number;
+  display_order: number;
+  is_active: boolean;
+}
+
+interface WebResult {
+  id: string;
+  web_result_page: number;
+  title: string;
+  description: string | null;
+  logo_url: string | null;
+  original_link: string;
+  display_order: number;
+  is_active: boolean;
+  country_permissions: string[];
+  fallback_link: string | null;
+}
+
+interface LandingSettings {
+  id: string;
+  site_name: string;
+  title: string;
+  description: string;
+}
+
+interface PrelanderSettings {
+  id: string;
+  web_result_id: string;
+  is_enabled: boolean;
+  logo_url: string | null;
+  main_image_url: string | null;
+  headline_text: string;
+  description_text: string;
+  email_placeholder: string;
+  button_text: string;
+  button_color: string;
+  background_color: string;
+  background_image_url: string | null;
+}
+
+const COUNTRIES = [
+  { code: 'worldwide', name: 'Worldwide' },
+  { code: 'US', name: 'United States' },
+  { code: 'UK', name: 'United Kingdom' },
+  { code: 'CA', name: 'Canada' },
+  { code: 'AU', name: 'Australia' },
+  { code: 'IN', name: 'India' },
+];
+
+export const FastMoneyManager = () => {
+  const [activeTab, setActiveTab] = useState("landing");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Landing Settings
+  const [landingSettings, setLandingSettings] = useState<LandingSettings | null>(null);
+
+  // Related Searches
+  const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
+  const [searchDialog, setSearchDialog] = useState(false);
+  const [editingSearch, setEditingSearch] = useState<RelatedSearch | null>(null);
+  const [searchForm, setSearchForm] = useState({
+    search_text: "", title: "", web_result_page: 1, position: 1, display_order: 0, is_active: true
+  });
+
+  // Web Results
+  const [webResults, setWebResults] = useState<WebResult[]>([]);
+  const [selectedPage, setSelectedPage] = useState(1);
+  const [webResultDialog, setWebResultDialog] = useState(false);
+  const [editingWebResult, setEditingWebResult] = useState<WebResult | null>(null);
+  const [webResultForm, setWebResultForm] = useState({
+    title: "", description: "", logo_url: "", original_link: "",
+    web_result_page: 1, display_order: 0, is_active: true,
+    country_permissions: ["worldwide"] as string[], fallback_link: ""
+  });
+
+  // Prelander Settings
+  const [prelanders, setPrelanders] = useState<PrelanderSettings[]>([]);
+  const [prelanderDialog, setPrelanderDialog] = useState(false);
+  const [editingPrelander, setEditingPrelander] = useState<PrelanderSettings | null>(null);
+  const [prelanderForm, setPrelanderForm] = useState({
+    web_result_id: "", is_enabled: false, logo_url: "", main_image_url: "",
+    headline_text: "Welcome to Our Platform", description_text: "Join thousands of users already benefiting from our service.",
+    email_placeholder: "Enter your email", button_text: "Get Started Now",
+    button_color: "#00b4d8", background_color: "#0a0f1c", background_image_url: ""
+  });
+
+  useEffect(() => {
+    fetchAll();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "webresults") fetchWebResults();
+  }, [selectedPage]);
+
+  const fetchAll = async () => {
+    await Promise.all([
+      fetchLandingSettings(),
+      fetchRelatedSearches(),
+      fetchWebResults(),
+      fetchPrelanders()
+    ]);
+  };
+
+  const fetchLandingSettings = async () => {
+    const { data, error } = await fastMoneyClient.from("landing_settings").select("*").maybeSingle();
+    if (error) console.error("Failed to fetch landing settings:", error);
+    else setLandingSettings(data);
+  };
+
+  const fetchRelatedSearches = async () => {
+    const { data, error } = await fastMoneyClient.from("related_searches").select("*").order("display_order");
+    if (error) toast.error("Failed to fetch related searches");
+    else setRelatedSearches(data || []);
+  };
+
+  const fetchWebResults = async () => {
+    const { data, error } = await fastMoneyClient
+      .from("web_results")
+      .select("*")
+      .eq("web_result_page", selectedPage)
+      .order("display_order");
+    if (error) toast.error("Failed to fetch web results");
+    else setWebResults(data || []);
+  };
+
+  const fetchPrelanders = async () => {
+    const { data, error } = await fastMoneyClient.from("prelander_settings").select("*");
+    if (error) console.error("Failed to fetch prelanders:", error);
+    else setPrelanders(data || []);
+  };
+
+  // Landing Settings CRUD
+  const handleSaveLanding = async () => {
+    if (!landingSettings) return;
+    const { error } = await fastMoneyClient
+      .from("landing_settings")
+      .update({
+        site_name: landingSettings.site_name,
+        title: landingSettings.title,
+        description: landingSettings.description,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", landingSettings.id);
+    if (error) toast.error("Failed to save landing settings");
+    else toast.success("Landing settings saved");
+  };
+
+  // Related Search CRUD
+  const handleSearchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const data = { ...searchForm };
+
+    if (editingSearch) {
+      const { error } = await fastMoneyClient.from("related_searches").update({
+        ...data, updated_at: new Date().toISOString()
+      }).eq("id", editingSearch.id);
+      if (error) toast.error("Failed to update");
+      else { toast.success("Updated"); fetchRelatedSearches(); resetSearchForm(); }
+    } else {
+      const { error } = await fastMoneyClient.from("related_searches").insert([data]);
+      if (error) toast.error("Failed to create");
+      else { toast.success("Created"); fetchRelatedSearches(); resetSearchForm(); }
+    }
+  };
+
+  const handleDeleteSearch = async (id: string) => {
+    if (confirm("Delete this search?")) {
+      const { error } = await fastMoneyClient.from("related_searches").delete().eq("id", id);
+      if (error) toast.error("Failed to delete");
+      else { toast.success("Deleted"); fetchRelatedSearches(); }
+    }
+  };
+
+  const resetSearchForm = () => {
+    setSearchForm({ search_text: "", title: "", web_result_page: 1, position: 1, display_order: 0, is_active: true });
+    setEditingSearch(null);
+    setSearchDialog(false);
+  };
+
+  // Web Result CRUD
+  const handleWebResultSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const data = { ...webResultForm };
+
+    if (editingWebResult) {
+      const { error } = await fastMoneyClient.from("web_results").update({
+        ...data, updated_at: new Date().toISOString()
+      }).eq("id", editingWebResult.id);
+      if (error) toast.error("Failed to update");
+      else { toast.success("Updated"); fetchWebResults(); resetWebResultForm(); }
+    } else {
+      const { error } = await fastMoneyClient.from("web_results").insert([data]);
+      if (error) toast.error("Failed to create");
+      else { toast.success("Created"); fetchWebResults(); resetWebResultForm(); }
+    }
+  };
+
+  const handleDeleteWebResult = async (id: string) => {
+    if (confirm("Delete this web result?")) {
+      const { error } = await fastMoneyClient.from("web_results").delete().eq("id", id);
+      if (error) toast.error("Failed to delete");
+      else { toast.success("Deleted"); fetchWebResults(); }
+    }
+  };
+
+  const resetWebResultForm = () => {
+    setWebResultForm({
+      title: "", description: "", logo_url: "", original_link: "",
+      web_result_page: selectedPage, display_order: 0, is_active: true,
+      country_permissions: ["worldwide"], fallback_link: ""
+    });
+    setEditingWebResult(null);
+    setWebResultDialog(false);
+  };
+
+  // Prelander CRUD
+  const handlePrelanderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const data = { ...prelanderForm };
+
+    if (editingPrelander) {
+      const { error } = await fastMoneyClient.from("prelander_settings").update(data).eq("id", editingPrelander.id);
+      if (error) toast.error("Failed to update");
+      else { toast.success("Updated"); fetchPrelanders(); resetPrelanderForm(); }
+    } else {
+      const { error } = await fastMoneyClient.from("prelander_settings").insert([data]);
+      if (error) toast.error("Failed to create");
+      else { toast.success("Created"); fetchPrelanders(); resetPrelanderForm(); }
+    }
+  };
+
+  const handleDeletePrelander = async (id: string) => {
+    if (confirm("Delete this prelander?")) {
+      const { error } = await fastMoneyClient.from("prelander_settings").delete().eq("id", id);
+      if (error) toast.error("Failed to delete");
+      else { toast.success("Deleted"); fetchPrelanders(); }
+    }
+  };
+
+  const resetPrelanderForm = () => {
+    setPrelanderForm({
+      web_result_id: "", is_enabled: false, logo_url: "", main_image_url: "",
+      headline_text: "Welcome to Our Platform", description_text: "Join thousands of users already benefiting from our service.",
+      email_placeholder: "Enter your email", button_text: "Get Started Now",
+      button_color: "#00b4d8", background_color: "#0a0f1c", background_image_url: ""
+    });
+    setEditingPrelander(null);
+    setPrelanderDialog(false);
+  };
+
+  const filteredSearches = relatedSearches.filter(s =>
+    s.search_text.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredWebResults = webResults.filter(w =>
+    w.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className="text-2xl">💰</span> FastMoney Manager
+        </CardTitle>
+        <CardDescription>Manage landing page, related searches, web results, and prelanders</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="landing">Landing</TabsTrigger>
+            <TabsTrigger value="searches">Searches ({relatedSearches.length})</TabsTrigger>
+            <TabsTrigger value="webresults">Web Results ({webResults.length})</TabsTrigger>
+            <TabsTrigger value="prelanders">Prelanders ({prelanders.length})</TabsTrigger>
+          </TabsList>
+
+          {/* Landing Tab */}
+          <TabsContent value="landing" className="space-y-4">
+            {landingSettings ? (
+              <div className="space-y-4 max-w-xl">
+                <div>
+                  <Label>Site Name</Label>
+                  <Input
+                    value={landingSettings.site_name}
+                    onChange={(e) => setLandingSettings({ ...landingSettings, site_name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Title</Label>
+                  <Input
+                    value={landingSettings.title}
+                    onChange={(e) => setLandingSettings({ ...landingSettings, title: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Description</Label>
+                  <Textarea
+                    value={landingSettings.description}
+                    onChange={(e) => setLandingSettings({ ...landingSettings, description: e.target.value })}
+                  />
+                </div>
+                <Button onClick={handleSaveLanding}>Save Settings</Button>
+              </div>
+            ) : (
+              <p className="text-muted-foreground">No landing settings found.</p>
+            )}
+          </TabsContent>
+
+          {/* Related Searches Tab */}
+          <TabsContent value="searches" className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Dialog open={searchDialog} onOpenChange={setSearchDialog}>
+                <DialogTrigger asChild>
+                  <Button onClick={resetSearchForm}><Plus className="mr-2 h-4 w-4" />New Search</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>{editingSearch ? "Edit" : "Create"} Related Search</DialogTitle></DialogHeader>
+                  <form onSubmit={handleSearchSubmit} className="space-y-4">
+                    <div><Label>Search Text *</Label><Input value={searchForm.search_text} onChange={(e) => setSearchForm({ ...searchForm, search_text: e.target.value })} required /></div>
+                    <div><Label>Title *</Label><Input value={searchForm.title} onChange={(e) => setSearchForm({ ...searchForm, title: e.target.value })} required /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><Label>Web Result Page</Label><Input type="number" value={searchForm.web_result_page} onChange={(e) => setSearchForm({ ...searchForm, web_result_page: parseInt(e.target.value) })} /></div>
+                      <div><Label>Position</Label><Input type="number" value={searchForm.position} onChange={(e) => setSearchForm({ ...searchForm, position: parseInt(e.target.value) })} /></div>
+                    </div>
+                    <div><Label>Display Order</Label><Input type="number" value={searchForm.display_order} onChange={(e) => setSearchForm({ ...searchForm, display_order: parseInt(e.target.value) })} /></div>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={searchForm.is_active} onCheckedChange={(checked) => setSearchForm({ ...searchForm, is_active: checked })} />
+                      <Label>Active</Label>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="submit" className="flex-1">{editingSearch ? "Update" : "Create"}</Button>
+                      <Button type="button" variant="outline" onClick={resetSearchForm}>Cancel</Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+            <div className="space-y-2">
+              {filteredSearches.map((search) => (
+                <div key={search.id} className="flex items-center justify-between p-4 border rounded">
+                  <div>
+                    <h3 className="font-semibold">{search.title}</h3>
+                    <p className="text-sm text-muted-foreground">{search.search_text} • Page {search.web_result_page} • Pos {search.position}</p>
+                    <span className={`text-xs px-2 py-1 rounded ${search.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {search.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => {
+                      setEditingSearch(search);
+                      setSearchForm({
+                        search_text: search.search_text, title: search.title,
+                        web_result_page: search.web_result_page, position: search.position,
+                        display_order: search.display_order, is_active: search.is_active
+                      });
+                      setSearchDialog(true);
+                    }}><Edit className="h-4 w-4" /></Button>
+                    <Button size="sm" variant="destructive" onClick={() => handleDeleteSearch(search.id)}><Trash2 className="h-4 w-4" /></Button>
+                  </div>
+                </div>
+              ))}
+              {filteredSearches.length === 0 && <p className="text-muted-foreground text-center py-8">No related searches found.</p>}
+            </div>
+          </TabsContent>
+
+          {/* Web Results Tab */}
+          <TabsContent value="webresults" className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <Select value={selectedPage.toString()} onValueChange={(v) => setSelectedPage(parseInt(v))}>
+                  <SelectTrigger className="w-32"><SelectValue placeholder="Page" /></SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5].map(p => <SelectItem key={p} value={p.toString()}>Page {p}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
+                </div>
+              </div>
+              <Dialog open={webResultDialog} onOpenChange={setWebResultDialog}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => { resetWebResultForm(); setWebResultForm(f => ({ ...f, web_result_page: selectedPage })); }}><Plus className="mr-2 h-4 w-4" />New Web Result</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader><DialogTitle>{editingWebResult ? "Edit" : "Create"} Web Result</DialogTitle></DialogHeader>
+                  <form onSubmit={handleWebResultSubmit} className="space-y-4">
+                    <div><Label>Title *</Label><Input value={webResultForm.title} onChange={(e) => setWebResultForm({ ...webResultForm, title: e.target.value })} required /></div>
+                    <div><Label>Description</Label><Textarea value={webResultForm.description} onChange={(e) => setWebResultForm({ ...webResultForm, description: e.target.value })} /></div>
+                    <div><Label>Logo URL</Label><Input value={webResultForm.logo_url} onChange={(e) => setWebResultForm({ ...webResultForm, logo_url: e.target.value })} /></div>
+                    <div><Label>Original Link *</Label><Input value={webResultForm.original_link} onChange={(e) => setWebResultForm({ ...webResultForm, original_link: e.target.value })} required /></div>
+                    <div><Label>Fallback Link</Label><Input value={webResultForm.fallback_link} onChange={(e) => setWebResultForm({ ...webResultForm, fallback_link: e.target.value })} /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><Label>Page</Label><Input type="number" value={webResultForm.web_result_page} onChange={(e) => setWebResultForm({ ...webResultForm, web_result_page: parseInt(e.target.value) })} /></div>
+                      <div><Label>Display Order</Label><Input type="number" value={webResultForm.display_order} onChange={(e) => setWebResultForm({ ...webResultForm, display_order: parseInt(e.target.value) })} /></div>
+                    </div>
+                    <div>
+                      <Label>Country Permissions</Label>
+                      <Select
+                        value={webResultForm.country_permissions[0]}
+                        onValueChange={(v) => setWebResultForm({ ...webResultForm, country_permissions: [v] })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={webResultForm.is_active} onCheckedChange={(checked) => setWebResultForm({ ...webResultForm, is_active: checked })} />
+                      <Label>Active</Label>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="submit" className="flex-1">{editingWebResult ? "Update" : "Create"}</Button>
+                      <Button type="button" variant="outline" onClick={resetWebResultForm}>Cancel</Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+            <div className="space-y-2">
+              {filteredWebResults.map((result) => (
+                <div key={result.id} className="flex items-center justify-between p-4 border rounded">
+                  <div className="flex items-center gap-4">
+                    {result.logo_url && <img src={result.logo_url} alt="" className="w-10 h-10 rounded object-contain" />}
+                    <div>
+                      <h3 className="font-semibold">{result.title}</h3>
+                      <p className="text-sm text-muted-foreground truncate max-w-md">{result.description}</p>
+                      <p className="text-xs text-muted-foreground">Order: {result.display_order} • {result.country_permissions?.join(", ")}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-1 rounded ${result.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {result.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      setEditingWebResult(result);
+                      setWebResultForm({
+                        title: result.title, description: result.description || "",
+                        logo_url: result.logo_url || "", original_link: result.original_link,
+                        web_result_page: result.web_result_page, display_order: result.display_order,
+                        is_active: result.is_active, country_permissions: result.country_permissions || ["worldwide"],
+                        fallback_link: result.fallback_link || ""
+                      });
+                      setWebResultDialog(true);
+                    }}><Edit className="h-4 w-4" /></Button>
+                    <Button size="sm" variant="destructive" onClick={() => handleDeleteWebResult(result.id)}><Trash2 className="h-4 w-4" /></Button>
+                  </div>
+                </div>
+              ))}
+              {filteredWebResults.length === 0 && <p className="text-muted-foreground text-center py-8">No web results found for page {selectedPage}.</p>}
+            </div>
+          </TabsContent>
+
+          {/* Prelanders Tab */}
+          <TabsContent value="prelanders" className="space-y-4">
+            <div className="flex justify-end">
+              <Dialog open={prelanderDialog} onOpenChange={setPrelanderDialog}>
+                <DialogTrigger asChild>
+                  <Button onClick={resetPrelanderForm}><Plus className="mr-2 h-4 w-4" />New Prelander</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader><DialogTitle>{editingPrelander ? "Edit" : "Create"} Prelander</DialogTitle></DialogHeader>
+                  <form onSubmit={handlePrelanderSubmit} className="space-y-4">
+                    <div>
+                      <Label>Web Result</Label>
+                      <Select value={prelanderForm.web_result_id} onValueChange={(v) => setPrelanderForm({ ...prelanderForm, web_result_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select web result" /></SelectTrigger>
+                        <SelectContent>
+                          {webResults.map(wr => <SelectItem key={wr.id} value={wr.id}>{wr.title}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={prelanderForm.is_enabled} onCheckedChange={(checked) => setPrelanderForm({ ...prelanderForm, is_enabled: checked })} />
+                      <Label>Enabled</Label>
+                    </div>
+                    <div><Label>Logo URL</Label><Input value={prelanderForm.logo_url} onChange={(e) => setPrelanderForm({ ...prelanderForm, logo_url: e.target.value })} /></div>
+                    <div><Label>Main Image URL</Label><Input value={prelanderForm.main_image_url} onChange={(e) => setPrelanderForm({ ...prelanderForm, main_image_url: e.target.value })} /></div>
+                    <div><Label>Headline Text</Label><Input value={prelanderForm.headline_text} onChange={(e) => setPrelanderForm({ ...prelanderForm, headline_text: e.target.value })} /></div>
+                    <div><Label>Description Text</Label><Textarea value={prelanderForm.description_text} onChange={(e) => setPrelanderForm({ ...prelanderForm, description_text: e.target.value })} /></div>
+                    <div><Label>Email Placeholder</Label><Input value={prelanderForm.email_placeholder} onChange={(e) => setPrelanderForm({ ...prelanderForm, email_placeholder: e.target.value })} /></div>
+                    <div><Label>Button Text</Label><Input value={prelanderForm.button_text} onChange={(e) => setPrelanderForm({ ...prelanderForm, button_text: e.target.value })} /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><Label>Button Color</Label><Input type="color" value={prelanderForm.button_color} onChange={(e) => setPrelanderForm({ ...prelanderForm, button_color: e.target.value })} /></div>
+                      <div><Label>Background Color</Label><Input type="color" value={prelanderForm.background_color} onChange={(e) => setPrelanderForm({ ...prelanderForm, background_color: e.target.value })} /></div>
+                    </div>
+                    <div><Label>Background Image URL</Label><Input value={prelanderForm.background_image_url} onChange={(e) => setPrelanderForm({ ...prelanderForm, background_image_url: e.target.value })} /></div>
+                    <div className="flex gap-2">
+                      <Button type="submit" className="flex-1">{editingPrelander ? "Update" : "Create"}</Button>
+                      <Button type="button" variant="outline" onClick={resetPrelanderForm}>Cancel</Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+            <div className="space-y-2">
+              {prelanders.map((p) => {
+                const wr = webResults.find(w => w.id === p.web_result_id);
+                return (
+                  <div key={p.id} className="flex items-center justify-between p-4 border rounded">
+                    <div>
+                      <h3 className="font-semibold">{p.headline_text}</h3>
+                      <p className="text-sm text-muted-foreground">Web Result: {wr?.title || 'N/A'}</p>
+                      <span className={`text-xs px-2 py-1 rounded ${p.is_enabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {p.is_enabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => {
+                        setEditingPrelander(p);
+                        setPrelanderForm({
+                          web_result_id: p.web_result_id, is_enabled: p.is_enabled,
+                          logo_url: p.logo_url || "", main_image_url: p.main_image_url || "",
+                          headline_text: p.headline_text, description_text: p.description_text,
+                          email_placeholder: p.email_placeholder, button_text: p.button_text,
+                          button_color: p.button_color, background_color: p.background_color,
+                          background_image_url: p.background_image_url || ""
+                        });
+                        setPrelanderDialog(true);
+                      }}><Edit className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleDeletePrelander(p.id)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </div>
+                );
+              })}
+              {prelanders.length === 0 && <p className="text-muted-foreground text-center py-8">No prelanders found.</p>}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
+  );
+};
