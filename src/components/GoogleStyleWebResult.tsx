@@ -32,10 +32,10 @@ export const GoogleStyleWebResult = ({
   return (
     <div
       onClick={onClick}
-      className="group cursor-pointer py-4 hover:bg-muted/30 rounded-lg px-3 -mx-3 transition-colors"
+      className="group cursor-pointer py-5 hover:bg-muted/30 rounded-lg px-2 transition-colors"
     >
       {/* Header row with favicon, site name, URL */}
-      <div className="flex items-center gap-3 mb-1">
+      <div className="flex items-center gap-2 mb-2">
         {/* Favicon/Logo */}
         <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border border-border">
           {logoUrl ? (
@@ -62,14 +62,14 @@ export const GoogleStyleWebResult = ({
         {/* Site info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-foreground truncate">{hostname}</span>
+            <span className="text-sm text-foreground">{hostname}</span>
             {isSponsored && (
               <span className="text-xs px-1.5 py-0.5 bg-muted text-muted-foreground rounded">
                 Ad
               </span>
             )}
           </div>
-          <span className="text-xs text-muted-foreground truncate block">{targetUrl}</span>
+          <span className="text-xs text-muted-foreground block truncate">{targetUrl}</span>
         </div>
 
         {/* More options icon (decorative) */}
@@ -82,7 +82,7 @@ export const GoogleStyleWebResult = ({
       </div>
 
       {/* Title - Blue link style */}
-      <h3 className="text-xl text-blue-600 dark:text-blue-400 hover:underline decoration-1 underline-offset-2 cursor-pointer font-normal mb-1">
+      <h3 className="text-xl text-blue-600 dark:text-blue-400 hover:underline decoration-1 underline-offset-2 cursor-pointer font-normal leading-snug mb-1">
         {title}
       </h3>
 

@@ -54,14 +54,14 @@ export const WebResults = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-6 max-w-3xl">
-        <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground text-sm mb-6">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground text-sm mb-8">
           ← Back to Home
         </Link>
 
         {/* Sponsored Results */}
         {sponsoredResults.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-4">
             {sponsoredResults.map((result) => (
               <GoogleStyleWebResult
                 key={result.id}
@@ -77,7 +77,7 @@ export const WebResults = () => {
         )}
 
         {/* Organic Web Results */}
-        <div className="divide-y divide-border/50">
+        <div className="space-y-1">
           {webResults.map((result) => (
             <GoogleStyleWebResult
               key={result.id}
