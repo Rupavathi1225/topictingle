@@ -5,7 +5,16 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
+
+interface RelatedSearch {
+  id: string;
+  title: string | null;
+  search_text: string;
+  web_result_page: number | null;
+}
 
 interface WebResult {
   id: string;
@@ -15,6 +24,7 @@ interface WebResult {
   page_number: number;
   position: number;
   pre_landing_page_key: string | null;
+  related_search_id: string | null;
 }
 
 interface PreLandingPage {
@@ -36,9 +46,13 @@ interface PreLandingEditorProps {
 }
 
 export const PreLandingEditor = ({ projectClient, projectName }: PreLandingEditorProps) => {
+  const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
   const [webResults, setWebResults] = useState<WebResult[]>([]);
+  const [selectedSearchId, setSelectedSearchId] = useState<string>('');
   const [selectedWebResultId, setSelectedWebResultId] = useState<string>('');
+  const [selectedSearch, setSelectedSearch] = useState<RelatedSearch | null>(null);
   const [selectedWebResult, setSelectedWebResult] = useState<WebResult | null>(null);
+  const [filteredWebResults, setFilteredWebResults] = useState<WebResult[]>([]);
   const [formData, setFormData] = useState<PreLandingPage>({
     page_key: '',
     logo_url: '',
@@ -55,12 +69,35 @@ export const PreLandingEditor = ({ projectClient, projectName }: PreLandingEdito
   const isSearchProject = projectName === 'SearchProject';
 
   useEffect(() => {
+    fetchRelatedSearches();
     fetchWebResults();
   }, []);
 
+  // Filter web results when a related search is selected
+  useEffect(() => {
+    if (selectedSearchId) {
+      const search = relatedSearches.find(s => s.id === selectedSearchId);
+      setSelectedSearch(search || null);
+      
+      // Filter web results that belong to this related search (by web_result_page)
+      const filtered = webResults.filter(wr => 
+        search?.web_result_page && wr.page_number === search.web_result_page
+      );
+      setFilteredWebResults(filtered);
+      
+      // Reset web result selection
+      setSelectedWebResultId('');
+      setSelectedWebResult(null);
+    } else {
+      setSelectedSearch(null);
+      setFilteredWebResults([]);
+    }
+  }, [selectedSearchId, relatedSearches, webResults]);
+
+  // Load prelanding when web result is selected
   useEffect(() => {
     if (selectedWebResultId) {
-      const webResult = webResults.find(w => w.id === selectedWebResultId);
+      const webResult = filteredWebResults.find(w => w.id === selectedWebResultId);
       if (webResult) {
         setSelectedWebResult(webResult);
         if (webResult.pre_landing_page_key) {
@@ -82,7 +119,27 @@ export const PreLandingEditor = ({ projectClient, projectName }: PreLandingEdito
         }
       }
     }
-  }, [selectedWebResultId, webResults]);
+  }, [selectedWebResultId, filteredWebResults]);
+
+  const fetchRelatedSearches = async () => {
+    try {
+      const { data, error } = await projectClient
+        .from('related_searches')
+        .select('id, title, search_text, web_result_page')
+        .order('display_order', { ascending: true });
+      
+      if (error) {
+        console.error('Error fetching related searches:', error);
+        return;
+      }
+      
+      if (data) {
+        setRelatedSearches(data);
+      }
+    } catch (err: any) {
+      console.error('Error:', err);
+    }
+  };
 
   const fetchWebResults = async () => {
     try {
@@ -100,8 +157,6 @@ export const PreLandingEditor = ({ projectClient, projectName }: PreLandingEdito
       
       if (data && data.length > 0) {
         setWebResults(data);
-      } else {
-        toast.info('No web results found. Please create some first in the Web Results tab.');
       }
     } catch (err: any) {
       console.error('Error:', err);
@@ -228,28 +283,105 @@ export const PreLandingEditor = ({ projectClient, projectName }: PreLandingEdito
           <CardTitle className={titleClass}>Pre-Landing Page Builder</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Select Web Result */}
+          {/* Step 1: Select Related Search */}
           <div>
-            <Label className={`text-base font-semibold ${labelClass}`}>Select Web Result</Label>
-            <Select value={selectedWebResultId} onValueChange={setSelectedWebResultId}>
+            <Label className={`text-base font-semibold ${labelClass}`}>
+              Step 1: Select Related Search
+            </Label>
+            <Select value={selectedSearchId} onValueChange={setSelectedSearchId}>
               <SelectTrigger className={`mt-2 ${inputClass}`}>
-                <SelectValue placeholder="Choose a web result" />
+                <SelectValue placeholder="Choose a related search" />
               </SelectTrigger>
               <SelectContent className="bg-background border">
-                {webResults.length === 0 ? (
+                {relatedSearches.length === 0 ? (
                   <SelectItem value="no-results" disabled>
-                    No web results found - create some first
+                    No related searches found
                   </SelectItem>
                 ) : (
-                  webResults.map((webResult) => (
-                    <SelectItem key={webResult.id} value={webResult.id}>
-                      {webResult.title} (Page {webResult.page_number}, Pos {webResult.position})
+                  relatedSearches.map((search) => (
+                    <SelectItem key={search.id} value={search.id}>
+                      <span className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">Related Search</Badge>
+                        {search.title || search.search_text}
+                        {search.web_result_page && (
+                          <span className="text-muted-foreground text-xs">
+                            (Page {search.web_result_page})
+                          </span>
+                        )}
+                      </span>
                     </SelectItem>
                   ))
                 )}
               </SelectContent>
             </Select>
           </div>
+
+          {/* Step 2: Select Web Result (only show if related search selected) */}
+          {selectedSearch && (
+            <div>
+              <Label className={`text-base font-semibold ${labelClass}`}>
+                Step 2: Select Web Result
+              </Label>
+              
+              {/* Breadcrumb showing hierarchy */}
+              <div className="flex items-center gap-2 mt-2 mb-3 text-sm">
+                <Badge variant="secondary">Related Search</Badge>
+                <span className="text-muted-foreground">{selectedSearch.title || selectedSearch.search_text}</span>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                <Badge variant="outline">Web Results</Badge>
+              </div>
+
+              <Select value={selectedWebResultId} onValueChange={setSelectedWebResultId}>
+                <SelectTrigger className={`mt-2 ${inputClass}`}>
+                  <SelectValue placeholder="Choose a web result from this related search" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border">
+                  {filteredWebResults.length === 0 ? (
+                    <SelectItem value="no-results" disabled>
+                      No web results found for this related search (Page {selectedSearch.web_result_page})
+                    </SelectItem>
+                  ) : (
+                    filteredWebResults.map((webResult) => (
+                      <SelectItem key={webResult.id} value={webResult.id}>
+                        <span className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">Web Result</Badge>
+                          {webResult.title}
+                          <span className="text-muted-foreground text-xs">
+                            (Pos {webResult.position})
+                          </span>
+                          {webResult.pre_landing_page_key && (
+                            <Badge variant="default" className="text-xs bg-green-600">
+                              Has Pre-landing
+                            </Badge>
+                          )}
+                        </span>
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Show full hierarchy when web result is selected */}
+          {selectedSearch && selectedWebResult && (
+            <div className={`p-4 rounded-lg border ${isSearchProject ? 'bg-[#0a1628] border-[#2a3f5f]' : 'bg-muted/50'}`}>
+              <p className={`text-sm font-medium mb-2 ${labelClass}`}>Selected Path:</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="secondary">Related Search</Badge>
+                <span className={`text-sm ${isSearchProject ? 'text-gray-300' : ''}`}>
+                  {selectedSearch.title || selectedSearch.search_text}
+                </span>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                <Badge variant="outline">Web Result</Badge>
+                <span className={`text-sm ${isSearchProject ? 'text-gray-300' : ''}`}>
+                  {selectedWebResult.title}
+                </span>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                <Badge variant="default">Pre-Landing Page</Badge>
+              </div>
+            </div>
+          )}
 
           {selectedWebResult && (
             <div className={`space-y-4 border-t pt-6 ${isSearchProject ? 'border-[#2a3f5f]' : ''}`}>
