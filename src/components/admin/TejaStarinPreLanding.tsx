@@ -220,10 +220,13 @@ export const TejaStarinPreLanding = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Select a related search..." />
                   </SelectTrigger>
-                  <SelectContent>
+                <SelectContent>
                     {relatedSearches.map((search) => (
                       <SelectItem key={search.id} value={search.id}>
-                        {search.search_text}
+                        <span className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">(Related Search)</Badge>
+                          {search.search_text}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -238,13 +241,27 @@ export const TejaStarinPreLanding = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Select a web result..." />
                     </SelectTrigger>
-                    <SelectContent>
+                  <SelectContent>
                       {filteredWebResults.length > 0 ? (
-                        filteredWebResults.map((wr) => (
-                          <SelectItem key={wr.id} value={wr.id}>
-                            {wr.title}
-                          </SelectItem>
-                        ))
+                        filteredWebResults.map((wr) => {
+                          // Check if this web result has a pre-landing page
+                          const hasPreLanding = preLandingPages.some(
+                            p => p.related_search_id === wr.related_search_id
+                          );
+                          return (
+                            <SelectItem key={wr.id} value={wr.id}>
+                              <span className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-xs">(Web Result)</Badge>
+                                {wr.title}
+                                {hasPreLanding && (
+                                  <Badge variant="default" className="text-xs bg-green-600">
+                                    Has Pre-landing
+                                  </Badge>
+                                )}
+                              </span>
+                            </SelectItem>
+                          );
+                        })
                       ) : (
                         <SelectItem value="no-results" disabled>
                           No web results for this search
@@ -260,17 +277,15 @@ export const TejaStarinPreLanding = () => {
                 <div className="p-4 bg-muted/50 rounded-lg border">
                   <Label className="text-sm text-muted-foreground mb-2 block">Selected Path:</Label>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="secondary" className="text-sm py-1 px-3">
-                      <span className="text-muted-foreground mr-1">Related Search:</span>
-                      {selectedSearch.search_text}
-                    </Badge>
+                    <Badge variant="secondary">(Related Search)</Badge>
+                    <span className="text-sm">{selectedSearch.search_text}</span>
                     {selectedWebResult && (
                       <>
                         <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                        <Badge variant="outline" className="text-sm py-1 px-3">
-                          <span className="text-muted-foreground mr-1">Web Result:</span>
-                          {selectedWebResult.title}
-                        </Badge>
+                        <Badge variant="outline">(Web Result)</Badge>
+                        <span className="text-sm">{selectedWebResult.title}</span>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                        <Badge variant="default">Pre-Landing Page</Badge>
                       </>
                     )}
                   </div>
