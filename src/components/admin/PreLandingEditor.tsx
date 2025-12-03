@@ -7,11 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 
-interface RelatedSearch {
+interface WebResult {
   id: string;
   title: string;
-  search_text: string;
-  web_result_page: number;
+  description: string | null;
+  target_url: string;
+  page_number: number;
   position: number;
   pre_landing_page_key: string | null;
 }
@@ -35,9 +36,9 @@ interface PreLandingEditorProps {
 }
 
 export const PreLandingEditor = ({ projectClient, projectName }: PreLandingEditorProps) => {
-  const [searches, setSearches] = useState<RelatedSearch[]>([]);
-  const [selectedSearchId, setSelectedSearchId] = useState<string>('');
-  const [selectedSearch, setSelectedSearch] = useState<RelatedSearch | null>(null);
+  const [webResults, setWebResults] = useState<WebResult[]>([]);
+  const [selectedWebResultId, setSelectedWebResultId] = useState<string>('');
+  const [selectedWebResult, setSelectedWebResult] = useState<WebResult | null>(null);
   const [formData, setFormData] = useState<PreLandingPage>({
     page_key: '',
     logo_url: '',
@@ -54,53 +55,53 @@ export const PreLandingEditor = ({ projectClient, projectName }: PreLandingEdito
   const isSearchProject = projectName === 'SearchProject';
 
   useEffect(() => {
-    fetchSearches();
+    fetchWebResults();
   }, []);
 
   useEffect(() => {
-    if (selectedSearchId) {
-      const search = searches.find(s => s.id === selectedSearchId);
-      if (search) {
-        setSelectedSearch(search);
-        if (search.pre_landing_page_key) {
-          loadPreLandingPage(search.pre_landing_page_key);
+    if (selectedWebResultId) {
+      const webResult = webResults.find(w => w.id === selectedWebResultId);
+      if (webResult) {
+        setSelectedWebResult(webResult);
+        if (webResult.pre_landing_page_key) {
+          loadPreLandingPage(webResult.pre_landing_page_key);
         } else {
-          // Generate new page key
-          const newPageKey = `${projectName.toLowerCase()}-wr${search.web_result_page}-p${search.position}`;
+          // Generate new page key based on web result
+          const newPageKey = `${projectName.toLowerCase()}-wr${webResult.page_number}-pos${webResult.position}`;
           setFormData({
             page_key: newPageKey,
             logo_url: '',
             main_image_url: '',
-            headline: search.title || 'Your amazing deal is here',
+            headline: webResult.title || 'Your amazing deal is here',
             description: 'Describe what users will get...',
             cta_text: 'Get Started',
             background_color: '#ffffff',
             background_image_url: '',
-            target_url: '',
+            target_url: webResult.target_url || '',
           });
         }
       }
     }
-  }, [selectedSearchId, searches]);
+  }, [selectedWebResultId, webResults]);
 
-  const fetchSearches = async () => {
+  const fetchWebResults = async () => {
     try {
       const { data, error } = await projectClient
-        .from('related_searches')
+        .from('web_results')
         .select('*')
-        .order('web_result_page', { ascending: true })
+        .order('page_number', { ascending: true })
         .order('position', { ascending: true });
       
       if (error) {
-        console.error('Error fetching searches:', error);
-        toast.error('Failed to fetch related searches. Please check the external database setup.');
+        console.error('Error fetching web results:', error);
+        toast.error('Failed to fetch web results. Please check the database setup.');
         return;
       }
       
       if (data && data.length > 0) {
-        setSearches(data);
+        setWebResults(data);
       } else {
-        toast.info('No related searches found. Please create some first in the Related Searches tab.');
+        toast.info('No web results found. Please create some first in the Web Results tab.');
       }
     } catch (err: any) {
       console.error('Error:', err);
@@ -132,8 +133,8 @@ export const PreLandingEditor = ({ projectClient, projectName }: PreLandingEdito
   };
 
   const handleUpdatePreLanding = async () => {
-    if (!selectedSearch) {
-      toast.error('Please select a related search');
+    if (!selectedWebResult) {
+      toast.error('Please select a web result');
       return;
     }
 
@@ -180,16 +181,16 @@ export const PreLandingEditor = ({ projectClient, projectName }: PreLandingEdito
         if (error) throw error;
       }
 
-      // Update related search to link to this page
-      const { error: searchError } = await projectClient
-        .from('related_searches')
+      // Update web result to link to this prelanding page
+      const { error: webResultError } = await projectClient
+        .from('web_results')
         .update({ pre_landing_page_key: formData.page_key })
-        .eq('id', selectedSearch.id);
+        .eq('id', selectedWebResult.id);
 
-      if (searchError) throw searchError;
+      if (webResultError) throw webResultError;
 
       toast.success('Pre-landing page updated successfully!');
-      fetchSearches();
+      fetchWebResults();
     } catch (error: any) {
       toast.error('Failed to update: ' + error.message);
     }
@@ -227,22 +228,22 @@ export const PreLandingEditor = ({ projectClient, projectName }: PreLandingEdito
           <CardTitle className={titleClass}>Pre-Landing Page Builder</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Select Related Search */}
+          {/* Select Web Result */}
           <div>
-            <Label className={`text-base font-semibold ${labelClass}`}>Select Related Search</Label>
-            <Select value={selectedSearchId} onValueChange={setSelectedSearchId}>
+            <Label className={`text-base font-semibold ${labelClass}`}>Select Web Result</Label>
+            <Select value={selectedWebResultId} onValueChange={setSelectedWebResultId}>
               <SelectTrigger className={`mt-2 ${inputClass}`}>
-                <SelectValue placeholder="Choose a related search" />
+                <SelectValue placeholder="Choose a web result" />
               </SelectTrigger>
-              <SelectContent>
-                {searches.length === 0 ? (
-                  <SelectItem value="no-searches" disabled>
-                    No related searches found - create some first
+              <SelectContent className="bg-background border">
+                {webResults.length === 0 ? (
+                  <SelectItem value="no-results" disabled>
+                    No web results found - create some first
                   </SelectItem>
                 ) : (
-                  searches.map((search) => (
-                    <SelectItem key={search.id} value={search.id}>
-                      {search.title || search.search_text} (WR-{search.web_result_page}, Pos-{search.position})
+                  webResults.map((webResult) => (
+                    <SelectItem key={webResult.id} value={webResult.id}>
+                      {webResult.title} (Page {webResult.page_number}, Pos {webResult.position})
                     </SelectItem>
                   ))
                 )}
@@ -250,7 +251,7 @@ export const PreLandingEditor = ({ projectClient, projectName }: PreLandingEdito
             </Select>
           </div>
 
-          {selectedSearch && (
+          {selectedWebResult && (
             <div className={`space-y-4 border-t pt-6 ${isSearchProject ? 'border-[#2a3f5f]' : ''}`}>
               <h3 className={`text-lg font-semibold ${titleClass}`}>Edit Pre-Landing Page</h3>
 
