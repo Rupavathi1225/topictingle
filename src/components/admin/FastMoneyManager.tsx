@@ -277,20 +277,20 @@ export const FastMoneyManager = () => {
   );
 
   return (
-    <Card>
+    <Card className="bg-[#1a2942] border-[#2a3f5f] text-white">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-white">
           <span className="text-2xl">💰</span> FastMoney Manager
         </CardTitle>
-        <CardDescription>Manage landing page, related searches, web results, and prelanders</CardDescription>
+        <CardDescription className="text-gray-400">Manage landing page, related searches, web results, and prelanders</CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="landing">Landing</TabsTrigger>
-            <TabsTrigger value="searches">Searches ({relatedSearches.length})</TabsTrigger>
-            <TabsTrigger value="webresults">Web Results ({webResults.length})</TabsTrigger>
-            <TabsTrigger value="prelanders">Prelanders ({prelanders.length})</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 bg-[#0d1520]">
+            <TabsTrigger value="landing" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">Landing</TabsTrigger>
+            <TabsTrigger value="searches" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">Searches ({relatedSearches.length})</TabsTrigger>
+            <TabsTrigger value="webresults" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">Web Results ({webResults.length})</TabsTrigger>
+            <TabsTrigger value="prelanders" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">Prelanders ({prelanders.length})</TabsTrigger>
           </TabsList>
 
           {/* Landing Tab */}
@@ -298,30 +298,33 @@ export const FastMoneyManager = () => {
             {landingSettings ? (
               <div className="space-y-4 max-w-xl">
                 <div>
-                  <Label>Site Name</Label>
+                  <Label className="text-gray-300">Site Name</Label>
                   <Input
                     value={landingSettings.site_name}
                     onChange={(e) => setLandingSettings({ ...landingSettings, site_name: e.target.value })}
+                    className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500"
                   />
                 </div>
                 <div>
-                  <Label>Title</Label>
+                  <Label className="text-gray-300">Title</Label>
                   <Input
                     value={landingSettings.title}
                     onChange={(e) => setLandingSettings({ ...landingSettings, title: e.target.value })}
+                    className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500"
                   />
                 </div>
                 <div>
-                  <Label>Description</Label>
+                  <Label className="text-gray-300">Description</Label>
                   <Textarea
                     value={landingSettings.description}
                     onChange={(e) => setLandingSettings({ ...landingSettings, description: e.target.value })}
+                    className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500"
                   />
                 </div>
-                <Button onClick={handleSaveLanding}>Save Settings</Button>
+                <Button onClick={handleSaveLanding} className="bg-[#00b4d8] hover:bg-[#0096b4] text-white">Save Settings</Button>
               </div>
             ) : (
-              <p className="text-muted-foreground">No landing settings found.</p>
+              <p className="text-gray-400">No landing settings found.</p>
             )}
           </TabsContent>
 
@@ -329,35 +332,35 @@ export const FastMoneyManager = () => {
           <TabsContent value="searches" className="space-y-4">
             <div className="flex items-center justify-between gap-4">
               <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500"
                 />
               </div>
               <Dialog open={searchDialog} onOpenChange={setSearchDialog}>
                 <DialogTrigger asChild>
-                  <Button onClick={resetSearchForm}><Plus className="mr-2 h-4 w-4" />New Search</Button>
+                  <Button onClick={resetSearchForm} className="bg-[#00b4d8] hover:bg-[#0096b4] text-white"><Plus className="mr-2 h-4 w-4" />New Search</Button>
                 </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>{editingSearch ? "Edit" : "Create"} Related Search</DialogTitle></DialogHeader>
+                <DialogContent className="bg-[#1a2942] border-[#2a3f5f] text-white">
+                  <DialogHeader><DialogTitle className="text-white">{editingSearch ? "Edit" : "Create"} Related Search</DialogTitle></DialogHeader>
                   <form onSubmit={handleSearchSubmit} className="space-y-4">
-                    <div><Label>Search Text *</Label><Input value={searchForm.search_text} onChange={(e) => setSearchForm({ ...searchForm, search_text: e.target.value })} required /></div>
-                    <div><Label>Title *</Label><Input value={searchForm.title} onChange={(e) => setSearchForm({ ...searchForm, title: e.target.value })} required /></div>
+                    <div><Label className="text-gray-300">Search Text *</Label><Input value={searchForm.search_text} onChange={(e) => setSearchForm({ ...searchForm, search_text: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Title *</Label><Input value={searchForm.title} onChange={(e) => setSearchForm({ ...searchForm, title: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div><Label>Web Result Page</Label><Input type="number" value={searchForm.web_result_page} onChange={(e) => setSearchForm({ ...searchForm, web_result_page: parseInt(e.target.value) })} /></div>
-                      <div><Label>Position</Label><Input type="number" value={searchForm.position} onChange={(e) => setSearchForm({ ...searchForm, position: parseInt(e.target.value) })} /></div>
+                      <div><Label className="text-gray-300">Web Result Page</Label><Input type="number" value={searchForm.web_result_page} onChange={(e) => setSearchForm({ ...searchForm, web_result_page: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                      <div><Label className="text-gray-300">Position</Label><Input type="number" value={searchForm.position} onChange={(e) => setSearchForm({ ...searchForm, position: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     </div>
-                    <div><Label>Display Order</Label><Input type="number" value={searchForm.display_order} onChange={(e) => setSearchForm({ ...searchForm, display_order: parseInt(e.target.value) })} /></div>
+                    <div><Label className="text-gray-300">Display Order</Label><Input type="number" value={searchForm.display_order} onChange={(e) => setSearchForm({ ...searchForm, display_order: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div className="flex items-center gap-2">
                       <Switch checked={searchForm.is_active} onCheckedChange={(checked) => setSearchForm({ ...searchForm, is_active: checked })} />
-                      <Label>Active</Label>
+                      <Label className="text-gray-300">Active</Label>
                     </div>
                     <div className="flex gap-2">
-                      <Button type="submit" className="flex-1">{editingSearch ? "Update" : "Create"}</Button>
-                      <Button type="button" variant="outline" onClick={resetSearchForm}>Cancel</Button>
+                      <Button type="submit" className="flex-1 bg-[#00b4d8] hover:bg-[#0096b4] text-white">{editingSearch ? "Update" : "Create"}</Button>
+                      <Button type="button" variant="outline" onClick={resetSearchForm} className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]">Cancel</Button>
                     </div>
                   </form>
                 </DialogContent>
@@ -365,16 +368,16 @@ export const FastMoneyManager = () => {
             </div>
             <div className="space-y-2">
               {filteredSearches.map((search) => (
-                <div key={search.id} className="flex items-center justify-between p-4 border rounded">
+                <div key={search.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
                   <div>
-                    <h3 className="font-semibold">{search.title}</h3>
-                    <p className="text-sm text-muted-foreground">{search.search_text} • Page {search.web_result_page} • Pos {search.position}</p>
-                    <span className={`text-xs px-2 py-1 rounded ${search.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    <h3 className="font-semibold text-white">{search.title}</h3>
+                    <p className="text-sm text-gray-400">{search.search_text} • Page {search.web_result_page} • Pos {search.position}</p>
+                    <span className={`text-xs px-2 py-1 rounded ${search.is_active ? 'bg-[#00b4d8]/20 text-[#00b4d8]' : 'bg-red-500/20 text-red-400'}`}>
                       {search.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => {
+                    <Button size="sm" variant="outline" className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]" onClick={() => {
                       setEditingSearch(search);
                       setSearchForm({
                         search_text: search.search_text, title: search.title,
@@ -387,7 +390,7 @@ export const FastMoneyManager = () => {
                   </div>
                 </div>
               ))}
-              {filteredSearches.length === 0 && <p className="text-muted-foreground text-center py-8">No related searches found.</p>}
+              {filteredSearches.length === 0 && <p className="text-gray-400 text-center py-8">No related searches found.</p>}
             </div>
           </TabsContent>
 
@@ -396,51 +399,51 @@ export const FastMoneyManager = () => {
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <Select value={selectedPage.toString()} onValueChange={(v) => setSelectedPage(parseInt(v))}>
-                  <SelectTrigger className="w-32"><SelectValue placeholder="Page" /></SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5].map(p => <SelectItem key={p} value={p.toString()}>Page {p}</SelectItem>)}
+                  <SelectTrigger className="w-32 bg-[#0d1520] border-[#2a3f5f] text-white"><SelectValue placeholder="Page" /></SelectTrigger>
+                  <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
+                    {[1, 2, 3, 4, 5].map(p => <SelectItem key={p} value={p.toString()} className="text-white hover:bg-[#2a3f5f]">Page {p}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <div className="relative flex-1 max-w-sm">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" />
                 </div>
               </div>
               <Dialog open={webResultDialog} onOpenChange={setWebResultDialog}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => { resetWebResultForm(); setWebResultForm(f => ({ ...f, web_result_page: selectedPage })); }}><Plus className="mr-2 h-4 w-4" />New Web Result</Button>
+                  <Button onClick={() => { resetWebResultForm(); setWebResultForm(f => ({ ...f, web_result_page: selectedPage })); }} className="bg-[#00b4d8] hover:bg-[#0096b4] text-white"><Plus className="mr-2 h-4 w-4" />Add Result</Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader><DialogTitle>{editingWebResult ? "Edit" : "Create"} Web Result</DialogTitle></DialogHeader>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1a2942] border-[#2a3f5f] text-white">
+                  <DialogHeader><DialogTitle className="text-white">{editingWebResult ? "Edit" : "Create"} Web Result</DialogTitle></DialogHeader>
                   <form onSubmit={handleWebResultSubmit} className="space-y-4">
-                    <div><Label>Title *</Label><Input value={webResultForm.title} onChange={(e) => setWebResultForm({ ...webResultForm, title: e.target.value })} required /></div>
-                    <div><Label>Description</Label><Textarea value={webResultForm.description} onChange={(e) => setWebResultForm({ ...webResultForm, description: e.target.value })} /></div>
-                    <div><Label>Logo URL</Label><Input value={webResultForm.logo_url} onChange={(e) => setWebResultForm({ ...webResultForm, logo_url: e.target.value })} /></div>
-                    <div><Label>Original Link *</Label><Input value={webResultForm.original_link} onChange={(e) => setWebResultForm({ ...webResultForm, original_link: e.target.value })} required /></div>
-                    <div><Label>Fallback Link</Label><Input value={webResultForm.fallback_link} onChange={(e) => setWebResultForm({ ...webResultForm, fallback_link: e.target.value })} /></div>
+                    <div><Label className="text-gray-300">Title *</Label><Input value={webResultForm.title} onChange={(e) => setWebResultForm({ ...webResultForm, title: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Description</Label><Textarea value={webResultForm.description} onChange={(e) => setWebResultForm({ ...webResultForm, description: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" /></div>
+                    <div><Label className="text-gray-300">Logo URL (optional)</Label><Input value={webResultForm.logo_url} onChange={(e) => setWebResultForm({ ...webResultForm, logo_url: e.target.value })} placeholder="https://..." className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" /></div>
+                    <div><Label className="text-gray-300">Original Link *</Label><Input value={webResultForm.original_link} onChange={(e) => setWebResultForm({ ...webResultForm, original_link: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Fallback Link</Label><Input value={webResultForm.fallback_link} onChange={(e) => setWebResultForm({ ...webResultForm, fallback_link: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div><Label>Page</Label><Input type="number" value={webResultForm.web_result_page} onChange={(e) => setWebResultForm({ ...webResultForm, web_result_page: parseInt(e.target.value) })} /></div>
-                      <div><Label>Display Order</Label><Input type="number" value={webResultForm.display_order} onChange={(e) => setWebResultForm({ ...webResultForm, display_order: parseInt(e.target.value) })} /></div>
+                      <div><Label className="text-gray-300">Page</Label><Input type="number" value={webResultForm.web_result_page} onChange={(e) => setWebResultForm({ ...webResultForm, web_result_page: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                      <div><Label className="text-gray-300">Display Order</Label><Input type="number" value={webResultForm.display_order} onChange={(e) => setWebResultForm({ ...webResultForm, display_order: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     </div>
                     <div>
-                      <Label>Country Permissions</Label>
+                      <Label className="text-gray-300">Country Permissions</Label>
                       <Select
                         value={webResultForm.country_permissions[0]}
                         onValueChange={(v) => setWebResultForm({ ...webResultForm, country_permissions: [v] })}
                       >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
+                        <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white"><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
+                          {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code} className="text-white hover:bg-[#2a3f5f]">{c.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="flex items-center gap-2">
                       <Switch checked={webResultForm.is_active} onCheckedChange={(checked) => setWebResultForm({ ...webResultForm, is_active: checked })} />
-                      <Label>Active</Label>
+                      <Label className="text-gray-300">Active</Label>
                     </div>
                     <div className="flex gap-2">
-                      <Button type="submit" className="flex-1">{editingWebResult ? "Update" : "Create"}</Button>
-                      <Button type="button" variant="outline" onClick={resetWebResultForm}>Cancel</Button>
+                      <Button type="submit" className="flex-1 bg-[#00b4d8] hover:bg-[#0096b4] text-white">{editingWebResult ? "Update" : "Create"}</Button>
+                      <Button type="button" variant="outline" onClick={resetWebResultForm} className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]">Cancel</Button>
                     </div>
                   </form>
                 </DialogContent>
@@ -448,20 +451,20 @@ export const FastMoneyManager = () => {
             </div>
             <div className="space-y-2">
               {filteredWebResults.map((result) => (
-                <div key={result.id} className="flex items-center justify-between p-4 border rounded">
+                <div key={result.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
                   <div className="flex items-center gap-4">
                     {result.logo_url && <img src={result.logo_url} alt="" className="w-10 h-10 rounded object-contain" />}
                     <div>
-                      <h3 className="font-semibold">{result.title}</h3>
-                      <p className="text-sm text-muted-foreground truncate max-w-md">{result.description}</p>
-                      <p className="text-xs text-muted-foreground">Order: {result.display_order} • {result.country_permissions?.join(", ")}</p>
+                      <h3 className="font-semibold text-white">{result.title}</h3>
+                      <p className="text-sm text-gray-400 truncate max-w-md">{result.description}</p>
+                      <p className="text-xs text-gray-500">Order: {result.display_order} • {result.country_permissions?.join(", ")}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-1 rounded ${result.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    <span className={`text-xs px-2 py-1 rounded ${result.is_active ? 'bg-[#00b4d8]/20 text-[#00b4d8]' : 'bg-red-500/20 text-red-400'}`}>
                       {result.is_active ? 'Active' : 'Inactive'}
                     </span>
-                    <Button size="sm" variant="outline" onClick={() => {
+                    <Button size="sm" variant="outline" className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]" onClick={() => {
                       setEditingWebResult(result);
                       setWebResultForm({
                         title: result.title, description: result.description || "",
@@ -476,7 +479,7 @@ export const FastMoneyManager = () => {
                   </div>
                 </div>
               ))}
-              {filteredWebResults.length === 0 && <p className="text-muted-foreground text-center py-8">No web results found for page {selectedPage}.</p>}
+              {filteredWebResults.length === 0 && <p className="text-gray-400 text-center py-8">No web results found for page {selectedPage}.</p>}
             </div>
           </TabsContent>
 
@@ -485,38 +488,38 @@ export const FastMoneyManager = () => {
             <div className="flex justify-end">
               <Dialog open={prelanderDialog} onOpenChange={setPrelanderDialog}>
                 <DialogTrigger asChild>
-                  <Button onClick={resetPrelanderForm}><Plus className="mr-2 h-4 w-4" />New Prelander</Button>
+                  <Button onClick={resetPrelanderForm} className="bg-[#00b4d8] hover:bg-[#0096b4] text-white"><Plus className="mr-2 h-4 w-4" />New Prelander</Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader><DialogTitle>{editingPrelander ? "Edit" : "Create"} Prelander</DialogTitle></DialogHeader>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1a2942] border-[#2a3f5f] text-white">
+                  <DialogHeader><DialogTitle className="text-white">{editingPrelander ? "Edit" : "Create"} Prelander</DialogTitle></DialogHeader>
                   <form onSubmit={handlePrelanderSubmit} className="space-y-4">
                     <div>
-                      <Label>Web Result</Label>
+                      <Label className="text-gray-300">Web Result</Label>
                       <Select value={prelanderForm.web_result_id} onValueChange={(v) => setPrelanderForm({ ...prelanderForm, web_result_id: v })}>
-                        <SelectTrigger><SelectValue placeholder="Select web result" /></SelectTrigger>
-                        <SelectContent>
-                          {webResults.map(wr => <SelectItem key={wr.id} value={wr.id}>{wr.title}</SelectItem>)}
+                        <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white"><SelectValue placeholder="Select web result" /></SelectTrigger>
+                        <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
+                          {webResults.map(wr => <SelectItem key={wr.id} value={wr.id} className="text-white hover:bg-[#2a3f5f]">{wr.title}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="flex items-center gap-2">
                       <Switch checked={prelanderForm.is_enabled} onCheckedChange={(checked) => setPrelanderForm({ ...prelanderForm, is_enabled: checked })} />
-                      <Label>Enabled</Label>
+                      <Label className="text-gray-300">Enabled</Label>
                     </div>
-                    <div><Label>Logo URL</Label><Input value={prelanderForm.logo_url} onChange={(e) => setPrelanderForm({ ...prelanderForm, logo_url: e.target.value })} /></div>
-                    <div><Label>Main Image URL</Label><Input value={prelanderForm.main_image_url} onChange={(e) => setPrelanderForm({ ...prelanderForm, main_image_url: e.target.value })} /></div>
-                    <div><Label>Headline Text</Label><Input value={prelanderForm.headline_text} onChange={(e) => setPrelanderForm({ ...prelanderForm, headline_text: e.target.value })} /></div>
-                    <div><Label>Description Text</Label><Textarea value={prelanderForm.description_text} onChange={(e) => setPrelanderForm({ ...prelanderForm, description_text: e.target.value })} /></div>
-                    <div><Label>Email Placeholder</Label><Input value={prelanderForm.email_placeholder} onChange={(e) => setPrelanderForm({ ...prelanderForm, email_placeholder: e.target.value })} /></div>
-                    <div><Label>Button Text</Label><Input value={prelanderForm.button_text} onChange={(e) => setPrelanderForm({ ...prelanderForm, button_text: e.target.value })} /></div>
+                    <div><Label className="text-gray-300">Logo URL</Label><Input value={prelanderForm.logo_url} onChange={(e) => setPrelanderForm({ ...prelanderForm, logo_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Main Image URL</Label><Input value={prelanderForm.main_image_url} onChange={(e) => setPrelanderForm({ ...prelanderForm, main_image_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Headline Text</Label><Input value={prelanderForm.headline_text} onChange={(e) => setPrelanderForm({ ...prelanderForm, headline_text: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Description Text</Label><Textarea value={prelanderForm.description_text} onChange={(e) => setPrelanderForm({ ...prelanderForm, description_text: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Email Placeholder</Label><Input value={prelanderForm.email_placeholder} onChange={(e) => setPrelanderForm({ ...prelanderForm, email_placeholder: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Button Text</Label><Input value={prelanderForm.button_text} onChange={(e) => setPrelanderForm({ ...prelanderForm, button_text: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div><Label>Button Color</Label><Input type="color" value={prelanderForm.button_color} onChange={(e) => setPrelanderForm({ ...prelanderForm, button_color: e.target.value })} /></div>
-                      <div><Label>Background Color</Label><Input type="color" value={prelanderForm.background_color} onChange={(e) => setPrelanderForm({ ...prelanderForm, background_color: e.target.value })} /></div>
+                      <div><Label className="text-gray-300">Button Color</Label><Input type="color" value={prelanderForm.button_color} onChange={(e) => setPrelanderForm({ ...prelanderForm, button_color: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] h-10" /></div>
+                      <div><Label className="text-gray-300">Background Color</Label><Input type="color" value={prelanderForm.background_color} onChange={(e) => setPrelanderForm({ ...prelanderForm, background_color: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] h-10" /></div>
                     </div>
-                    <div><Label>Background Image URL</Label><Input value={prelanderForm.background_image_url} onChange={(e) => setPrelanderForm({ ...prelanderForm, background_image_url: e.target.value })} /></div>
+                    <div><Label className="text-gray-300">Background Image URL</Label><Input value={prelanderForm.background_image_url} onChange={(e) => setPrelanderForm({ ...prelanderForm, background_image_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div className="flex gap-2">
-                      <Button type="submit" className="flex-1">{editingPrelander ? "Update" : "Create"}</Button>
-                      <Button type="button" variant="outline" onClick={resetPrelanderForm}>Cancel</Button>
+                      <Button type="submit" className="flex-1 bg-[#00b4d8] hover:bg-[#0096b4] text-white">{editingPrelander ? "Update" : "Create"}</Button>
+                      <Button type="button" variant="outline" onClick={resetPrelanderForm} className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]">Cancel</Button>
                     </div>
                   </form>
                 </DialogContent>
@@ -526,16 +529,16 @@ export const FastMoneyManager = () => {
               {prelanders.map((p) => {
                 const wr = webResults.find(w => w.id === p.web_result_id);
                 return (
-                  <div key={p.id} className="flex items-center justify-between p-4 border rounded">
+                  <div key={p.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
                     <div>
-                      <h3 className="font-semibold">{p.headline_text}</h3>
-                      <p className="text-sm text-muted-foreground">Web Result: {wr?.title || 'N/A'}</p>
-                      <span className={`text-xs px-2 py-1 rounded ${p.is_enabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      <h3 className="font-semibold text-white">{p.headline_text}</h3>
+                      <p className="text-sm text-gray-400">Web Result: {wr?.title || 'N/A'}</p>
+                      <span className={`text-xs px-2 py-1 rounded ${p.is_enabled ? 'bg-[#00b4d8]/20 text-[#00b4d8]' : 'bg-red-500/20 text-red-400'}`}>
                         {p.is_enabled ? 'Enabled' : 'Disabled'}
                       </span>
                     </div>
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => {
+                      <Button size="sm" variant="outline" className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]" onClick={() => {
                         setEditingPrelander(p);
                         setPrelanderForm({
                           web_result_id: p.web_result_id, is_enabled: p.is_enabled,
@@ -552,7 +555,7 @@ export const FastMoneyManager = () => {
                   </div>
                 );
               })}
-              {prelanders.length === 0 && <p className="text-muted-foreground text-center py-8">No prelanders found.</p>}
+              {prelanders.length === 0 && <p className="text-gray-400 text-center py-8">No prelanders found.</p>}
             </div>
           </TabsContent>
         </Tabs>
