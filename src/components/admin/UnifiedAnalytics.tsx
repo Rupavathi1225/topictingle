@@ -110,8 +110,13 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
         ...fastMoney.sessions,
       ];
 
-      // keep newest first
-      setSessions(allSessions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+      // Sort by total clicks first (most clicks at top), then by timestamp for ties
+      setSessions(allSessions.sort((a, b) => {
+        if (b.totalClicks !== a.totalClicks) {
+          return b.totalClicks - a.totalClicks;
+        }
+        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      }));
     } catch (error) {
       console.error('Error fetching analytics:', error);
     } finally {
@@ -464,11 +469,14 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
     return `${mins}m ${secs}s`;
   };
 
-  const toggleSession = (sessionId: string) => {
+  const toggleSession = (uniqueKey: string) => {
     setExpandedSessions(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(sessionId)) newSet.delete(sessionId);
-      else newSet.add(sessionId);
+      if (newSet.has(uniqueKey)) {
+        newSet.delete(uniqueKey);
+      } else {
+        newSet.add(uniqueKey);
+      }
       return newSet;
     });
   };
@@ -568,11 +576,11 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
         <h3 className="text-lg font-semibold text-foreground mb-4">Session Details</h3>
         {filteredSessions.map((session, sessionIdx) => {
           const SiteIcon = session.siteIcon;
-          const isExpanded = expandedSessions.has(session.sessionId);
           const uniqueKey = `${session.siteName}-${session.sessionId}-${sessionIdx}`;
+          const isExpanded = expandedSessions.has(uniqueKey);
           
           return (
-            <Collapsible key={uniqueKey} open={isExpanded} onOpenChange={() => toggleSession(session.sessionId)}>
+            <Collapsible key={uniqueKey} open={isExpanded} onOpenChange={() => toggleSession(uniqueKey)}>
               <Card className={`overflow-hidden border-border bg-gradient-to-br ${session.siteColor} text-white`}>
                 <CollapsibleTrigger className="w-full">
                   <CardContent className="p-4">
