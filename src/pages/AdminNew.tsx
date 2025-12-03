@@ -3,6 +3,7 @@ import { TopicMingleAnalytics } from "@/components/admin/TopicMingleAnalytics";
 import { DataOrbitZoneAnalytics } from "@/components/admin/DataOrbitZoneAnalytics";
 import { SearchProjectAnalytics } from "@/components/admin/SearchProjectAnalytics";
 import { TejaStarinAnalytics } from "@/components/admin/TejaStarinAnalytics";
+import { FastMoneyAnalytics } from "@/components/admin/FastMoneyAnalytics";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AdminNew() {
@@ -15,12 +16,13 @@ export default function AdminNew() {
         </div>
         
         <Tabs defaultValue="all" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
             <TabsTrigger value="all">All Sites</TabsTrigger>
             <TabsTrigger value="topicmingle">TopicMingle</TabsTrigger>
             <TabsTrigger value="dataorbitzone">DataOrbitZone</TabsTrigger>
             <TabsTrigger value="searchproject">SearchProject</TabsTrigger>
             <TabsTrigger value="tejastarin">Teja Starin</TabsTrigger>
+            <TabsTrigger value="fastmoney">FastMoney</TabsTrigger>
           </TabsList>
           
           <TabsContent value="all" className="space-y-4">
@@ -57,6 +59,14 @@ export default function AdminNew() {
               <p className="text-muted-foreground">Detailed analytics for Teja Starin website</p>
             </div>
             <TejaStarinAnalytics />
+          </TabsContent>
+          
+          <TabsContent value="fastmoney" className="space-y-4">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold">💰 FastMoney Analytics</h2>
+              <p className="text-muted-foreground">Detailed analytics for FastMoney website</p>
+            </div>
+            <FastMoneyAnalytics />
           </TabsContent>
         </Tabs>
       </div>
