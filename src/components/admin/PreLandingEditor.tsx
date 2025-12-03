@@ -51,6 +51,8 @@ export const PreLandingEditor = ({ projectClient, projectName }: PreLandingEdito
   });
   const [emailPlaceholder, setEmailPlaceholder] = useState('Enter your email');
 
+  const isSearchProject = projectName === 'SearchProject';
+
   useEffect(() => {
     fetchSearches();
   }, []);
@@ -193,18 +195,43 @@ export const PreLandingEditor = ({ projectClient, projectName }: PreLandingEdito
     }
   };
 
+  // Conditional styling for SearchProject dark theme
+  const containerClass = isSearchProject 
+    ? "space-y-6 bg-[#0a1628] min-h-screen p-6 rounded-lg" 
+    : "space-y-6";
+
+  const cardClass = isSearchProject
+    ? "bg-[#1a2942] border-[#2a3f5f]"
+    : "";
+
+  const titleClass = isSearchProject
+    ? "text-white"
+    : "";
+
+  const labelClass = isSearchProject
+    ? "text-gray-300"
+    : "";
+
+  const inputClass = isSearchProject
+    ? "bg-[#0a1628] border-[#2a3f5f] text-white placeholder:text-gray-500"
+    : "";
+
+  const buttonClass = isSearchProject
+    ? "bg-[#00b4d8] hover:bg-[#0096c7] text-white w-full"
+    : "w-full";
+
   return (
-    <div className="space-y-6">
-      <Card>
+    <div className={containerClass}>
+      <Card className={cardClass}>
         <CardHeader>
-          <CardTitle>Pre-Landing Page Builder</CardTitle>
+          <CardTitle className={titleClass}>Pre-Landing Page Builder</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Select Related Search */}
           <div>
-            <Label className="text-base font-semibold">Select Related Search</Label>
+            <Label className={`text-base font-semibold ${labelClass}`}>Select Related Search</Label>
             <Select value={selectedSearchId} onValueChange={setSelectedSearchId}>
-              <SelectTrigger className="mt-2">
+              <SelectTrigger className={`mt-2 ${inputClass}`}>
                 <SelectValue placeholder="Choose a related search" />
               </SelectTrigger>
               <SelectContent>
@@ -224,66 +251,72 @@ export const PreLandingEditor = ({ projectClient, projectName }: PreLandingEdito
           </div>
 
           {selectedSearch && (
-            <div className="space-y-4 border-t pt-6">
-              <h3 className="text-lg font-semibold">Edit Pre-Landing Page</h3>
+            <div className={`space-y-4 border-t pt-6 ${isSearchProject ? 'border-[#2a3f5f]' : ''}`}>
+              <h3 className={`text-lg font-semibold ${titleClass}`}>Edit Pre-Landing Page</h3>
 
               <div>
-                <Label>Logo URL</Label>
+                <Label className={labelClass}>Logo URL</Label>
                 <Input
                   value={formData.logo_url}
                   onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
                   placeholder="https://example.com/logo.png"
+                  className={inputClass}
                 />
               </div>
 
               <div>
-                <Label>Main Image URL</Label>
+                <Label className={labelClass}>Main Image URL</Label>
                 <Input
                   value={formData.main_image_url}
                   onChange={(e) => setFormData({ ...formData, main_image_url: e.target.value })}
                   placeholder="https://example.com/main-image.jpg"
+                  className={inputClass}
                 />
               </div>
 
               <div>
-                <Label>Headline</Label>
+                <Label className={labelClass}>Headline</Label>
                 <Input
                   value={formData.headline}
                   onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
                   placeholder="Your amazing deal is here"
+                  className={inputClass}
                 />
               </div>
 
               <div>
-                <Label>Description</Label>
+                <Label className={labelClass}>Description</Label>
                 <Textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Describe what users will get..."
                   rows={4}
+                  className={inputClass}
                 />
               </div>
 
               <div>
-                <Label>Email Placeholder</Label>
+                <Label className={labelClass}>Email Placeholder</Label>
                 <Input
                   value={emailPlaceholder}
                   onChange={(e) => setEmailPlaceholder(e.target.value)}
                   placeholder="Enter your email"
+                  className={inputClass}
                 />
               </div>
 
               <div>
-                <Label>CTA Button Text</Label>
+                <Label className={labelClass}>CTA Button Text</Label>
                 <Input
                   value={formData.cta_text}
                   onChange={(e) => setFormData({ ...formData, cta_text: e.target.value })}
                   placeholder="Get Started"
+                  className={inputClass}
                 />
               </div>
 
               <div>
-                <Label>Background Color</Label>
+                <Label className={labelClass}>Background Color</Label>
                 <div className="flex gap-2 items-center">
                   <Input
                     type="color"
@@ -295,33 +328,35 @@ export const PreLandingEditor = ({ projectClient, projectName }: PreLandingEdito
                     value={formData.background_color}
                     onChange={(e) => setFormData({ ...formData, background_color: e.target.value })}
                     placeholder="#ffffff"
-                    className="flex-1"
+                    className={`flex-1 ${inputClass}`}
                   />
                 </div>
               </div>
 
               <div>
-                <Label>Background Image URL (optional)</Label>
+                <Label className={labelClass}>Background Image URL (optional)</Label>
                 <Input
                   value={formData.background_image_url}
                   onChange={(e) => setFormData({ ...formData, background_image_url: e.target.value })}
                   placeholder="https://example.com/background.jpg"
+                  className={inputClass}
                 />
               </div>
 
               <div>
-                <Label>Target URL (where to redirect after email capture)</Label>
+                <Label className={labelClass}>Target URL (where to redirect after email capture)</Label>
                 <Input
                   value={formData.target_url}
                   onChange={(e) => setFormData({ ...formData, target_url: e.target.value })}
                   placeholder="https://example.com"
                   required
+                  className={inputClass}
                 />
               </div>
 
               <Button 
                 onClick={handleUpdatePreLanding}
-                className="w-full"
+                className={buttonClass}
                 size="lg"
               >
                 Update Pre-Landing Page
