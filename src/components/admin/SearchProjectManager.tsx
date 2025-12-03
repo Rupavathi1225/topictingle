@@ -263,16 +263,16 @@ export function SearchProjectManager() {
     <div className="space-y-6 bg-[#0a1628] min-h-screen p-6 rounded-lg">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-[#1a2942] border border-[#2a3f5f]">
-          <TabsTrigger value="landing" className="data-[state=active]:bg-[#3b82f6] data-[state=active]:text-white text-gray-300">
+          <TabsTrigger value="landing" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">
             <Globe className="w-4 h-4 mr-2" /> Landing
           </TabsTrigger>
-          <TabsTrigger value="searches" className="data-[state=active]:bg-[#3b82f6] data-[state=active]:text-white text-gray-300">
+          <TabsTrigger value="searches" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">
             <Search className="w-4 h-4 mr-2" /> Related Searches
           </TabsTrigger>
-          <TabsTrigger value="webresults" className="data-[state=active]:bg-[#3b82f6] data-[state=active]:text-white text-gray-300">
+          <TabsTrigger value="webresults" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">
             <FileText className="w-4 h-4 mr-2" /> Web Results
           </TabsTrigger>
-          <TabsTrigger value="prelanders" className="data-[state=active]:bg-[#3b82f6] data-[state=active]:text-white text-gray-300">
+          <TabsTrigger value="prelanders" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">
             <Mail className="w-4 h-4 mr-2" /> Prelanders
           </TabsTrigger>
         </TabsList>
@@ -308,7 +308,7 @@ export function SearchProjectManager() {
                   className="bg-[#0a1628] border-[#2a3f5f] text-white"
                 />
               </div>
-              <Button onClick={handleSaveLanding} className="bg-[#3b82f6] hover:bg-[#2563eb] text-white">
+              <Button onClick={handleSaveLanding} className="bg-[#00b4d8] hover:bg-[#0096c7] text-white">
                 <Save className="w-4 h-4 mr-2" /> Save Settings
               </Button>
             </CardContent>
@@ -365,7 +365,7 @@ export function SearchProjectManager() {
                 <Label className="text-gray-300">Active</Label>
               </div>
               <div className="flex gap-2">
-                <Button onClick={handleSaveSearch} className="bg-[#3b82f6] hover:bg-[#2563eb] text-white">
+                <Button onClick={handleSaveSearch} className="bg-[#00b4d8] hover:bg-[#0096c7] text-white">
                   {editingId ? <><Save className="w-4 h-4 mr-2" /> Update</> : <><Plus className="w-4 h-4 mr-2" /> Create</>}
                 </Button>
                 {editingId && (
@@ -472,7 +472,7 @@ export function SearchProjectManager() {
                 <Label className="text-gray-300">Active</Label>
               </div>
               <div className="flex gap-2">
-                <Button onClick={handleSaveWebResult} className="bg-[#3b82f6] hover:bg-[#2563eb] text-white">
+                <Button onClick={handleSaveWebResult} className="bg-[#00b4d8] hover:bg-[#0096c7] text-white">
                   {editingId ? <><Save className="w-4 h-4 mr-2" /> Update</> : <><Plus className="w-4 h-4 mr-2" /> Create</>}
                 </Button>
                 {editingId && (
@@ -584,7 +584,7 @@ export function SearchProjectManager() {
                 <Label className="text-gray-300">Active</Label>
               </div>
               <div className="flex gap-2">
-                <Button onClick={handleSavePrelander} className="bg-[#3b82f6] hover:bg-[#2563eb] text-white">
+                <Button onClick={handleSavePrelander} className="bg-[#00b4d8] hover:bg-[#0096c7] text-white">
                   {editingId ? <><Save className="w-4 h-4 mr-2" /> Update</> : <><Plus className="w-4 h-4 mr-2" /> Create</>}
                 </Button>
                 {editingId && (
