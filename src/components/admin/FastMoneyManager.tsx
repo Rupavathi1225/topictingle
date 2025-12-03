@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Trash2, Edit, Plus, Search } from "lucide-react";
+import { Trash2, Edit, Plus, Search, ChevronRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -370,7 +371,10 @@ export const FastMoneyManager = () => {
               {filteredSearches.map((search) => (
                 <div key={search.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
                   <div>
-                    <h3 className="font-semibold text-white">{search.title}</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="outline" className="text-xs border-[#2a3f5f] text-[#00b4d8]">(Related Search)</Badge>
+                      <h3 className="font-semibold text-white">{search.title}</h3>
+                    </div>
                     <p className="text-sm text-gray-400">{search.search_text} • Page {search.web_result_page} • Pos {search.position}</p>
                     <span className={`text-xs px-2 py-1 rounded ${search.is_active ? 'bg-[#00b4d8]/20 text-[#00b4d8]' : 'bg-red-500/20 text-red-400'}`}>
                       {search.is_active ? 'Active' : 'Inactive'}
@@ -450,12 +454,20 @@ export const FastMoneyManager = () => {
               </Dialog>
             </div>
             <div className="space-y-2">
-              {filteredWebResults.map((result) => (
+              {filteredWebResults.map((result) => {
+                const hasPrelander = prelanders.some(p => p.web_result_id === result.id);
+                return (
                 <div key={result.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
                   <div className="flex items-center gap-4">
                     {result.logo_url && <img src={result.logo_url} alt="" className="w-10 h-10 rounded object-contain" />}
                     <div>
-                      <h3 className="font-semibold text-white">{result.title}</h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="outline" className="text-xs border-[#2a3f5f] text-[#00b4d8]">(Web Result)</Badge>
+                        <h3 className="font-semibold text-white">{result.title}</h3>
+                        {hasPrelander && (
+                          <Badge className="text-xs bg-green-600 text-white">Has Pre-landing</Badge>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-400 truncate max-w-md">{result.description}</p>
                       <p className="text-xs text-gray-500">Order: {result.display_order} • {result.country_permissions?.join(", ")}</p>
                     </div>
@@ -478,7 +490,8 @@ export const FastMoneyManager = () => {
                     <Button size="sm" variant="destructive" onClick={() => handleDeleteWebResult(result.id)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
               {filteredWebResults.length === 0 && <p className="text-gray-400 text-center py-8">No web results found for page {selectedPage}.</p>}
             </div>
           </TabsContent>
@@ -498,7 +511,20 @@ export const FastMoneyManager = () => {
                       <Select value={prelanderForm.web_result_id} onValueChange={(v) => setPrelanderForm({ ...prelanderForm, web_result_id: v })}>
                         <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white"><SelectValue placeholder="Select web result" /></SelectTrigger>
                         <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
-                          {webResults.map(wr => <SelectItem key={wr.id} value={wr.id} className="text-white hover:bg-[#2a3f5f]">{wr.title}</SelectItem>)}
+                          {webResults.map(wr => {
+                            const hasPrelander = prelanders.some(p => p.web_result_id === wr.id);
+                            return (
+                              <SelectItem key={wr.id} value={wr.id} className="text-white hover:bg-[#2a3f5f]">
+                                <span className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-xs">(Web Result)</Badge>
+                                  {wr.title}
+                                  {hasPrelander && (
+                                    <Badge className="text-xs bg-green-600">Has Pre-landing</Badge>
+                                  )}
+                                </span>
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </div>
