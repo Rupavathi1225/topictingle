@@ -116,10 +116,10 @@ export const TejaStarinPreLanding = () => {
     const { data, error } = await tejaStarinClient
       .from('web_results')
       .select('*')
-      .eq('is_active', true)
-      .order('position', { ascending: true });
+      .order('order_index', { ascending: true });
     
     if (error) {
+      console.error('Failed to fetch web results:', error);
       toast.error('Failed to fetch web results');
       return;
     }
