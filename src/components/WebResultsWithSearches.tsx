@@ -56,12 +56,8 @@ export const WebResultsWithSearches = ({ projectClient, currentPage }: WebResult
   }, [currentPage, userCountry]);
 
   const handleSearchClick = (search: RelatedSearch) => {
-    if (search.pre_landing_page_key) {
-      window.location.href = `/prelanding?page=${search.pre_landing_page_key}`;
-    } else {
-      // Redirect to the web result page specified in the search
-      window.location.href = `/wr?wr=${search.web_result_page}`;
-    }
+    // Always redirect to web results page first - prelanding is handled at web result click level
+    window.location.href = `/wr?wr=${search.web_result_page}`;
   };
 
   if (searches.length === 0) return null;
