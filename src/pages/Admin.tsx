@@ -122,7 +122,7 @@ interface Analytics {
 }
 
 type Website = 'topicmingle' | 'tejastarin' | 'fastmoney' | 'offergrabzone';
-type Section = 'blogs' | 'searches' | 'analytics' | 'webresults' | 'prelanding' | 'emails' | 'landing';
+type Section = 'blogs' | 'searches' | 'webresults' | 'prelanding' | 'emails' | 'landing';
 
 const Admin = () => {
   const { sessionId } = useTracking();
@@ -226,8 +226,7 @@ const Admin = () => {
       { id: 'landing', name: 'Landing Content', description: 'Manage landing page content' },
       { id: 'searches', name: 'Search Buttons', description: 'Manage related search buttons' },
       { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
-      { id: 'prelanding', name: 'Pre-Landings', description: 'Edit pre-landing page designs' },
-      { id: 'analytics', name: 'Analytics', description: 'View site analytics' }
+      { id: 'prelanding', name: 'Pre-Landings', description: 'Edit pre-landing page designs' }
     ]
   };
 
@@ -915,12 +914,6 @@ const Admin = () => {
           return <TejaStarinEmailCaptures />;
         }
         return <EmailCaptureViewer projectClient={client} />;
-
-      case 'analytics':
-        if (selectedWebsite === 'offergrabzone') {
-          return <OfferGrabZoneManager />;
-        }
-        return null;
 
       case 'landing':
         if (selectedWebsite === 'fastmoney') {
