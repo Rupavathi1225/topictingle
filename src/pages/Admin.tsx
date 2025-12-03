@@ -37,6 +37,7 @@ import { TejaStarinPreLanding } from "@/components/admin/TejaStarinPreLanding";
 import { TejaStarinEmailCaptures } from "@/components/admin/TejaStarinEmailCaptures";
 import { DataOrbitZoneManager } from "@/components/admin/DataOrbitZoneManager";
 import { FastMoneyManager } from "@/components/admin/FastMoneyManager";
+import OfferGrabZoneManager from "@/components/admin/OfferGrabZoneManager";
 
 interface Category {
   id: number;
@@ -120,7 +121,7 @@ interface Analytics {
   unique_clicks?: number;
 }
 
-type Website = 'topicmingle' | 'tejastarin' | 'fastmoney';
+type Website = 'topicmingle' | 'tejastarin' | 'fastmoney' | 'offergrabzone';
 type Section = 'blogs' | 'searches' | 'analytics' | 'webresults' | 'prelanding' | 'emails' | 'landing';
 
 const Admin = () => {
@@ -190,6 +191,13 @@ const Admin = () => {
       description: 'Money Earning Platform',
       color: 'bg-yellow-500',
       icon: '💰'
+    },
+    {
+      id: 'offergrabzone' as Website,
+      name: 'OfferGrabZone',
+      description: 'Offers & Deals Platform',
+      color: 'bg-cyan-500',
+      icon: '🎁'
     }
   ];
 
@@ -213,6 +221,13 @@ const Admin = () => {
       { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
       { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
       { id: 'prelanding', name: 'Prelanders', description: 'Edit prelander page designs' }
+    ],
+    offergrabzone: [
+      { id: 'landing', name: 'Landing Content', description: 'Manage landing page content' },
+      { id: 'searches', name: 'Search Buttons', description: 'Manage related search buttons' },
+      { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
+      { id: 'prelanding', name: 'Pre-Landings', description: 'Edit pre-landing page designs' },
+      { id: 'analytics', name: 'Analytics', description: 'View site analytics' }
     ]
   };
 
@@ -866,6 +881,9 @@ const Admin = () => {
         if (selectedWebsite === 'fastmoney') {
           return <FastMoneyManager />;
         }
+        if (selectedWebsite === 'offergrabzone') {
+          return <OfferGrabZoneManager />;
+        }
         return <RelatedSearchManager projectClient={client} projectName={projectName} />;
 
       case 'webresults':
@@ -874,6 +892,9 @@ const Admin = () => {
         }
         if (selectedWebsite === 'fastmoney') {
           return <FastMoneyManager />;
+        }
+        if (selectedWebsite === 'offergrabzone') {
+          return <OfferGrabZoneManager />;
         }
         return <WebResultsManager projectClient={client} projectName={projectName} />;
 
@@ -884,6 +905,9 @@ const Admin = () => {
         if (selectedWebsite === 'fastmoney') {
           return <FastMoneyManager />;
         }
+        if (selectedWebsite === 'offergrabzone') {
+          return <OfferGrabZoneManager />;
+        }
         return <PreLandingEditor projectClient={client} projectName={projectName} />;
 
       case 'emails':
@@ -892,9 +916,18 @@ const Admin = () => {
         }
         return <EmailCaptureViewer projectClient={client} />;
 
+      case 'analytics':
+        if (selectedWebsite === 'offergrabzone') {
+          return <OfferGrabZoneManager />;
+        }
+        return null;
+
       case 'landing':
         if (selectedWebsite === 'fastmoney') {
           return <FastMoneyManager />;
+        }
+        if (selectedWebsite === 'offergrabzone') {
+          return <OfferGrabZoneManager />;
         }
         return null;
 
