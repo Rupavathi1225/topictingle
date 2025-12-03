@@ -227,40 +227,40 @@ export const FastMoneyAnalytics = () => {
     <div className="space-y-6">
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="bg-zinc-900 border-zinc-800">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Clicks</CardTitle>
-            <MousePointer className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-zinc-300">Total Clicks</CardTitle>
+            <MousePointer className="h-4 w-4 text-emerald-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalClicks}</div>
+            <div className="text-2xl font-bold text-white">{stats.totalClicks}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-zinc-900 border-zinc-800">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Unique Sessions</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-zinc-300">Unique Sessions</CardTitle>
+            <Users className="h-4 w-4 text-amber-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.uniqueSessions}</div>
+            <div className="text-2xl font-bold text-white">{stats.uniqueSessions}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-zinc-900 border-zinc-800">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Web Results</CardTitle>
-            <Globe className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-zinc-300">Web Results</CardTitle>
+            <Globe className="h-4 w-4 text-cyan-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.webResults}</div>
+            <div className="text-2xl font-bold text-white">{stats.webResults}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-zinc-900 border-zinc-800">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Email Submissions</CardTitle>
-            <Mail className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-zinc-300">Email Submissions</CardTitle>
+            <Mail className="h-4 w-4 text-pink-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.emailSubmissions}</div>
+            <div className="text-2xl font-bold text-white">{stats.emailSubmissions}</div>
           </CardContent>
         </Card>
       </div>
@@ -268,40 +268,40 @@ export const FastMoneyAnalytics = () => {
       {/* Controls */}
       <div className="flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-500" />
           <Input
             placeholder="Search sessions..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500"
           />
         </div>
-        <Button onClick={fetchAnalytics} variant="outline">
+        <Button onClick={fetchAnalytics} variant="outline" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">
           <RefreshCw className="mr-2 h-4 w-4" /> Refresh
         </Button>
       </div>
 
       {/* Session Analytics Table */}
-      <Card>
+      <Card className="bg-zinc-900 border-zinc-800">
         <CardHeader>
-          <CardTitle>Session Analytics</CardTitle>
+          <CardTitle className="text-emerald-400">Session Analytics</CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="min-w-[120px]">Session ID</TableHead>
-                <TableHead>IP Address</TableHead>
-                <TableHead>Country</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Device</TableHead>
-                <TableHead className="text-center">Page Views</TableHead>
-                <TableHead className="text-center">Total Clicks</TableHead>
-                <TableHead className="text-center">Unique Clicks</TableHead>
-                <TableHead className="min-w-[150px]">Related Searches</TableHead>
-                <TableHead className="min-w-[150px]">Result Clicks</TableHead>
-                <TableHead>Time Spent</TableHead>
-                <TableHead>Timestamp</TableHead>
+              <TableRow className="border-zinc-800 hover:bg-zinc-800/50">
+                <TableHead className="min-w-[120px] text-zinc-400">Session ID</TableHead>
+                <TableHead className="text-zinc-400">IP Address</TableHead>
+                <TableHead className="text-zinc-400">Country</TableHead>
+                <TableHead className="text-zinc-400">Source</TableHead>
+                <TableHead className="text-zinc-400">Device</TableHead>
+                <TableHead className="text-center text-zinc-400">Page Views</TableHead>
+                <TableHead className="text-center text-zinc-400">Total Clicks</TableHead>
+                <TableHead className="text-center text-zinc-400">Unique Clicks</TableHead>
+                <TableHead className="min-w-[150px] text-zinc-400">Related Searches</TableHead>
+                <TableHead className="min-w-[150px] text-zinc-400">Result Clicks</TableHead>
+                <TableHead className="text-zinc-400">Time Spent</TableHead>
+                <TableHead className="text-zinc-400">Timestamp</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -312,29 +312,29 @@ export const FastMoneyAnalytics = () => {
                 const isResultExpanded = expandedResultClicks.has(session.sessionId);
 
                 return (
-                  <TableRow key={session.sessionId} className="align-top">
-                    <TableCell className="font-mono text-xs">{session.sessionId.slice(0, 12)}...</TableCell>
-                    <TableCell className="text-sm">{session.ipAddress}</TableCell>
-                    <TableCell className="text-sm">{session.country}</TableCell>
+                  <TableRow key={session.sessionId} className="align-top border-zinc-800 hover:bg-zinc-800/30">
+                    <TableCell className="font-mono text-xs text-zinc-300">{session.sessionId.slice(0, 12)}...</TableCell>
+                    <TableCell className="text-sm text-zinc-300">{session.ipAddress}</TableCell>
+                    <TableCell className="text-sm text-zinc-300">{session.country}</TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="bg-emerald-600 text-white text-xs">
                         {session.source}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm flex items-center gap-1">
+                    <TableCell className="text-sm flex items-center gap-1 text-zinc-300">
                       {session.device === 'Mobile' ? <Smartphone className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
                       {session.device}
                     </TableCell>
-                    <TableCell className="text-center">{session.pageViews}</TableCell>
-                    <TableCell className="text-center">{session.totalClicks}</TableCell>
-                    <TableCell className="text-center text-primary">{session.uniqueClicks}</TableCell>
+                    <TableCell className="text-center text-zinc-300">{session.pageViews}</TableCell>
+                    <TableCell className="text-center text-zinc-300">{session.totalClicks}</TableCell>
+                    <TableCell className="text-center text-emerald-400">{session.uniqueClicks}</TableCell>
                     
                     {/* Related Searches Column */}
                     <TableCell>
                       <div className="space-y-2">
                         <Badge 
                           variant="outline" 
-                          className={`${relatedTotal > 0 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-muted'}`}
+                          className={`${relatedTotal > 0 ? 'bg-emerald-900/50 text-emerald-400 border-emerald-700' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}`}
                         >
                           Total: {relatedTotal}
                         </Badge>
@@ -342,20 +342,20 @@ export const FastMoneyAnalytics = () => {
                           <div>
                             <button
                               onClick={() => toggleRelatedSearches(session.sessionId)}
-                              className="flex items-center gap-1 text-xs text-primary hover:underline"
+                              className="flex items-center gap-1 text-xs text-emerald-400 hover:underline"
                             >
                               {isRelatedExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                               {isRelatedExpanded ? 'Hide breakdown' : 'View breakdown'}
                             </button>
                             {isRelatedExpanded && (
-                              <div className="mt-2 space-y-2 bg-muted/50 p-2 rounded text-xs">
+                              <div className="mt-2 space-y-2 bg-zinc-800/80 p-2 rounded text-xs">
                                 {session.relatedSearches.map((item, idx) => (
-                                  <div key={idx} className="border-b border-border pb-2 last:border-0">
-                                    <p className="font-semibold">{item.name}</p>
-                                    <p className="text-muted-foreground">
+                                  <div key={idx} className="border-b border-zinc-700 pb-2 last:border-0">
+                                    <p className="font-semibold text-zinc-200">{item.name}</p>
+                                    <p className="text-zinc-400">
                                       Total: {item.total} | Unique: {item.unique}
                                     </p>
-                                    <p className="text-muted-foreground">
+                                    <p className="text-zinc-400">
                                       Visit Now Button: Clicked {item.visitNowClicks}
                                     </p>
                                   </div>
@@ -372,7 +372,7 @@ export const FastMoneyAnalytics = () => {
                       <div className="space-y-2">
                         <Badge 
                           variant="outline" 
-                          className={`${resultTotal > 0 ? 'bg-cyan-100 text-cyan-800 border-cyan-300' : 'bg-muted'}`}
+                          className={`${resultTotal > 0 ? 'bg-cyan-900/50 text-cyan-400 border-cyan-700' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}`}
                         >
                           Total: {resultTotal}
                         </Badge>
@@ -380,17 +380,17 @@ export const FastMoneyAnalytics = () => {
                           <div>
                             <button
                               onClick={() => toggleResultClicks(session.sessionId)}
-                              className="flex items-center gap-1 text-xs text-primary hover:underline"
+                              className="flex items-center gap-1 text-xs text-cyan-400 hover:underline"
                             >
                               {isResultExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                               {isResultExpanded ? 'Hide breakdown' : 'View breakdown'}
                             </button>
                             {isResultExpanded && (
-                              <div className="mt-2 space-y-2 bg-muted/50 p-2 rounded text-xs">
+                              <div className="mt-2 space-y-2 bg-zinc-800/80 p-2 rounded text-xs">
                                 {session.resultClicks.map((item, idx) => (
-                                  <div key={idx} className="border-b border-border pb-2 last:border-0">
-                                    <p className="font-semibold truncate max-w-[200px]">{item.name}</p>
-                                    <p className="text-muted-foreground">
+                                  <div key={idx} className="border-b border-zinc-700 pb-2 last:border-0">
+                                    <p className="font-semibold truncate max-w-[200px] text-zinc-200">{item.name}</p>
+                                    <p className="text-zinc-400">
                                       Total: {item.total} | Unique: {item.unique}
                                     </p>
                                   </div>
@@ -402,14 +402,14 @@ export const FastMoneyAnalytics = () => {
                       </div>
                     </TableCell>
 
-                    <TableCell className="text-sm">{session.timeSpent}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{session.timestamp}</TableCell>
+                    <TableCell className="text-sm text-zinc-300">{session.timeSpent}</TableCell>
+                    <TableCell className="text-xs text-zinc-500">{session.timestamp}</TableCell>
                   </TableRow>
                 );
               })}
               {filteredSessions.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={12} className="text-center text-zinc-500 py-8">
                     No sessions found
                   </TableCell>
                 </TableRow>
