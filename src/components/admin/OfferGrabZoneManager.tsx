@@ -497,6 +497,7 @@ const OfferGrabZoneManager = () => {
               <CardTitle className="text-white flex items-center gap-2">
                 <Search className="w-5 h-5" />
                 Search Buttons
+                <Badge variant="secondary" className="bg-amber-500/20 text-amber-400">(Related Search)</Badge>
                 <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-400">{searches.length}</Badge>
               </CardTitle>
             </CardHeader>
@@ -571,6 +572,7 @@ const OfferGrabZoneManager = () => {
                       </>
                     ) : (
                       <>
+                        <Badge className="bg-amber-500/20 text-amber-400">(Related Search)</Badge>
                         <Badge className="bg-cyan-500/20 text-cyan-400">#{search.serial_number}</Badge>
                         <span className="text-white flex-1">{search.title}</span>
                         <Badge variant="outline" className="text-slate-400 border-slate-600">
@@ -602,6 +604,7 @@ const OfferGrabZoneManager = () => {
               <CardTitle className="text-white flex items-center gap-2">
                 <Link className="w-5 h-5" />
                 Web Results
+                <Badge variant="secondary" className="bg-purple-500/20 text-purple-400">(Web Result)</Badge>
                 <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-400">{webResults.length}</Badge>
               </CardTitle>
               <div className="flex gap-2">
@@ -629,13 +632,16 @@ const OfferGrabZoneManager = () => {
               <div className="space-y-2">
                 {filteredResults.map((result) => (
                   <div key={result.id} className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg border border-slate-700">
-                    <Badge className="bg-purple-500/20 text-purple-400">WR {result.wr_page}</Badge>
+                    <Badge className="bg-purple-500/20 text-purple-400">(Web Result)</Badge>
+                    <Badge className="bg-cyan-500/20 text-cyan-400">WR {result.wr_page}</Badge>
                     <Badge className="bg-slate-600/50 text-slate-300">#{result.serial_number}</Badge>
                     {result.is_sponsored && <Badge className="bg-yellow-500/20 text-yellow-400">Sponsored</Badge>}
                     <span className="text-white flex-1 font-medium">{result.name}</span>
                     <span className="text-slate-400 text-sm truncate max-w-48">{result.title}</span>
-                    {prelandings.some(p => p.web_result_id === result.id) && (
+                    {prelandings.some(p => p.web_result_id === result.id) ? (
                       <Badge className="bg-green-500/20 text-green-400">Has Pre-landing</Badge>
+                    ) : (
+                      <Badge className="bg-slate-700/50 text-slate-500">No Pre-landing</Badge>
                     )}
                     <Switch
                       checked={result.is_active}
@@ -676,15 +682,25 @@ const OfferGrabZoneManager = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {prelandings.map((prelanding) => (
+                {prelandings.map((prelanding) => {
+                  const linkedResult = webResults.find(r => r.id === prelanding.web_result_id);
+                  return (
                   <div key={prelanding.id} className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg border border-slate-700">
                     <Badge className={prelanding.is_active ? "bg-green-500/20 text-green-400" : "bg-slate-600/50 text-slate-400"}>
                       {prelanding.is_active ? "Active" : "Inactive"}
                     </Badge>
                     <span className="text-white flex-1 font-medium truncate">{prelanding.headline}</span>
-                    <Badge variant="outline" className="text-slate-400 border-slate-600">
-                      → {getWebResultName(prelanding.web_result_id)} <span className="text-cyan-400 ml-1">(Web Result)</span>
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-purple-500/20 text-purple-400">(Web Result)</Badge>
+                      {linkedResult ? (
+                        <>
+                          <Badge className="bg-cyan-500/20 text-cyan-400">WR{linkedResult.wr_page}</Badge>
+                          <span className="text-slate-300">{linkedResult.name}</span>
+                        </>
+                      ) : (
+                        <span className="text-slate-500">Not linked</span>
+                      )}
+                    </div>
                     <Switch
                       checked={prelanding.is_active}
                       onCheckedChange={async (checked) => {
@@ -699,7 +715,7 @@ const OfferGrabZoneManager = () => {
                       <Trash2 className="w-4 h-4 text-red-400" />
                     </Button>
                   </div>
-                ))}
+                )})}
               </div>
             </CardContent>
           </Card>
@@ -922,7 +938,7 @@ const OfferGrabZoneManager = () => {
           {editingPrelanding && (
             <div className="space-y-4">
               <div>
-                <Label className="text-slate-300">Web Result <span className="text-cyan-400">(Web Result)</span></Label>
+                <Label className="text-slate-300">Select Web Result</Label>
                 <Select
                   value={editingPrelanding.web_result_id || 'none'}
                   onValueChange={(v) => setEditingPrelanding({ ...editingPrelanding, web_result_id: v === 'none' ? null : v })}
@@ -930,19 +946,32 @@ const OfferGrabZoneManager = () => {
                   <SelectTrigger className="bg-slate-900 border-slate-600 text-white">
                     <SelectValue placeholder="Select web result" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[300px]">
                     <SelectItem value="none">None</SelectItem>
-                    {webResults.map((result) => (
-                      <SelectItem key={result.id} value={result.id}>
-                        {result.name} - {result.title} 
-                        <span className="text-cyan-400 ml-2">(Web Result)</span>
-                        {prelandings.some(p => p.web_result_id === result.id && p.id !== editingPrelanding.id) && (
-                          <span className="text-green-400 ml-2">• Has Pre-landing</span>
-                        )}
-                      </SelectItem>
-                    ))}
+                    {webResults.map((result) => {
+                      const hasPrelanding = prelandings.some(p => p.web_result_id === result.id && p.id !== editingPrelanding?.id);
+                      return (
+                        <SelectItem key={result.id} value={result.id}>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="bg-purple-500/20 text-purple-400 text-xs px-1.5 py-0.5 rounded">WR{result.wr_page}</span>
+                            <span className="text-cyan-400 text-xs">(Web Result)</span>
+                            <span>{result.name}</span>
+                            {hasPrelanding && (
+                              <span className="bg-green-500/20 text-green-400 text-xs px-1.5 py-0.5 rounded">Has Pre-landing</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
+                {editingPrelanding.web_result_id && (
+                  <div className="mt-2 p-2 bg-slate-900/50 rounded border border-slate-700">
+                    <span className="text-xs text-slate-400">Selected: </span>
+                    <Badge className="bg-purple-500/20 text-purple-400 mr-1">Web Result</Badge>
+                    <span className="text-white">{webResults.find(r => r.id === editingPrelanding.web_result_id)?.name}</span>
+                  </div>
+                )}
               </div>
               <div>
                 <Label className="text-slate-300">Headline *</Label>
