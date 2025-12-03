@@ -455,13 +455,6 @@ const Admin = () => {
     });
   };
 
-  const handleDzTitleChange = (title: string) => {
-    setDzFormData({
-      ...dzFormData,
-      title,
-      slug: generateSlug(title),
-    });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
