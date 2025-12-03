@@ -4,15 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp, Search, FileText, MousePointerClick, RefreshCw } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ChevronDown, ChevronUp, RefreshCw, Search, MousePointer, Users, Globe, Mail, Monitor, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ClickBreakdown {
-  relatedSearches: { text: string; buttonId: string; count: number }[];
-  blogClicks: { title: string; buttonId: string; count: number }[];
-  otherClicks: { label: string; buttonId: string; count: number }[];
+  name: string;
+  total: number;
+  unique: number;
+  visitNowClicks: number;
 }
 
 interface SessionData {
@@ -24,15 +24,19 @@ interface SessionData {
   pageViews: number;
   totalClicks: number;
   uniqueClicks: number;
-  relatedSearches: number;
-  blogClicks: number;
-  clickBreakdown: ClickBreakdown;
+  relatedSearches: ClickBreakdown[];
+  resultClicks: ClickBreakdown[];
+  timeSpent: string;
+  timestamp: string;
 }
 
 export function TopicMingleAnalytics() {
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedRelatedSearches, setExpandedRelatedSearches] = useState<Set<string>>(new Set());
+  const [expandedResultClicks, setExpandedResultClicks] = useState<Set<string>>(new Set());
+  const [stats, setStats] = useState({ totalClicks: 0, uniqueSessions: 0, webResults: 0, emailSubmissions: 0 });
 
   useEffect(() => {
     fetchAnalytics();
@@ -41,123 +45,138 @@ export function TopicMingleAnalytics() {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const { data: sessionData } = await supabase
-        .from('sessions')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const [sessionData, pageViews, clicks, webResultsData, emailsData] = await Promise.all([
+        supabase.from('sessions').select('*').order('created_at', { ascending: false }),
+        supabase.from('page_views').select('*'),
+        supabase.from('clicks').select('*'),
+        supabase.from('web_results').select('*').eq('site_name', 'topicmingle'),
+        supabase.from('email_captures').select('*'),
+      ]);
 
-      const { data: pageViews } = await supabase
-        .from('page_views')
-        .select('*');
+      const sessionsArr = sessionData.data || [];
+      const pageViewsArr = pageViews.data || [];
+      const clicksArr = clicks.data || [];
 
-      const { data: clicks } = await supabase
-        .from('clicks')
-        .select('*');
+      setStats({
+        totalClicks: clicksArr.length,
+        uniqueSessions: sessionsArr.length,
+        webResults: webResultsData.data?.length || 0,
+        emailSubmissions: emailsData.data?.length || 0,
+      });
 
-      const { data: blogsData } = await supabase
-        .from('blogs')
-        .select('id, title');
-
-      // Process sessions
       const sessionMap = new Map<string, SessionData>();
 
-      (sessionData || []).forEach((session: any) => {
+      sessionsArr.forEach((session: any) => {
+        const createdAt = new Date(session.created_at);
+        const lastActive = new Date(session.last_active);
+        const diffMs = lastActive.getTime() - createdAt.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffSecs = Math.floor((diffMs % 60000) / 1000);
+
         sessionMap.set(session.session_id, {
           sessionId: session.session_id,
-          ipAddress: session.ip_address || 'N/A',
+          ipAddress: session.ip_address || 'Unknown',
           country: session.country || 'Unknown',
           source: session.source || 'direct',
-          device: session.user_agent?.includes('Mobile') ? 'mobile' : 'desktop',
+          device: session.user_agent?.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
           pageViews: 0,
           totalClicks: 0,
           uniqueClicks: 0,
-          relatedSearches: 0,
-          blogClicks: 0,
-          clickBreakdown: {
-            relatedSearches: [],
-            blogClicks: [],
-            otherClicks: [],
-          },
+          relatedSearches: [],
+          resultClicks: [],
+          timeSpent: `${diffMins}m ${diffSecs}s`,
+          timestamp: createdAt.toLocaleString(),
         });
       });
 
-      // Count page views
-      (pageViews || []).forEach((view: any) => {
+      pageViewsArr.forEach((view: any) => {
         const session = sessionMap.get(view.session_id);
-        if (session) {
-          session.pageViews++;
-        }
+        if (session) session.pageViews++;
       });
 
-      // Process clicks and build breakdown
-      (clicks || []).forEach((click: any) => {
+      const sessionClickIds = new Map<string, Set<string>>();
+      const relatedSearchMap = new Map<string, Map<string, { total: number; unique: Set<string>; visitNow: number }>>();
+      const resultClickMap = new Map<string, Map<string, { total: number; unique: Set<string>; visitNow: number }>>();
+
+      clicksArr.forEach((click: any) => {
         const session = sessionMap.get(click.session_id);
         if (session) {
           session.totalClicks++;
-          const buttonId = click.button_id || '';
-          const buttonLabel = click.button_label || 'Unknown';
           
-          // Track blog clicks - check for blog-card- prefix or blog in button_id
-          if (buttonId.startsWith('blog-card-') || buttonId.includes('blog')) {
-            session.blogClicks++;
-            const blogTitle = buttonLabel || 'Unknown Blog';
+          if (!sessionClickIds.has(click.session_id)) {
+            sessionClickIds.set(click.session_id, new Set());
+          }
+          sessionClickIds.get(click.session_id)!.add(click.button_id);
+
+          const buttonId = click.button_id || '';
+          const buttonLabel = click.button_label || buttonId;
+
+          if (buttonId.startsWith('related-search-') || buttonId.includes('search')) {
+            const searchName = buttonLabel || buttonId.replace('related-search-', '');
             
-            const existingBlog = session.clickBreakdown.blogClicks.find(b => b.buttonId === buttonId);
-            if (existingBlog) {
-              existingBlog.count++;
-            } else {
-              session.clickBreakdown.blogClicks.push({ title: blogTitle, buttonId, count: 1 });
+            if (!relatedSearchMap.has(click.session_id)) {
+              relatedSearchMap.set(click.session_id, new Map());
+            }
+            const searchMap = relatedSearchMap.get(click.session_id)!;
+            
+            if (!searchMap.has(searchName)) {
+              searchMap.set(searchName, { total: 0, unique: new Set(), visitNow: 0 });
+            }
+            const data = searchMap.get(searchName)!;
+            data.total++;
+            data.unique.add(buttonId);
+            if (buttonId.includes('visit') || buttonLabel?.toLowerCase().includes('visit')) {
+              data.visitNow++;
             }
           }
-          // Track related search clicks - check for related-search- prefix
-          else if (buttonId.startsWith('related-search-') || buttonId.includes('search')) {
-            session.relatedSearches++;
-            const searchText = buttonLabel || buttonId.replace('related-search-', '') || 'Unknown Search';
+          else if (buttonId.startsWith('blog-card-') || buttonId.includes('blog') || buttonId.includes('result') || buttonId.includes('web-result')) {
+            const resultName = buttonLabel || buttonId;
             
-            const existingSearch = session.clickBreakdown.relatedSearches.find(s => s.buttonId === buttonId);
-            if (existingSearch) {
-              existingSearch.count++;
-            } else {
-              session.clickBreakdown.relatedSearches.push({ text: searchText, buttonId, count: 1 });
+            if (!resultClickMap.has(click.session_id)) {
+              resultClickMap.set(click.session_id, new Map());
             }
-          }
-          // Track other clicks
-          else {
-            const existingOther = session.clickBreakdown.otherClicks.find(o => o.buttonId === buttonId);
-            if (existingOther) {
-              existingOther.count++;
-            } else {
-              session.clickBreakdown.otherClicks.push({ label: buttonLabel, buttonId, count: 1 });
+            const resultMap = resultClickMap.get(click.session_id)!;
+            
+            if (!resultMap.has(resultName)) {
+              resultMap.set(resultName, { total: 0, unique: new Set(), visitNow: 0 });
             }
+            const data = resultMap.get(resultName)!;
+            data.total++;
+            data.unique.add(buttonId);
           }
         }
       });
 
-      // Calculate unique clicks (unique button_ids per session)
-      const sessionClicks = new Map<string, Set<string>>();
-      (clicks || []).forEach((click: any) => {
-        if (!sessionClicks.has(click.session_id)) {
-          sessionClicks.set(click.session_id, new Set());
-        }
-        sessionClicks.get(click.session_id)!.add(click.button_id);
+      sessionClickIds.forEach((buttonIds, sessionId) => {
+        const session = sessionMap.get(sessionId);
+        if (session) session.uniqueClicks = buttonIds.size;
       });
-      
-      sessionClicks.forEach((buttonIds, sessionId) => {
+
+      relatedSearchMap.forEach((searchMap, sessionId) => {
         const session = sessionMap.get(sessionId);
         if (session) {
-          session.uniqueClicks = buttonIds.size;
+          session.relatedSearches = Array.from(searchMap.entries()).map(([name, data]) => ({
+            name,
+            total: data.total,
+            unique: data.unique.size,
+            visitNowClicks: data.visitNow,
+          }));
         }
       });
 
-      // Sort sessions by those with clicks first, then by recent
-      const sortedSessions = Array.from(sessionMap.values()).sort((a, b) => {
-        // First sort by total clicks (descending)
-        if (b.totalClicks !== a.totalClicks) {
-          return b.totalClicks - a.totalClicks;
+      resultClickMap.forEach((resultMap, sessionId) => {
+        const session = sessionMap.get(sessionId);
+        if (session) {
+          session.resultClicks = Array.from(resultMap.entries()).map(([name, data]) => ({
+            name,
+            total: data.total,
+            unique: data.unique.size,
+            visitNowClicks: data.visitNow,
+          }));
         }
-        return 0;
       });
 
+      const sortedSessions = Array.from(sessionMap.values()).sort((a, b) => b.totalClicks - a.totalClicks);
       setSessions(sortedSessions);
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -167,17 +186,32 @@ export function TopicMingleAnalytics() {
     }
   };
 
-  const toggleSession = (sessionId: string) => {
-    setExpandedSessions(prev => {
+  const toggleRelatedSearches = (sessionId: string) => {
+    setExpandedRelatedSearches(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(sessionId)) {
-        newSet.delete(sessionId);
-      } else {
-        newSet.add(sessionId);
-      }
+      if (newSet.has(sessionId)) newSet.delete(sessionId);
+      else newSet.add(sessionId);
       return newSet;
     });
   };
+
+  const toggleResultClicks = (sessionId: string) => {
+    setExpandedResultClicks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(sessionId)) newSet.delete(sessionId);
+      else newSet.add(sessionId);
+      return newSet;
+    });
+  };
+
+  const filteredSessions = sessions.filter(s =>
+    s.sessionId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.ipAddress.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.country.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const getRelatedSearchTotal = (session: SessionData) => session.relatedSearches.reduce((sum, s) => sum + s.total, 0);
+  const getResultClickTotal = (session: SessionData) => session.resultClicks.reduce((sum, s) => sum + s.total, 0);
 
   if (loading) {
     return (
@@ -189,170 +223,168 @@ export function TopicMingleAnalytics() {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Session Analytics</CardTitle>
-        <Button onClick={fetchAnalytics} variant="outline" size="sm">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total Clicks</CardTitle>
+            <MousePointer className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalClicks}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Unique Sessions</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.uniqueSessions}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Web Results</CardTitle>
+            <Globe className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.webResults}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Email Submissions</CardTitle>
+            <Mail className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.emailSubmissions}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="flex items-center justify-between gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search sessions..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
+        </div>
+        <Button onClick={fetchAnalytics} variant="outline">
+          <RefreshCw className="mr-2 h-4 w-4" /> Refresh
         </Button>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {sessions.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              No session data available
-            </div>
-          ) : (
-            sessions.map((session) => {
-              const isExpanded = expandedSessions.has(session.sessionId);
-              const hasClicks = session.totalClicks > 0;
-              
-              return (
-                <Collapsible 
-                  key={session.sessionId} 
-                  open={isExpanded} 
-                  onOpenChange={() => toggleSession(session.sessionId)}
-                >
-                  <Card className={`overflow-hidden border ${hasClicks ? 'border-primary/50 bg-primary/5' : 'border-border'}`}>
-                    <CollapsibleTrigger className="w-full text-left">
-                      <div className="p-4">
-                        <div className="flex items-center justify-between">
-                          {/* Session Info */}
-                          <div className="flex items-center gap-4 min-w-[200px]">
-                            <div>
-                              <p className="font-mono text-xs text-muted-foreground">
-                                {session.sessionId.slice(0, 12)}...
-                              </p>
-                              <p className="text-sm font-medium">{session.ipAddress}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {session.country} • {session.source} • {session.device}
-                              </p>
-                            </div>
-                          </div>
+      </div>
 
-                          {/* Stats */}
-                          <div className="flex items-center gap-6">
-                            <div className="text-center">
-                              <p className="text-xs text-muted-foreground">Page Views</p>
-                              <p className="text-lg font-bold">{session.pageViews}</p>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-xs text-muted-foreground">Clicks</p>
-                              <p className="text-lg font-bold">{session.totalClicks} / {session.uniqueClicks}</p>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-xs text-muted-foreground">Related Searches</p>
-                              <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100">
-                                {session.relatedSearches}
-                              </Badge>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-xs text-muted-foreground">Blog Clicks</p>
-                              <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100">
-                                {session.blogClicks}
-                              </Badge>
-                            </div>
-                          </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Session Analytics</CardTitle>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="min-w-[120px]">Session ID</TableHead>
+                <TableHead>IP Address</TableHead>
+                <TableHead>Country</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead>Device</TableHead>
+                <TableHead className="text-center">Page Views</TableHead>
+                <TableHead className="text-center">Total Clicks</TableHead>
+                <TableHead className="text-center">Unique Clicks</TableHead>
+                <TableHead className="min-w-[150px]">Related Searches</TableHead>
+                <TableHead className="min-w-[150px]">Result Clicks</TableHead>
+                <TableHead>Time Spent</TableHead>
+                <TableHead>Timestamp</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredSessions.map((session) => {
+                const relatedTotal = getRelatedSearchTotal(session);
+                const resultTotal = getResultClickTotal(session);
+                const isRelatedExpanded = expandedRelatedSearches.has(session.sessionId);
+                const isResultExpanded = expandedResultClicks.has(session.sessionId);
 
-                          {/* Expand Icon */}
-                          <div className="ml-4">
-                            {isExpanded ? (
-                              <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                            ) : (
-                              <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                return (
+                  <TableRow key={session.sessionId} className="align-top">
+                    <TableCell className="font-mono text-xs">{session.sessionId.slice(0, 12)}...</TableCell>
+                    <TableCell className="text-sm">{session.ipAddress}</TableCell>
+                    <TableCell className="text-sm">{session.country}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="bg-emerald-600 text-white text-xs">{session.source}</Badge>
+                    </TableCell>
+                    <TableCell className="text-sm flex items-center gap-1">
+                      {session.device === 'Mobile' ? <Smartphone className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
+                      {session.device}
+                    </TableCell>
+                    <TableCell className="text-center">{session.pageViews}</TableCell>
+                    <TableCell className="text-center">{session.totalClicks}</TableCell>
+                    <TableCell className="text-center text-primary">{session.uniqueClicks}</TableCell>
+                    
+                    <TableCell>
+                      <div className="space-y-2">
+                        <Badge variant="outline" className={`${relatedTotal > 0 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-muted'}`}>
+                          Total: {relatedTotal}
+                        </Badge>
+                        {session.relatedSearches.length > 0 && (
+                          <div>
+                            <button onClick={() => toggleRelatedSearches(session.sessionId)} className="flex items-center gap-1 text-xs text-primary hover:underline">
+                              {isRelatedExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                              {isRelatedExpanded ? 'Hide breakdown' : 'View breakdown'}
+                            </button>
+                            {isRelatedExpanded && (
+                              <div className="mt-2 space-y-2 bg-muted/50 p-2 rounded text-xs">
+                                {session.relatedSearches.map((item, idx) => (
+                                  <div key={idx} className="border-b border-border pb-2 last:border-0">
+                                    <p className="font-semibold">{item.name}</p>
+                                    <p className="text-muted-foreground">Total: {item.total} | Unique: {item.unique}</p>
+                                    <p className="text-muted-foreground">Visit Now Button: Clicked {item.visitNowClicks}</p>
+                                  </div>
+                                ))}
+                              </div>
                             )}
                           </div>
-                        </div>
-                      </div>
-                    </CollapsibleTrigger>
-
-                    <CollapsibleContent>
-                      <div className="border-t bg-muted/30 p-4 space-y-4">
-                        {/* Related Search Clicks Breakdown */}
-                        {session.clickBreakdown.relatedSearches.length > 0 && (
-                          <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Search className="h-4 w-4 text-blue-600" />
-                              <h4 className="font-semibold text-sm text-blue-800 dark:text-blue-200">
-                                Related Search Clicks ({session.relatedSearches})
-                              </h4>
-                            </div>
-                            <div className="space-y-2">
-                              {session.clickBreakdown.relatedSearches.map((item, idx) => (
-                                <div key={idx} className="flex items-center justify-between text-sm bg-white dark:bg-background rounded px-3 py-2 border">
-                                  <div>
-                                    <span className="font-medium">{item.text}</span>
-                                    <p className="text-xs text-muted-foreground">{item.buttonId}</p>
-                                  </div>
-                                  <Badge variant="default">{item.count} clicks</Badge>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Blog Clicks Breakdown */}
-                        {session.clickBreakdown.blogClicks.length > 0 && (
-                          <div className="bg-orange-50 dark:bg-orange-950/30 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-3">
-                              <FileText className="h-4 w-4 text-orange-600" />
-                              <h4 className="font-semibold text-sm text-orange-800 dark:text-orange-200">
-                                Blog Clicks ({session.blogClicks})
-                              </h4>
-                            </div>
-                            <div className="space-y-2">
-                              {session.clickBreakdown.blogClicks.map((item, idx) => (
-                                <div key={idx} className="flex items-center justify-between text-sm bg-white dark:bg-background rounded px-3 py-2 border">
-                                  <div>
-                                    <span className="font-medium">{item.title}</span>
-                                    <p className="text-xs text-muted-foreground">{item.buttonId}</p>
-                                  </div>
-                                  <Badge variant="default">{item.count} clicks</Badge>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Other Clicks Breakdown */}
-                        {session.clickBreakdown.otherClicks.length > 0 && (
-                          <div className="bg-gray-50 dark:bg-gray-950/30 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-3">
-                              <MousePointerClick className="h-4 w-4 text-gray-600" />
-                              <h4 className="font-semibold text-sm text-gray-800 dark:text-gray-200">
-                                Other Clicks ({session.clickBreakdown.otherClicks.reduce((sum, c) => sum + c.count, 0)})
-                              </h4>
-                            </div>
-                            <div className="space-y-2">
-                              {session.clickBreakdown.otherClicks.map((item, idx) => (
-                                <div key={idx} className="flex items-center justify-between text-sm bg-white dark:bg-background rounded px-3 py-2 border">
-                                  <div>
-                                    <span className="font-medium">{item.label}</span>
-                                    <p className="text-xs text-muted-foreground">{item.buttonId}</p>
-                                  </div>
-                                  <Badge variant="secondary">{item.count} clicks</Badge>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* No clicks message */}
-                        {session.totalClicks === 0 && (
-                          <p className="text-sm text-muted-foreground text-center py-4">
-                            No click data for this session
-                          </p>
                         )}
                       </div>
-                    </CollapsibleContent>
-                  </Card>
-                </Collapsible>
-              );
-            })
-          )}
-        </div>
-      </CardContent>
-    </Card>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="space-y-2">
+                        <Badge variant="outline" className={`${resultTotal > 0 ? 'bg-cyan-100 text-cyan-800 border-cyan-300' : 'bg-muted'}`}>
+                          Total: {resultTotal}
+                        </Badge>
+                        {session.resultClicks.length > 0 && (
+                          <div>
+                            <button onClick={() => toggleResultClicks(session.sessionId)} className="flex items-center gap-1 text-xs text-primary hover:underline">
+                              {isResultExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                              {isResultExpanded ? 'Hide breakdown' : 'View breakdown'}
+                            </button>
+                            {isResultExpanded && (
+                              <div className="mt-2 space-y-2 bg-muted/50 p-2 rounded text-xs">
+                                {session.resultClicks.map((item, idx) => (
+                                  <div key={idx} className="border-b border-border pb-2 last:border-0">
+                                    <p className="font-semibold truncate max-w-[200px]">{item.name}</p>
+                                    <p className="text-muted-foreground">Total: {item.total} | Unique: {item.unique}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+
+                    <TableCell className="text-sm">{session.timeSpent}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{session.timestamp}</TableCell>
+                  </TableRow>
+                );
+              })}
+              {filteredSessions.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={12} className="text-center text-muted-foreground py-8">No session data available</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
