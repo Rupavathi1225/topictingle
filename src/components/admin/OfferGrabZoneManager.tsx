@@ -436,12 +436,6 @@ const OfferGrabZoneManager = () => {
           >
             Pre-Landings
           </TabsTrigger>
-          <TabsTrigger 
-            value="analytics" 
-            className="px-6 py-2.5 data-[state=active]:bg-cyan-500 data-[state=active]:text-white text-slate-300"
-          >
-            Analytics
-          </TabsTrigger>
         </TabsList>
 
         {/* Landing Content Tab */}
@@ -716,110 +710,6 @@ const OfferGrabZoneManager = () => {
                     </Button>
                   </div>
                 )})}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Analytics Tab */}
-        <TabsContent value="analytics" className="mt-6 space-y-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <Users className="w-8 h-8 text-cyan-400" />
-                  <div>
-                    <p className="text-2xl font-bold text-white">{stats.totalSessions}</p>
-                    <p className="text-sm text-slate-400">Sessions</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <Eye className="w-8 h-8 text-green-400" />
-                  <div>
-                    <p className="text-2xl font-bold text-white">{stats.totalPageViews}</p>
-                    <p className="text-sm text-slate-400">Page Views</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <MousePointer className="w-8 h-8 text-purple-400" />
-                  <div>
-                    <p className="text-2xl font-bold text-white">{stats.totalClicks}</p>
-                    <p className="text-sm text-slate-400">Total Clicks</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <Search className="w-8 h-8 text-yellow-400" />
-                  <div>
-                    <p className="text-2xl font-bold text-white">{stats.relatedSearchClicks}</p>
-                    <p className="text-sm text-slate-400">Search Clicks</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <Link className="w-8 h-8 text-red-400" />
-                  <div>
-                    <p className="text-2xl font-bold text-white">{stats.webResultClicks}</p>
-                    <p className="text-sm text-slate-400">Result Clicks</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Sessions Table */}
-          <Card className="bg-slate-800/50 border-slate-700">
-            <CardHeader>
-              <CardTitle className="text-white">Recent Sessions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-700">
-                      <th className="text-left p-2 text-slate-400">Session ID</th>
-                      <th className="text-left p-2 text-slate-400">Country</th>
-                      <th className="text-left p-2 text-slate-400">Device</th>
-                      <th className="text-left p-2 text-slate-400">Source</th>
-                      <th className="text-left p-2 text-slate-400">Page Views</th>
-                      <th className="text-left p-2 text-slate-400">Last Active</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sessions.slice(0, 20).map((session) => (
-                      <tr key={session.id} className="border-b border-slate-700/50">
-                        <td className="p-2 text-white font-mono text-sm">{session.session_id.slice(0, 8)}...</td>
-                        <td className="p-2">
-                          <Badge variant="outline" className="text-slate-300 border-slate-600">
-                            <Globe className="w-3 h-3 mr-1" />
-                            {session.country_code}
-                          </Badge>
-                        </td>
-                        <td className="p-2 text-slate-300">{session.device}</td>
-                        <td className="p-2 text-slate-300">{session.source}</td>
-                        <td className="p-2 text-cyan-400">{session.page_views}</td>
-                        <td className="p-2 text-slate-400 text-sm">
-                          {new Date(session.last_active).toLocaleString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
             </CardContent>
           </Card>

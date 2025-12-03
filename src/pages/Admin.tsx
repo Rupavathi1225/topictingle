@@ -667,6 +667,7 @@ const Admin = () => {
       case 'topicmingle': return 'TopicMingle';
       case 'tejastarin': return 'Teja Starin';
       case 'fastmoney': return 'FastMoney';
+      case 'offergrabzone': return 'OfferGrabZone';
       default: return 'TopicMingle';
     }
   };

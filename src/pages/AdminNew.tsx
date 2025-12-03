@@ -44,9 +44,9 @@ export default function AdminNew() {
           </TabsContent>
           
           <TabsContent value="fastmoney" className="space-y-4">
-            <div className="mb-4">
-              <h2 className="text-2xl font-bold">💰 FastMoney Analytics</h2>
-              <p className="text-muted-foreground">Detailed analytics for FastMoney website</p>
+            <div className="mb-4 p-4 rounded-lg bg-zinc-900 border border-zinc-800">
+              <h2 className="text-2xl font-bold text-white">💰 FastMoney Analytics</h2>
+              <p className="text-zinc-400">Detailed analytics for FastMoney website</p>
             </div>
             <FastMoneyAnalytics />
           </TabsContent>
