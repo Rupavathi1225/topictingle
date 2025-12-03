@@ -52,9 +52,12 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
     pre_landing_page_key: '',
   });
 
+  const isSearchProject = projectName === 'SearchProject';
+  const isDataOrbitZone = projectName === 'DataOrbitZone';
+
   useEffect(() => {
     fetchWebResults();
-    if (projectName !== 'DataOrbitZone') {
+    if (!isDataOrbitZone) {
       fetchRelatedSearches();
     }
   }, [projectName]);
@@ -91,9 +94,8 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const isDataOrbitZone = projectName === 'DataOrbitZone';
-    
-    if (!isDataOrbitZone && !formData.related_search_id) {
+    // Only require related_search_id for projects that use it
+    if (!isDataOrbitZone && !isSearchProject && !formData.related_search_id) {
       toast.error('Please select a related search');
       return;
     }
@@ -110,9 +112,11 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
       pre_landing_page_key: formData.pre_landing_page_key || null,
     };
 
-    if (!isDataOrbitZone && formData.related_search_id) {
+    // Only add related_search_id for projects that use it
+    if (!isDataOrbitZone && !isSearchProject && formData.related_search_id) {
       payload.related_search_id = formData.related_search_id;
     }
+
     if (editingResult) {
       const { error } = await projectClient
         .from('web_results')
@@ -188,67 +192,133 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
     setEditingResult(null);
   };
 
+  // Conditional styling for SearchProject dark theme
+  const containerClass = isSearchProject 
+    ? "space-y-4 bg-[#0a1628] min-h-screen p-6 rounded-lg" 
+    : "space-y-4";
+
+  const headerClass = isSearchProject
+    ? "text-lg font-semibold text-white"
+    : "text-lg font-semibold";
+
+  const buttonClass = isSearchProject
+    ? "bg-[#00b4d8] hover:bg-[#0096c7] text-white"
+    : "";
+
+  const tableContainerClass = isSearchProject
+    ? "bg-[#1a2942] rounded-lg border border-[#2a3f5f] overflow-x-auto"
+    : "bg-card rounded-lg border overflow-x-auto";
+
+  const thClass = isSearchProject
+    ? "text-left p-4 font-semibold text-gray-300"
+    : "text-left p-4 font-semibold";
+
+  const tdClass = isSearchProject
+    ? "p-4 text-white"
+    : "p-4";
+
+  const mutedClass = isSearchProject
+    ? "text-sm text-gray-400 line-clamp-1"
+    : "text-sm text-muted-foreground line-clamp-1";
+
+  const dialogClass = isSearchProject
+    ? "max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1a2942] border-[#2a3f5f]"
+    : "max-w-2xl max-h-[90vh] overflow-y-auto";
+
+  const inputClass = isSearchProject
+    ? "bg-[#0a1628] border-[#2a3f5f] text-white placeholder:text-gray-500"
+    : "";
+
+  const labelClass = isSearchProject
+    ? "text-gray-300"
+    : "";
+
+  const showRelatedSearchField = !isDataOrbitZone && !isSearchProject;
+
   return (
-    <div className="space-y-4">
+    <div className={containerClass}>
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Web Results for {projectName}</h3>
-        <Button onClick={() => { resetForm(); setDialogOpen(true); }}>Add Web Result</Button>
+        <h3 className={headerClass}>Web Results for {projectName}</h3>
+        <Button 
+          onClick={() => { resetForm(); setDialogOpen(true); }}
+          className={buttonClass}
+        >
+          Add Web Result
+        </Button>
       </div>
 
-      <div className="bg-card rounded-lg border overflow-x-auto">
+      <div className={tableContainerClass}>
         <table className="w-full">
-          <thead className="border-b">
+          <thead className={isSearchProject ? "border-b border-[#2a3f5f]" : "border-b"}>
             <tr>
-              <th className="text-left p-4 font-semibold">Title</th>
-              <th className="text-left p-4 font-semibold">Page</th>
-              <th className="text-left p-4 font-semibold">Position</th>
-              <th className="text-left p-4 font-semibold">Type</th>
-              <th className="text-left p-4 font-semibold">Status</th>
-              <th className="text-left p-4 font-semibold">Actions</th>
+              <th className={thClass}>Title</th>
+              <th className={thClass}>Page</th>
+              <th className={thClass}>Position</th>
+              <th className={thClass}>Type</th>
+              <th className={thClass}>Status</th>
+              <th className={thClass}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {webResults.map((result) => (
-              <tr key={result.id} className="border-b last:border-0">
-                <td className="p-4">
+              <tr key={result.id} className={isSearchProject ? "border-b border-[#2a3f5f] last:border-0" : "border-b last:border-0"}>
+                <td className={tdClass}>
                   <div>
-                    <p className="font-medium">{result.title}</p>
-                    {result.related_search_id && (
+                    <p className={isSearchProject ? "font-medium text-white" : "font-medium"}>{result.title}</p>
+                    {result.related_search_id && !isSearchProject && (
                       <p className="text-xs text-primary font-medium">
                         Linked to related search ID: {result.related_search_id}
                       </p>
                     )}
                     {result.description && (
-                      <p className="text-sm text-muted-foreground line-clamp-1">{result.description}</p>
+                      <p className={mutedClass}>{result.description}</p>
                     )}
                   </div>
                 </td>
-                <td className="p-4">
-                  <span className="px-2 py-1 bg-accent/10 text-accent text-xs font-semibold rounded">
+                <td className={tdClass}>
+                  <span className={isSearchProject 
+                    ? "px-2 py-1 bg-[#00b4d8]/20 text-[#00b4d8] text-xs font-semibold rounded"
+                    : "px-2 py-1 bg-accent/10 text-accent text-xs font-semibold rounded"
+                  }>
                     Page {result.page_number}
                   </span>
                 </td>
-                <td className="p-4">#{result.position}</td>
-                <td className="p-4">
+                <td className={tdClass}>#{result.position}</td>
+                <td className={tdClass}>
                   {result.is_sponsored ? (
                     <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">Sponsored</span>
                   ) : (
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">Organic</span>
+                    <span className={isSearchProject 
+                      ? "px-2 py-1 bg-blue-900/50 text-blue-300 text-xs rounded"
+                      : "px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded"
+                    }>Organic</span>
                   )}
                 </td>
-                <td className="p-4">
+                <td className={tdClass}>
                   <span className={`px-2 py-1 text-xs rounded ${
-                    result.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    result.is_active 
+                      ? (isSearchProject ? 'bg-green-900/50 text-green-300' : 'bg-green-100 text-green-800') 
+                      : (isSearchProject ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-800')
                   }`}>
                     {result.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </td>
-                <td className="p-4">
+                <td className={tdClass}>
                   <div className="flex gap-2">
-                    <Button onClick={() => handleEdit(result)} variant="outline" size="sm">
+                    <Button 
+                      onClick={() => handleEdit(result)} 
+                      variant="outline" 
+                      size="sm"
+                      className={isSearchProject ? "border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]" : ""}
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button onClick={() => handleDelete(result.id)} variant="destructive" size="sm">
+                    <Button 
+                      onClick={() => handleDelete(result.id)} 
+                      variant="destructive" 
+                      size="sm"
+                      className={isSearchProject ? "bg-red-600 hover:bg-red-700" : ""}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -260,88 +330,96 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className={dialogClass}>
           <DialogHeader>
-            <DialogTitle>{editingResult ? 'Edit' : 'Add'} Web Result</DialogTitle>
+            <DialogTitle className={isSearchProject ? "text-white" : ""}>
+              {editingResult ? 'Edit' : 'Add'} Web Result
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label>Related Search {projectName !== 'DataOrbitZone' && '*'} </Label>
-              <Select
-                value={formData.related_search_id}
-                onValueChange={(value) => setFormData({ ...formData, related_search_id: value })}
-                disabled={projectName === 'DataOrbitZone'}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={projectName === 'DataOrbitZone' ? 'Not used for DataOrbitZone' : 'Select related search'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {relatedSearches.map((search) => (
-                    <SelectItem key={search.id} value={search.id}>
-                      {search.search_text} ››› WR-{search.web_result_page}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {formData.related_search_id && projectName !== 'DataOrbitZone' && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Adding to: <span className="font-medium">
-                    {relatedSearches.find(s => s.id === formData.related_search_id)?.search_text}
-                  </span>
-                </p>
-              )}
-            </div>
+            {/* Only show Related Search field for projects that need it */}
+            {showRelatedSearchField && (
+              <div>
+                <Label className={labelClass}>Related Search *</Label>
+                <Select
+                  value={formData.related_search_id}
+                  onValueChange={(value) => setFormData({ ...formData, related_search_id: value })}
+                >
+                  <SelectTrigger className={inputClass}>
+                    <SelectValue placeholder="Select related search" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {relatedSearches.map((search) => (
+                      <SelectItem key={search.id} value={search.id}>
+                        {search.search_text} ››› WR-{search.web_result_page}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formData.related_search_id && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Adding to: <span className="font-medium">
+                      {relatedSearches.find(s => s.id === formData.related_search_id)?.search_text}
+                    </span>
+                  </p>
+                )}
+              </div>
+            )}
 
             <div>
-              <Label>Title *</Label>
+              <Label className={labelClass}>Title *</Label>
               <Input
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 required
                 placeholder="e.g., Best Social Media Platform 2024"
+                className={inputClass}
               />
             </div>
 
             <div>
-              <Label>Description</Label>
+              <Label className={labelClass}>Description</Label>
               <Textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Short description of the web result..."
                 rows={3}
+                className={inputClass}
               />
             </div>
 
             <div>
-              <Label>Logo URL</Label>
+              <Label className={labelClass}>Logo URL</Label>
               <Input
                 value={formData.logo_url}
                 onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
                 placeholder="https://example.com/logo.png"
+                className={inputClass}
               />
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className={isSearchProject ? "text-xs text-gray-500 mt-1" : "text-xs text-muted-foreground mt-1"}>
                 Optional logo/icon to display with the web result
               </p>
             </div>
 
             <div>
-              <Label>Target URL *</Label>
+              <Label className={labelClass}>Target URL *</Label>
               <Input
                 value={formData.target_url}
                 onChange={(e) => setFormData({ ...formData, target_url: e.target.value })}
                 required
                 placeholder="https://example.com/page"
+                className={inputClass}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Page Number (1-4)</Label>
+                <Label className={labelClass}>Page Number (1-4)</Label>
                 <Select
                   value={formData.page_number.toString()}
                   onValueChange={(value) => setFormData({ ...formData, page_number: parseInt(value) })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={inputClass}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -354,12 +432,12 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
               </div>
 
               <div>
-                <Label>Position (1-4)</Label>
+                <Label className={labelClass}>Position (1-4)</Label>
                 <Select
                   value={formData.position.toString()}
                   onValueChange={(value) => setFormData({ ...formData, position: parseInt(value) })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={inputClass}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -373,18 +451,19 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
             </div>
 
             <div>
-              <Label>Pre-Landing Page Key (optional)</Label>
+              <Label className={labelClass}>Pre-Landing Page Key (optional)</Label>
               <Input
                 value={formData.pre_landing_page_key}
                 onChange={(e) => setFormData({ ...formData, pre_landing_page_key: e.target.value })}
                 placeholder="e.g., wr-1-pos-1"
+                className={inputClass}
               />
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className={isSearchProject ? "text-xs text-gray-500 mt-1" : "text-xs text-muted-foreground mt-1"}>
                 Link to pre-landing page for email capture before redirecting to target URL
               </p>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className={`flex items-center gap-4 ${isSearchProject ? 'text-gray-300' : ''}`}>
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -393,7 +472,7 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
                   onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                   className="rounded"
                 />
-                <Label htmlFor="is_active">Active</Label>
+                <Label htmlFor="is_active" className={labelClass}>Active</Label>
               </div>
 
               <div className="flex items-center gap-2">
@@ -404,15 +483,20 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
                   onChange={(e) => setFormData({ ...formData, is_sponsored: e.target.checked })}
                   className="rounded"
                 />
-                <Label htmlFor="is_sponsored">Sponsored Ad</Label>
+                <Label htmlFor="is_sponsored" className={labelClass}>Sponsored Ad</Label>
               </div>
             </div>
 
             <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setDialogOpen(false)}
+                className={isSearchProject ? "border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]" : ""}
+              >
                 Cancel
               </Button>
-              <Button type="submit">
+              <Button type="submit" className={buttonClass}>
                 {editingResult ? 'Update' : 'Create'}
               </Button>
             </div>

@@ -46,10 +46,17 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
     allowed_countries: ['WW'],
   });
 
+  // Check if project needs blogs (SearchProject doesn't have blogs)
+  const isSearchProject = projectName === 'SearchProject';
+  const isDataOrbitZone = projectName === 'DataOrbitZone';
+  const needsBlogs = !isSearchProject && !isDataOrbitZone;
+
   useEffect(() => {
     fetchSearches();
-    fetchBlogs();
-  }, [categoryId]);
+    if (needsBlogs) {
+      fetchBlogs();
+    }
+  }, [categoryId, needsBlogs]);
 
   const fetchBlogs = async () => {
     const { data, error } = await projectClient
@@ -73,7 +80,6 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
         query = query.eq('category_id', categoryId);
       }
 
-      // Use a simple, broadly compatible ordering
       const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) {
@@ -92,9 +98,8 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const isDataOrbitZone = projectName === 'DataOrbitZone';
-
-    if (!isDataOrbitZone && !formData.blog_id) {
+    // Only require blog_id for projects that need blogs
+    if (needsBlogs && !formData.blog_id) {
       toast.error('Please select a blog');
       return;
     }
@@ -109,14 +114,20 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
 
     const payload = {
       ...basePayload,
-      ...(formData.blog_id && !isDataOrbitZone && { blog_id: formData.blog_id }),
+      ...(formData.blog_id && needsBlogs && { blog_id: formData.blog_id }),
       ...(categoryId && { category_id: categoryId }),
       ...(projectName === 'TopicMingle' && {
         is_active: formData.is_active,
         display_order: formData.display_order,
         allowed_countries: formData.allowed_countries,
       }),
+      // For SearchProject, include display_order and is_active
+      ...(isSearchProject && {
+        display_order: formData.display_order,
+        is_active: formData.is_active,
+      }),
     };
+
     if (editingSearch) {
       const { error } = await projectClient
         .from('related_searches')
@@ -192,87 +203,150 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
     setEditingSearch(null);
   };
 
+  // Apply dark theme for SearchProject
+  const containerClass = isSearchProject 
+    ? "space-y-4 bg-[#0a1628] min-h-screen p-6 rounded-lg" 
+    : "space-y-4";
+  
+  const headerClass = isSearchProject
+    ? "text-lg font-semibold text-white"
+    : "text-lg font-semibold";
+  
+  const cardClass = isSearchProject
+    ? "flex items-center justify-between p-4 bg-[#1a2942] rounded-lg border border-[#2a3f5f]"
+    : "flex items-center justify-between p-4 bg-card rounded-lg border";
+  
+  const titleClass = isSearchProject
+    ? "font-medium text-white"
+    : "font-medium";
+  
+  const subtitleClass = isSearchProject
+    ? "text-sm text-gray-400"
+    : "text-sm text-muted-foreground";
+  
+  const buttonClass = isSearchProject
+    ? "bg-[#00b4d8] hover:bg-[#0096c7] text-white"
+    : "";
+
+  const dialogClass = isSearchProject
+    ? "max-w-2xl bg-[#1a2942] border-[#2a3f5f]"
+    : "max-w-2xl";
+
+  const inputClass = isSearchProject
+    ? "bg-[#0a1628] border-[#2a3f5f] text-white placeholder:text-gray-500"
+    : "";
+
+  const labelClass = isSearchProject
+    ? "text-gray-300"
+    : "";
+
   return (
-    <div className="space-y-4">
+    <div className={containerClass}>
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Related Searches</h3>
-        <Button onClick={() => { resetForm(); setDialogOpen(true); }}>Add Related Search</Button>
+        <h3 className={headerClass}>Related Searches</h3>
+        <Button 
+          onClick={() => { resetForm(); setDialogOpen(true); }}
+          className={buttonClass}
+        >
+          Add Related Search
+        </Button>
       </div>
 
       <div className="space-y-2">
         {searches.map((search) => (
-          <div key={search.id} className="flex items-center justify-between p-4 bg-card rounded-lg border">
-          <div>
-            <p className="font-medium">{search.title || search.search_text}</p>
-            <p className="text-sm text-muted-foreground">
-              {(search as any).blogs?.title && <span className="text-primary font-medium">Blog: {(search as any).blogs.title} | </span>}
-              Page: wr-{search.web_result_page} | Position: {search.position}
-              {search.pre_landing_page_key && ` | Landing: ${search.pre_landing_page_key}`}
-            </p>
-          </div>
+          <div key={search.id} className={cardClass}>
+            <div>
+              <p className={titleClass}>{search.title || search.search_text}</p>
+              <p className={subtitleClass}>
+                {needsBlogs && (search as any).blogs?.title && <span className="text-primary font-medium">Blog: {(search as any).blogs.title} | </span>}
+                Page: wr-{search.web_result_page} | Position: {search.position}
+                {search.pre_landing_page_key && ` | Landing: ${search.pre_landing_page_key}`}
+              </p>
+            </div>
             <div className="space-x-2">
-              <Button onClick={() => handleEdit(search)} variant="outline" size="sm">Edit</Button>
-              <Button onClick={() => handleDelete(search.id)} variant="destructive" size="sm">Delete</Button>
+              <Button 
+                onClick={() => handleEdit(search)} 
+                variant="outline" 
+                size="sm"
+                className={isSearchProject ? "border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]" : ""}
+              >
+                Edit
+              </Button>
+              <Button 
+                onClick={() => handleDelete(search.id)} 
+                variant="destructive" 
+                size="sm"
+                className={isSearchProject ? "bg-red-600 hover:bg-red-700" : ""}
+              >
+                Delete
+              </Button>
             </div>
           </div>
         ))}
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className={dialogClass}>
           <DialogHeader>
-            <DialogTitle>{editingSearch ? 'Edit' : 'Add'} Related Search</DialogTitle>
+            <DialogTitle className={isSearchProject ? "text-white" : ""}>
+              {editingSearch ? 'Edit' : 'Add'} Related Search
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label>Blog *</Label>
-              <Select value={formData.blog_id} onValueChange={(value) => setFormData({ ...formData, blog_id: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select blog" />
-                </SelectTrigger>
-                <SelectContent>
-                  {blogs.map((blog) => (
-                    <SelectItem key={blog.id} value={blog.id}>
-                      {blog.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {formData.blog_id && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Adding to: <span className="font-medium">{blogs.find(b => b.id === formData.blog_id)?.title}</span>
-                </p>
-              )}
-            </div>
+            {/* Only show Blog field for projects that need it */}
+            {needsBlogs && (
+              <div>
+                <Label className={labelClass}>Blog *</Label>
+                <Select value={formData.blog_id} onValueChange={(value) => setFormData({ ...formData, blog_id: value })}>
+                  <SelectTrigger className={inputClass}>
+                    <SelectValue placeholder="Select blog" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {blogs.map((blog) => (
+                      <SelectItem key={blog.id} value={blog.id}>
+                        {blog.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formData.blog_id && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Adding to: <span className="font-medium">{blogs.find(b => b.id === formData.blog_id)?.title}</span>
+                  </p>
+                )}
+              </div>
+            )}
 
             <div>
-              <Label>Title (visible to users)</Label>
+              <Label className={labelClass}>Title (visible to users)</Label>
               <Input
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 required
                 placeholder="e.g., Best Social Media Platforms 2024"
+                className={inputClass}
               />
             </div>
 
             <div>
-              <Label>Search Text</Label>
+              <Label className={labelClass}>Search Text</Label>
               <Input
                 value={formData.search_text}
                 onChange={(e) => setFormData({ ...formData, search_text: e.target.value })}
                 required
                 placeholder="Internal search text"
+                className={inputClass}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Web Result Page (1-4)</Label>
+                <Label className={labelClass}>Web Result Page (1-4)</Label>
                 <Select
                   value={formData.web_result_page.toString()}
                   onValueChange={(value) => setFormData({ ...formData, web_result_page: parseInt(value) })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={inputClass}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -285,12 +359,12 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
               </div>
 
               <div>
-                <Label>Position (1-4)</Label>
+                <Label className={labelClass}>Position (1-4)</Label>
                 <Select
                   value={formData.position.toString()}
                   onValueChange={(value) => setFormData({ ...formData, position: parseInt(value) })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={inputClass}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -304,34 +378,41 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
             </div>
 
             <div>
-              <Label>Pre-Landing Page Key (optional)</Label>
+              <Label className={labelClass}>Pre-Landing Page Key (optional)</Label>
               <Input
                 value={formData.pre_landing_page_key}
                 onChange={(e) => setFormData({ ...formData, pre_landing_page_key: e.target.value })}
                 placeholder="e.g., wr-1"
+                className={inputClass}
               />
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className={isSearchProject ? "text-xs text-gray-500 mt-1" : "text-xs text-muted-foreground mt-1"}>
                 Link to a pre-landing page for email capture before redirecting
               </p>
             </div>
 
-              <div>
-                <Label>Display Order</Label>
-                <Input
-                  type="number"
-                  value={formData.display_order}
-                  onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Lower numbers appear first
-                </p>
-              </div>
+            <div>
+              <Label className={labelClass}>Display Order</Label>
+              <Input
+                type="number"
+                value={formData.display_order}
+                onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })}
+                className={inputClass}
+              />
+              <p className={isSearchProject ? "text-xs text-gray-500 mt-1" : "text-xs text-muted-foreground mt-1"}>
+                Lower numbers appear first
+              </p>
+            </div>
 
             <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setDialogOpen(false)}
+                className={isSearchProject ? "border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]" : ""}
+              >
                 Cancel
               </Button>
-              <Button type="submit">
+              <Button type="submit" className={buttonClass}>
                 {editingSearch ? 'Update' : 'Create'}
               </Button>
             </div>
