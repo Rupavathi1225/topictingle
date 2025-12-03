@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { dataOrbitZoneClient } from "@/integrations/dataorbitzone/client";
-import { searchProjectClient } from "@/integrations/searchproject/client";
 import { tejaStarinClient } from "@/integrations/tejastarin/client";
 import { fastMoneyClient } from "@/integrations/fastmoney/client";
 import { useTracking } from "@/hooks/useTracking";
@@ -122,7 +120,7 @@ interface Analytics {
   unique_clicks?: number;
 }
 
-type Website = 'topicmingle' | 'dataorbitzone' | 'searchproject' | 'tejastarin' | 'fastmoney';
+type Website = 'topicmingle' | 'tejastarin' | 'fastmoney';
 type Section = 'blogs' | 'searches' | 'analytics' | 'webresults' | 'prelanding' | 'emails' | 'landing';
 
 const Admin = () => {
@@ -130,30 +128,6 @@ const Admin = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
-  
-  // DataOrbitZone state
-  const [dzCategories, setDzCategories] = useState<Category[]>([]);
-  const [dzBlogs, setDzBlogs] = useState<Blog[]>([]);
-  const [dzRelatedSearches, setDzRelatedSearches] = useState<RelatedSearch[]>([]);
-  const [dzPrelandingPages, setDzPrelandingPages] = useState<PrelandingPage[]>([]);
-  const [dzBlogDialog, setDzBlogDialog] = useState(false);
-  const [editingDzBlog, setEditingDzBlog] = useState<Blog | null>(null);
-  const [dzSearchDialog, setDzSearchDialog] = useState(false);
-  const [editingDzSearch, setEditingDzSearch] = useState<RelatedSearch | null>(null);
-  
-  // SearchProject state
-  const [spWebResults, setSpWebResults] = useState<any[]>([]);
-  const [spLandingPages, setSpLandingPages] = useState<any[]>([]);
-  const [spRelatedSearches, setSpRelatedSearches] = useState<any[]>([]);
-  const [spWebResultDialog, setSpWebResultDialog] = useState(false);
-  const [editingSpWebResult, setEditingSpWebResult] = useState<any>(null);
-  const [spLandingDialog, setSpLandingDialog] = useState(false);
-  const [editingSpLanding, setEditingSpLanding] = useState<any>(null);
-  const [showSpLandingForm, setShowSpLandingForm] = useState(false);
-  const [spLandingFormData, setSpLandingFormData] = useState({
-    title: '',
-    description: '',
-  });
 
   // TejaStarin state
   const [tsBlogs, setTsBlogs] = useState<any[]>([]);
@@ -162,8 +136,6 @@ const Admin = () => {
   const [tsRelatedSearches, setTsRelatedSearches] = useState<any[]>([]);
   
   const [analytics, setAnalytics] = useState<Analytics>({ sessions: 0, page_views: 0, clicks: 0 });
-  const [dataOrbitAnalytics, setDataOrbitAnalytics] = useState<Analytics>({ sessions: 0, page_views: 0, clicks: 0 });
-  const [searchProjectAnalytics, setSearchProjectAnalytics] = useState<any[]>([]);
   
   const [selectedWebsite, setSelectedWebsite] = useState<Website | null>(null);
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
@@ -184,16 +156,6 @@ const Admin = () => {
     status: "draft",
   });
 
-  const [dzFormData, setDzFormData] = useState({
-    title: "",
-    slug: "",
-    category_id: "",
-    author: "",
-    content: "",
-    featured_image: "",
-    status: "draft",
-  });
-
   const [searchFormData, setSearchFormData] = useState({
     category_id: "",
     search_text: "",
@@ -203,11 +165,8 @@ const Admin = () => {
   });
 
   const [analyticsDetails, setAnalyticsDetails] = useState<AnalyticsDetail[]>([]);
-  const [dataOrbitAnalyticsDetails, setDataOrbitAnalyticsDetails] = useState<any[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
   const [selectedSource, setSelectedSource] = useState<string>("all");
-  const [dataOrbitSelectedCountry, setDataOrbitSelectedCountry] = useState<string>("all");
-  const [dataOrbitSelectedSiteName, setDataOrbitSelectedSiteName] = useState<string>("all");
 
   // Website configurations
   const websites = [
@@ -217,20 +176,6 @@ const Admin = () => {
       description: 'Content Management & Analytics',
       color: 'bg-blue-500',
       icon: '📝'
-    },
-    {
-      id: 'dataorbitzone' as Website,
-      name: 'DataOrbitZone',
-      description: 'Data Analytics Platform',
-      color: 'bg-green-500',
-      icon: '🌐'
-    },
-    {
-      id: 'searchproject' as Website,
-      name: 'SearchProject',
-      description: 'Search Engine & Results',
-      color: 'bg-purple-500',
-      icon: '🔍'
     },
     {
       id: 'tejastarin' as Website,
@@ -253,20 +198,6 @@ const Admin = () => {
       { id: 'blogs', name: 'Blogs', description: 'Manage blog posts and content' },
       { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
       { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
-      { id: 'prelanding', name: 'Pre-Landing Pages', description: 'Edit pre-landing page designs' },
-      { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' }
-    ],
-    dataorbitzone: [
-      { id: 'blogs', name: 'Blogs', description: 'Manage blog posts and content' },
-      { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
-      { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
-      { id: 'prelanding', name: 'Pre-Landing Pages', description: 'Edit pre-landing page designs' },
-      { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' }
-    ],
-    searchproject: [
-      { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
-      { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
-      { id: 'landing', name: 'Landing Pages', description: 'Manage landing pages' },
       { id: 'prelanding', name: 'Pre-Landing Pages', description: 'Edit pre-landing page designs' },
       { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' }
     ],
@@ -296,33 +227,6 @@ const Admin = () => {
     }
   };
 
-  // Fetch DataOrbitZone content
-  const fetchDzBlogs = async () => {
-    const { data } = await dataOrbitZoneClient.from('blogs').select('*').order('created_at', { ascending: false });
-    if (data) setDzBlogs(data);
-  };
-
-  const fetchDzRelatedSearches = async () => {
-    const { data } = await dataOrbitZoneClient.from('related_searches').select('*').order('display_order');
-    if (data) setDzRelatedSearches(data);
-  };
-
-  // Fetch SearchProject content
-  const fetchSpWebResults = async () => {
-    const { data } = await searchProjectClient.from('web_results').select('*').order('serial_number');
-    if (data) setSpWebResults(data);
-  };
-
-  const fetchSpLandingPages = async () => {
-    const { data } = await searchProjectClient.from('pre_landing_pages').select('*').order('created_at', { ascending: false });
-    if (data) setSpLandingPages(data);
-  };
-
-  const fetchSpRelatedSearches = async () => {
-    const { data } = await searchProjectClient.from('related_searches').select('*').order('display_order');
-    if (data) setSpRelatedSearches(data);
-  };
-
   // Fetch TejaStarin content
   const fetchTsBlogs = async () => {
     const { data } = await tejaStarinClient.from('blogs').select('*').order('created_at', { ascending: false });
@@ -349,13 +253,6 @@ const Admin = () => {
     fetchBlogs();
     fetchRelatedSearches();
     fetchAnalytics();
-    fetchDataOrbitAnalytics();
-    fetchSearchProjectAnalytics();
-    fetchDzBlogs();
-    fetchDzRelatedSearches();
-    fetchSpWebResults();
-    fetchSpLandingPages();
-    fetchSpRelatedSearches();
     fetchTsBlogs();
     fetchTsWebResults();
     fetchTsLandingPages();
@@ -610,55 +507,6 @@ const Admin = () => {
     }
   };
 
-  const handleDzBlogSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!dzFormData.title || !dzFormData.category_id || !dzFormData.author || !dzFormData.content) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
-    const blogData = {
-      title: dzFormData.title,
-      slug: dzFormData.slug,
-      category_id: parseInt(dzFormData.category_id),
-      author: dzFormData.author,
-      content: dzFormData.content,
-      featured_image: dzFormData.featured_image || null,
-      status: dzFormData.status,
-    };
-
-    try {
-      if (editingDzBlog) {
-        const { error } = await dataOrbitZoneClient
-          .from("blogs")
-          .update(blogData)
-          .eq("id", editingDzBlog.id);
-
-        if (error) {
-          toast.error("Failed to update blog");
-        } else {
-          toast.success("Blog updated successfully");
-          fetchDzBlogs();
-          resetDzForm();
-        }
-      } else {
-        const { error } = await dataOrbitZoneClient.from("blogs").insert([blogData]);
-
-        if (error) {
-          toast.error("Failed to create blog");
-        } else {
-          toast.success("Blog created successfully");
-          fetchDzBlogs();
-          resetDzForm();
-        }
-      }
-    } catch (error) {
-      console.error('Error saving blog:', error);
-      toast.error("Failed to save blog");
-    }
-  };
-
   const handleEdit = (blog: Blog) => {
     setEditingBlog(blog);
     setFormData({
@@ -671,20 +519,6 @@ const Admin = () => {
       status: blog.status,
     });
     setIsDialogOpen(true);
-  };
-
-  const handleEditDzBlog = (blog: Blog) => {
-    setEditingDzBlog(blog);
-    setDzFormData({
-      title: blog.title,
-      slug: blog.slug,
-      category_id: blog.category_id.toString(),
-      author: blog.author,
-      content: blog.content,
-      featured_image: blog.featured_image || "",
-      status: blog.status,
-    });
-    setDzBlogDialog(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -712,20 +546,6 @@ const Admin = () => {
     });
     setEditingBlog(null);
     setIsDialogOpen(false);
-  };
-
-  const resetDzForm = () => {
-    setDzFormData({
-      title: "",
-      slug: "",
-      category_id: "",
-      author: "",
-      content: "",
-      featured_image: "",
-      status: "draft",
-    });
-    setEditingDzBlog(null);
-    setDzBlogDialog(false);
   };
 
   const handleSearchSubmit = async (e: React.FormEvent) => {
@@ -786,31 +606,6 @@ const Admin = () => {
     setIsSearchDialogOpen(true);
   };
 
-  // DataOrbitZone CRUD handlers
-  const handleDeleteDzBlog = async (id: string) => {
-    if (confirm('Are you sure you want to delete this blog?')) {
-      const { error } = await dataOrbitZoneClient.from('blogs').delete().eq('id', id);
-      if (error) {
-        toast.error('Failed to delete blog');
-      } else {
-        toast.success('Blog deleted successfully');
-        fetchDzBlogs();
-      }
-    }
-  };
-
-  const handleDeleteDzSearch = async (id: string) => {
-    if (confirm('Are you sure you want to delete this related search?')) {
-      const { error } = await dataOrbitZoneClient.from('related_searches').delete().eq('id', id);
-      if (error) {
-        toast.error('Failed to delete related search');
-      } else {
-        toast.success('Related search deleted successfully');
-        fetchDzRelatedSearches();
-      }
-    }
-  };
-
   const handleDeleteSearch = async (id: string) => {
     if (confirm("Are you sure you want to delete this related search?")) {
       const { error } = await supabase.from("related_searches").delete().eq("id", id);
@@ -821,293 +616,6 @@ const Admin = () => {
         toast.success("Search deleted successfully");
         fetchRelatedSearches();
       }
-    }
-  };
-
-  const fetchDataOrbitAnalytics = async () => {
-    try {
-      console.log('🔍 Fetching DataOrbitZone analytics...');
-      
-      // Fetch all analytics data
-      const { data: analyticsData, error } = await dataOrbitZoneClient
-        .from("analytics")
-        .select("*")
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('❌ DataOrbitZone fetch error:', error);
-        toast.error('Failed to fetch DataOrbitZone analytics. Check RLS policies.');
-        return;
-      }
-
-      console.log(`✅ Fetched ${analyticsData?.length || 0} analytics records`);
-
-      if (analyticsData && analyticsData.length > 0) {
-        // Log all unique event types for debugging
-        const eventTypes = new Set(analyticsData.map((a: any) => a.event_type));
-        console.log('📊 Event types found:', Array.from(eventTypes));
-
-        // Log sample events with ALL fields to debug
-        console.log('📝 Sample events (full data):', analyticsData.slice(0, 2));
-        console.log('📝 Sample events (filtered):', analyticsData.slice(0, 3).map(e => ({
-          event_type: e.event_type,
-          ip_address: e.ip_address,
-          country: e.country,
-          site_name: e.site_name,
-          page_url: e.page_url,
-          url: e.url,
-          referrer: e.referrer,
-          device: e.device,
-          source: e.source
-        })));
-
-        // More flexible event type matchers - match ANY event type containing these keywords
-        const isPageViewEvent = (eventType?: string) => {
-          if (!eventType) return false;
-          const lower = eventType.toLowerCase().trim();
-          // Match: page_view, pageview, page-view, view, page, etc.
-          return lower.includes('page') || 
-                 lower.includes('view') || 
-                 lower === 'page_view' || 
-                 lower === 'pageview';
-        };
-
-        const isClickEvent = (eventType?: string) => {
-          if (!eventType) return false;
-          const lower = eventType.toLowerCase().trim();
-          return lower.includes('click');
-        };
-
-        // Count events
-        const pageViewEvents = analyticsData.filter((a: any) => isPageViewEvent(a.event_type));
-        const clickEvents = analyticsData.filter((a: any) => isClickEvent(a.event_type));
-        
-        console.log('📈 Page view events:', pageViewEvents.length);
-        console.log('🖱️  Click events:', clickEvents.length);
-
-        const sessions = new Set(analyticsData.map((a: any) => a.session_id)).size;
-        const pageViews = pageViewEvents.length;
-        const clicks = clickEvents.length;
-
-        // Calculate UNIQUE pages
-        const uniquePages = new Set(
-          pageViewEvents
-            .map((e: any) => e.page_url)
-            .filter((url: any) => url && url.trim() !== "")
-        ).size;
-
-        // Calculate UNIQUE clicks
-        const uniqueClicks = new Set(
-          clickEvents
-            .map((e: any) => e.button_id)
-            .filter((id: any) => id && id.trim() !== "")
-        ).size;
-
-        console.log('📊 Final totals:', { sessions, pageViews, clicks, uniquePages, uniqueClicks });
-
-        setDataOrbitAnalytics({
-          sessions,
-          page_views: pageViews,
-          unique_pages: uniquePages,
-          clicks,
-          unique_clicks: uniqueClicks
-        });
-
-        // Build lookup maps for names
-        const relatedSearchIds = Array.from(new Set(
-          analyticsData.filter((e: any) => !!e.related_search_id).map((e: any) => e.related_search_id)
-        ));
-        const blogIds = Array.from(new Set(
-          analyticsData.filter((e: any) => !!e.blog_id).map((e: any) => e.blog_id)
-        ));
-
-        const relatedSearchMap = new Map<string, string>();
-        if (relatedSearchIds.length > 0) {
-          const { data: rsData } = await dataOrbitZoneClient
-            .from('related_searches')
-            .select('id, search_text')
-            .in('id', relatedSearchIds);
-          rsData?.forEach((r: any) => relatedSearchMap.set(r.id, r.search_text));
-        }
-
-        const blogMap = new Map<string, string>();
-        if (blogIds.length > 0) {
-          const { data: bData } = await dataOrbitZoneClient
-            .from('blogs')
-            .select('id, title')
-            .in('id', blogIds);
-          bData?.forEach((b: any) => blogMap.set(b.id, b.title));
-        }
-
-        // Helper function to extract domain from URL - now checks multiple URL fields
-        const extractSiteName = (event: any) => {
-          // Try multiple possible URL field names
-          const urlFields = [event.page_url, event.url, event.referrer];
-          
-          for (const urlField of urlFields) {
-            if (!urlField || typeof urlField !== 'string') continue;
-            
-            try {
-              // If it's already a full URL
-              if (urlField.startsWith('http://') || urlField.startsWith('https://')) {
-                const urlObj = new URL(urlField);
-                const hostname = urlObj.hostname.replace(/^www\./, '');
-                if (hostname && hostname !== '') return hostname;
-              }
-              // If it's just a domain
-              else if (urlField.includes('.')) {
-                const cleaned = urlField.replace(/^www\./, '').split('/')[0];
-                if (cleaned && cleaned !== '') return cleaned;
-              }
-            } catch (error) {
-              console.log('Error parsing URL:', urlField, error);
-            }
-          }
-          
-          return null;
-        };
-
-        // Group by session with enrichment and breakdowns
-        const sessionMap = new Map<string, any>();
-        analyticsData.forEach((event: any) => {
-          if (!sessionMap.has(event.session_id)) {
-            // Extract site name from multiple possible sources
-            let siteName = 'Unknown';
-            
-            // First try the site_name field
-            if (event.site_name && event.site_name.trim() !== '' && event.site_name !== 'Unknown') {
-              siteName = event.site_name;
-            } else {
-              // Try extracting from URLs
-              const extracted = extractSiteName(event);
-              if (extracted) {
-                siteName = extracted;
-              }
-            }
-            
-            console.log(`Session ${event.session_id.slice(0, 8)}: site_name="${event.site_name}" -> resolved to "${siteName}"`);
-            
-            // Initialize with first event's data - use actual values, not defaults
-            sessionMap.set(event.session_id, {
-              session_id: event.session_id,
-              ip_address: event.ip_address || 'unknown',
-              country: event.country || 'unknown',
-              site_name: siteName,
-              device: event.device || 'unknown',
-              source: event.source || 'direct',
-              page_views: 0,
-              clicks: 0,
-              created_at: event.created_at,
-              last_active: event.created_at,
-              related_search_clicks: new Map<string, { clicks: number; uniques: Set<string> }>(),
-              blog_clicks: new Map<string, { clicks: number; uniques: Set<string> }>(),
-            });
-          }
-          const session = sessionMap.get(event.session_id);
-
-          // Enrich with ANY non-null/non-empty values from subsequent events
-          if (event.ip_address && event.ip_address.trim() !== '' && event.ip_address !== 'unknown') {
-            session.ip_address = event.ip_address;
-          }
-          if (event.country && event.country.trim() !== '' && event.country !== 'unknown') {
-            session.country = event.country;
-          }
-          // For site_name, try multiple sources
-          if (event.site_name && event.site_name.trim() !== '' && event.site_name !== 'Unknown') {
-            session.site_name = event.site_name;
-          } else if (session.site_name === 'Unknown') {
-            const extracted = extractSiteName(event);
-            if (extracted) {
-              session.site_name = extracted;
-            }
-          }
-          if (event.device && event.device.trim() !== '' && event.device !== 'unknown') {
-            session.device = event.device;
-          }
-          if (event.source && event.source.trim() !== '' && event.source !== 'direct') {
-            session.source = event.source;
-          }
-
-          // Counters - using the same flexible matching
-          if (isPageViewEvent(event.event_type)) {
-            session.page_views++;
-          }
-          if (isClickEvent(event.event_type)) {
-            session.clicks++;
-          }
-
-          // Breakdowns
-          const uniqueKey = (event.ip_address && event.ip_address !== 'unknown') ? event.ip_address : event.session_id;
-          if (isClickEvent(event.event_type) && event.related_search_id) {
-            const term = relatedSearchMap.get(event.related_search_id) || 'Unknown';
-            if (!session.related_search_clicks.has(term)) {
-              session.related_search_clicks.set(term, { clicks: 0, uniques: new Set<string>() });
-            }
-            const entry = session.related_search_clicks.get(term)!;
-            entry.clicks += 1;
-            entry.uniques.add(uniqueKey);
-          }
-          if (isClickEvent(event.event_type) && event.blog_id) {
-            const title = blogMap.get(event.blog_id) || 'Unknown';
-            if (!session.blog_clicks.has(title)) {
-              session.blog_clicks.set(title, { clicks: 0, uniques: new Set<string>() });
-            }
-            const entry = session.blog_clicks.get(title)!;
-            entry.clicks += 1;
-            entry.uniques.add(uniqueKey);
-          }
-
-          // Update last active
-          if (new Date(event.created_at).getTime() > new Date(session.last_active).getTime()) {
-            session.last_active = event.created_at;
-          }
-        });
-
-        const details = Array.from(sessionMap.values()).map((s: any) => ({
-          ...s,
-          related_search_breakdown: Array.from(s.related_search_clicks.entries()).map(([search_term, val]: any) => ({
-            search_term,
-            click_count: val.clicks,
-            unique_clicks: val.uniques.size,
-          })),
-          blog_clicks_breakdown: Array.from(s.blog_clicks.entries()).map(([blog_title, val]: any) => ({
-            blog_title,
-            click_count: val.clicks,
-            unique_clicks: val.uniques.size,
-          })),
-        }));
-
-        console.log(`✅ Processed ${details.length} session details`);
-        console.log('📋 Sample session detail:', details[0]);
-        
-        setDataOrbitAnalyticsDetails(details.sort((a: any, b: any) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        ));
-      } else {
-        console.log('⚠️  No analytics data found');
-        setDataOrbitAnalytics({ sessions: 0, page_views: 0, clicks: 0 });
-        setDataOrbitAnalyticsDetails([]);
-      }
-    } catch (error) {
-      console.error('❌ Error fetching DataOrbitZone analytics:', error);
-      toast.error('Failed to fetch DataOrbitZone analytics. Check database connection.');
-    }
-  };
-
-  const fetchSearchProjectAnalytics = async () => {
-    try {
-      const { data: analyticsData, error } = await searchProjectClient
-        .from('analytics')
-        .select('*')
-        .order('timestamp', { ascending: false });
-
-      if (error) throw error;
-
-      console.log('SearchProject Analytics:', analyticsData);
-      setSearchProjectAnalytics(analyticsData || []);
-    } catch (error) {
-      console.error('Error fetching SearchProject analytics:', error);
-      toast.error('Failed to fetch SearchProject analytics');
     }
   };
 
@@ -1142,8 +650,6 @@ const Admin = () => {
   const getProjectClient = (website: Website) => {
     switch (website) {
       case 'topicmingle': return supabase;
-      case 'dataorbitzone': return dataOrbitZoneClient;
-      case 'searchproject': return searchProjectClient;
       case 'tejastarin': return tejaStarinClient;
       default: return supabase;
     }
@@ -1152,9 +658,8 @@ const Admin = () => {
   const getProjectName = (website: Website) => {
     switch (website) {
       case 'topicmingle': return 'TopicMingle';
-      case 'dataorbitzone': return 'DataOrbitZone';
-      case 'searchproject': return 'SearchProject';
       case 'tejastarin': return 'Teja Starin';
+      case 'fastmoney': return 'FastMoney';
       default: return 'TopicMingle';
     }
   };
@@ -1170,9 +675,6 @@ const Admin = () => {
       case 'blogs':
         if (selectedWebsite === 'tejastarin') {
           return <TejaStarinBlogs />;
-        }
-        if (selectedWebsite === 'dataorbitzone') {
-          return <DataOrbitZoneManager />;
         }
         return (
           <div className="bg-card rounded-lg border">
@@ -1368,9 +870,6 @@ const Admin = () => {
         if (selectedWebsite === 'tejastarin') {
           return <TejaStarinRelatedSearches />;
         }
-        if (selectedWebsite === 'dataorbitzone') {
-          return <DataOrbitZoneManager />;
-        }
         if (selectedWebsite === 'fastmoney') {
           return <FastMoneyManager />;
         }
@@ -1380,9 +879,6 @@ const Admin = () => {
         if (selectedWebsite === 'tejastarin') {
           return <TejaStarinWebResults />;
         }
-        if (selectedWebsite === 'dataorbitzone') {
-          return <DataOrbitZoneManager />;
-        }
         if (selectedWebsite === 'fastmoney') {
           return <FastMoneyManager />;
         }
@@ -1391,9 +887,6 @@ const Admin = () => {
       case 'prelanding':
         if (selectedWebsite === 'tejastarin') {
           return <TejaStarinPreLanding />;
-        }
-        if (selectedWebsite === 'dataorbitzone') {
-          return <DataOrbitZoneManager />;
         }
         if (selectedWebsite === 'fastmoney') {
           return <FastMoneyManager />;
@@ -1409,225 +902,6 @@ const Admin = () => {
       case 'landing':
         if (selectedWebsite === 'fastmoney') {
           return <FastMoneyManager />;
-        }
-        if (selectedWebsite === 'searchproject') {
-          const handleSpLandingSubmit = async (e: React.FormEvent) => {
-            e.preventDefault();
-            
-            if (!spLandingFormData.title || !spLandingFormData.description) {
-              toast.error("Please fill in both title and description");
-              return;
-            }
-
-            // Generate page_key from title
-            const page_key = spLandingFormData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-
-            const landingData = {
-              page_key,
-              headline: spLandingFormData.title,
-              description: spLandingFormData.description,
-              target_url: '#', // Default placeholder
-              logo_position: 'top-center',
-              logo_width: 150,
-              image_ratio: '16:9',
-              headline_font_size: 32,
-              headline_color: '#000000',
-              headline_align: 'center',
-              description_font_size: 16,
-              description_color: '#333333',
-              description_align: 'center',
-              cta_text: 'Get Started',
-              cta_color: '#10b981',
-              background_color: '#ffffff',
-            };
-
-            try {
-              if (editingSpLanding) {
-                const { error } = await searchProjectClient
-                  .from('pre_landing_pages')
-                  .update(landingData)
-                  .eq('id', editingSpLanding.id);
-
-                if (error) {
-                  toast.error("Failed to update landing page");
-                } else {
-                  toast.success("Landing page updated successfully");
-                  fetchSpLandingPages();
-                  setShowSpLandingForm(false);
-                  setEditingSpLanding(null);
-                  setSpLandingFormData({ title: '', description: '' });
-                }
-              } else {
-                const { error } = await searchProjectClient
-                  .from('pre_landing_pages')
-                  .insert([landingData]);
-
-                if (error) {
-                  toast.error("Failed to create landing page");
-                } else {
-                  toast.success("Landing page created successfully");
-                  fetchSpLandingPages();
-                  setShowSpLandingForm(false);
-                  setSpLandingFormData({ title: '', description: '' });
-                }
-              }
-            } catch (error) {
-              console.error('Error saving landing page:', error);
-              toast.error("Failed to save landing page");
-            }
-          };
-
-          const handleEditSpLanding = (page: any) => {
-            setEditingSpLanding(page);
-            setSpLandingFormData({
-              title: page.headline || '',
-              description: page.description || '',
-            });
-            setShowSpLandingForm(true);
-          };
-
-          const handleDeleteSpLanding = async (id: string) => {
-            if (!confirm('Are you sure you want to delete this landing page?')) return;
-
-            const { error } = await searchProjectClient
-              .from('pre_landing_pages')
-              .delete()
-              .eq('id', id);
-
-            if (error) {
-              toast.error("Failed to delete landing page");
-            } else {
-              toast.success("Landing page deleted successfully");
-              fetchSpLandingPages();
-            }
-          };
-
-          const getRelatedSearchesForPage = (pageKey: string) => {
-            return spRelatedSearches.filter(search => search.pre_landing_page_key === pageKey);
-          };
-
-          return (
-            <div className="bg-card rounded-lg border">
-              <div className="p-4 border-b flex justify-between items-center">
-                <h2 className="text-xl font-bold text-foreground">SearchProject - Landing Pages</h2>
-                <Button 
-                  onClick={() => {
-                    setShowSpLandingForm(!showSpLandingForm);
-                    setEditingSpLanding(null);
-                    setSpLandingFormData({ title: '', description: '' });
-                  }}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Landing Page
-                </Button>
-              </div>
-
-              {/* Add/Edit Form */}
-              {showSpLandingForm && (
-                <form onSubmit={handleSpLandingSubmit} className="p-6 border-b bg-muted/30">
-                  <h3 className="text-lg font-semibold mb-4">
-                    {editingSpLanding ? 'Edit Landing Page' : 'Add New Landing Page'}
-                  </h3>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="sp-title">Title *</Label>
-                      <Input
-                        id="sp-title"
-                        value={spLandingFormData.title}
-                        onChange={(e) => setSpLandingFormData({ ...spLandingFormData, title: e.target.value })}
-                        placeholder="Enter title"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="sp-description">Description *</Label>
-                      <Textarea
-                        id="sp-description"
-                        value={spLandingFormData.description}
-                        onChange={(e) => setSpLandingFormData({ ...spLandingFormData, description: e.target.value })}
-                        placeholder="Enter description"
-                        rows={4}
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-2 mt-4">
-                    <Button type="submit">
-                      {editingSpLanding ? 'Update' : 'Save'} Changes
-                    </Button>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={() => {
-                        setShowSpLandingForm(false);
-                        setEditingSpLanding(null);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              )}
-
-              {/* Landing Pages Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="border-b">
-                    <tr>
-                      <th className="text-left p-4 font-semibold">Title</th>
-                      <th className="text-left p-4 font-semibold">Description</th>
-                      <th className="text-left p-4 font-semibold">Related Searches</th>
-                      <th className="text-left p-4 font-semibold">Created</th>
-                      <th className="text-left p-4 font-semibold">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {spLandingPages.map((page) => {
-                      const relatedSearches = getRelatedSearchesForPage(page.page_key);
-                      return (
-                        <tr key={page.id} className="border-b hover:bg-muted/50">
-                          <td className="p-4 font-medium">{page.headline}</td>
-                          <td className="p-4 text-muted-foreground max-w-md">
-                            {page.description || '-'}
-                          </td>
-                          <td className="p-4 text-sm max-w-xs">
-                            {relatedSearches.length > 0 ? (
-                              <span className="text-xs">
-                                {relatedSearches.map(s => s.search_text).join(' >>> ')}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground italic">None</span>
-                            )}
-                          </td>
-                          <td className="p-4 text-muted-foreground whitespace-nowrap">
-                            {new Date(page.created_at).toLocaleDateString()}
-                          </td>
-                          <td className="p-4">
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleEditSpLanding(page)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleDeleteSpLanding(page.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          );
         }
         return null;
 

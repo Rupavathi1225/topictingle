@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
-// CHANGED: Reverted to aliased paths (@/) which is correct for your project
 import { supabase } from '@/integrations/supabase/client';
-import { dataOrbitZoneClient } from '@/integrations/dataorbitzone/client';
-import { searchProjectClient } from '@/integrations/searchproject/client';
 import { tejaStarinClient } from '@/integrations/tejastarin/client';
 import { fastMoneyClient } from '@/integrations/fastmoney/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -71,8 +68,6 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
 
   const sites = [
-    { id: 'dataorbitzone', name: 'DataOrbitZone', icon: ShoppingCart, color: 'from-orange-500 to-orange-600' },
-    { id: 'searchproject', name: 'SearchProject', icon: Home, color: 'from-pink-500 to-pink-600' },
     { id: 'tejastarin', name: 'Teja Starin', icon: FileText, color: 'from-purple-500 to-purple-600' },
     { id: 'main', name: 'TopicMingle', icon: Palette, color: 'from-cyan-500 to-cyan-600' },
     { id: 'fastmoney', name: 'FastMoney', icon: DollarSign, color: 'from-yellow-500 to-yellow-600' },
@@ -95,17 +90,13 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const [dataOrbit, searchProj, tejaStarin, mainProj, fastMoney] = await Promise.all([
-        fetchDataOrbitZone(),
-        fetchSearchProject(),
+      const [tejaStarin, mainProj, fastMoney] = await Promise.all([
         fetchTejaStarin(),
         fetchMainProject(),
         fetchFastMoney(),
       ]);
 
       const allStats: SiteStats[] = [
-        { siteName: 'DataOrbitZone', icon: ShoppingCart, color: 'from-orange-500 to-orange-600', ...dataOrbit.stats },
-        { siteName: 'SearchProject', icon: Home, color: 'from-pink-500 to-pink-600', ...searchProj.stats },
         { siteName: 'Teja Starin', icon: FileText, color: 'from-purple-500 to-purple-600', ...tejaStarin.stats },
         { siteName: 'TopicMingle', icon: Palette, color: 'from-cyan-500 to-cyan-600', ...mainProj.stats },
         { siteName: 'FastMoney', icon: DollarSign, color: 'from-yellow-500 to-yellow-600', ...fastMoney.stats },
@@ -114,8 +105,6 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
       setSiteStats(allStats);
 
       const allSessions = [
-        ...dataOrbit.sessions,
-        ...searchProj.sessions,
         ...tejaStarin.sessions,
         ...mainProj.sessions,
         ...fastMoney.sessions,
@@ -128,270 +117,6 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
     } finally {
       setLoading(false);
     }
-  };
-
-  /**
-   * Fetch & process DataOrbitZone analytics.
-   * - CHANGED: Now fetches blog/search names from their respective tables to show correct labels.
-   */
-  const fetchDataOrbitZone = async () => {
-    const { data: analytics } = await dataOrbitZoneClient
-      .from('analytics')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    // CHANGED: Added lookup maps for names, just like in Admin.tsx
-    const relatedSearchIds = Array.from(new Set((analytics || []).map((e: any) => e.related_search_id).filter(Boolean)));
-    const blogIds = Array.from(new Set((analytics || []).map((e: any) => e.blog_id).filter(Boolean)));
-
-    const relatedSearchMap = new Map<string, string>();
-    if (relatedSearchIds.length > 0) {
-      const { data: rsData } = await dataOrbitZoneClient
-        .from('related_searches')
-        .select('id, search_text')
-        .in('id', relatedSearchIds);
-      rsData?.forEach((r: any) => relatedSearchMap.set(r.id, r.search_text));
-    }
-
-    const blogMap = new Map<string, string>();
-    if (blogIds.length > 0) {
-      const { data: bData } = await dataOrbitZoneClient
-        .from('blogs')
-        .select('id, title')
-        .in('id', blogIds);
-      bData?.forEach((b: any) => blogMap.set(b.id, b.title));
-    }
-    // END CHANGED
-
-    const sessionMap = new Map<string, any>();
-    const globalUniquePages = new Set<string>();
-    const globalUniqueClicks = new Set<string>();
-
-    (analytics || []).forEach((event: any) => {
-      const sid = event.session_id || `anon-${event.ip_address || 'unknown'}`;
-      if (!sessionMap.has(sid)) {
-        sessionMap.set(sid, {
-          sessionId: sid,
-          device: event.device || 'Desktop • Chrome',
-          ipAddress: event.ip_address || 'N/A',
-          country: event.country || 'Unknown',
-          timeSpent: '0s',
-          timestamp: event.created_at || new Date().toISOString(),
-          pageViews: 0,
-          uniquePagesSet: new Set<string>(),
-          totalClicks: 0,
-          uniqueClicksSet: new Set<string>(),
-          // CHANGED: Using new maps for breakdown
-          rsBreakdownMap: new Map<string, any>(),
-          blogBreakdownMap: new Map<string, any>(),
-          buttonInteractionsMap: new Map<string, any>(),
-        });
-      }
-
-      const session = sessionMap.get(sid);
-      const eventType = (event.event_type || '').toString().toLowerCase();
-
-      // Page Views
-      if (eventType.includes('page') || eventType.includes('view')) {
-        session.pageViews++;
-        const pageId = event.page_url || event.url || (event.blog_id ? `blog-${event.blog_id}` : null);
-        if (pageId) {
-          session.uniquePagesSet.add(pageId);
-          globalUniquePages.add(pageId);
-        }
-      }
-
-      // Clicks
-      if (eventType.includes('click') || eventType.includes('button')) {
-        session.totalClicks++;
-        const clickId = event.button_id || event.related_search_id || (event.blog_id ? `blog-${event.blog_id}` : null) || `click-${session.sessionId}-${session.totalClicks}`;
-        if (clickId) {
-          session.uniqueClicksSet.add(clickId);
-          globalUniqueClicks.add(clickId);
-        }
-
-        // CHANGED: Detailed click breakdown logic
-        const ip = session.ipAddress || 'unknown';
-        const buttonId = event.button_id || 'unknown';
-        const buttonLabel = event.button_label || 'Unknown';
-
-        let isAssigned = false;
-
-        // 1. Related Search Click (the term itself)
-        if (event.related_search_id && buttonId.startsWith('related-search-')) { // Only count clicks on the search term
-          const term = relatedSearchMap.get(event.related_search_id) || buttonLabel || 'Unknown Search';
-          const entry = session.rsBreakdownMap.get(term) || { term, views: 0, totalClicks: 0, uniqueClicks: new Set(), visitNowClicks: 0, visitNowUnique: new Set() };
-          entry.totalClicks++;
-          entry.uniqueClicks.add(ip);
-          session.rsBreakdownMap.set(term, entry);
-          isAssigned = true;
-        }
-
-        // 2. "Visit Now" Button Click
-        if (buttonId.startsWith('visit-now-')) {
-          const term = buttonLabel; // Assuming label is the term
-          const entry = session.rsBreakdownMap.get(term) || { term, views: 0, totalClicks: 0, uniqueClicks: new Set(), visitNowClicks: 0, visitNowUnique: new Set() };
-          entry.visitNowClicks++;
-          entry.visitNowUnique.add(ip);
-          session.rsBreakdownMap.set(term, entry);
-          isAssigned = true;
-        }
-        
-        // 3. Blog Card Click
-        if (event.blog_id && buttonId.startsWith('blog-card-')) { // Only count clicks on the blog card
-           const title = blogMap.get(event.blog_id) || buttonLabel || 'Unknown Blog';
-           const entry = session.blogBreakdownMap.get(title) || { title, totalClicks: 0, uniqueClicks: new Set() };
-           entry.totalClicks++;
-           entry.uniqueClicks.add(ip);
-           session.blogBreakdownMap.set(title, entry);
-           isAssigned = true;
-        }
-        
-        // 4. Other Button Click (if not assigned to RS or Blog)
-        if (!isAssigned && !buttonId.startsWith('related-search-')) { // Avoid double-counting
-            const key = buttonLabel === 'Unknown' ? (buttonId || 'Unknown-button') : buttonLabel;
-            if(key !== 'Unknown-button') { // Don't log "Unknown-button"
-              const entry = session.buttonInteractionsMap.get(key) || { button: key, total: 0, unique: new Set() };
-              entry.total++;
-              entry.unique.add(ip);
-              session.buttonInteractionsMap.set(key, entry);
-            }
-        }
-      }
-      
-      // Track views for RS (if event type is view and has rs_id)
-      if ((eventType.includes('view') || eventType.includes('page')) && event.related_search_id) {
-          const term = relatedSearchMap.get(event.related_search_id) || event.related_search_label || 'Unknown Search';
-          const entry = session.rsBreakdownMap.get(term) || { term, views: 0, totalClicks: 0, uniqueClicks: new Set(), visitNowClicks: 0, visitNowUnique: new Set() };
-          entry.views++;
-          session.rsBreakdownMap.set(term, entry);
-      }
-
-      // Update timestamp if newer
-      if (event.created_at && new Date(event.created_at).getTime() > new Date(session.timestamp).getTime()) {
-        session.timestamp = event.created_at;
-      }
-    });
-
-    // Convert per-session maps/sets to arrays + counts
-    const sessions = Array.from(sessionMap.values()).map((s: any) => {
-      // CHANGED: Convert new maps to arrays
-      const finalSearchResults = Array.from(s.rsBreakdownMap.values()).map((sr: any) => ({
-        term: sr.term,
-        views: sr.views,
-        totalClicks: sr.totalClicks,
-        uniqueClicks: sr.uniqueClicks.size,
-        visitNowClicks: sr.visitNowClicks,
-        visitNowUnique: sr.visitNowUnique.size,
-      }));
-
-      const finalBlogClicks = Array.from(s.blogBreakdownMap.values()).map((bc: any) => ({
-        title: bc.title,
-        totalClicks: bc.totalClicks,
-        uniqueClicks: bc.uniqueClicks.size,
-      }));
-
-      const finalButtonInteractions = Array.from(s.buttonInteractionsMap.values()).map((bi: any) => ({
-        button: bi.button,
-        total: bi.total,
-        unique: bi.unique.size,
-      }));
-
-      return {
-        sessionId: s.sessionId,
-        siteName: 'DataOrbitZone',
-        siteIcon: ShoppingCart,
-        siteColor: 'from-orange-500 to-orange-600',
-        device: s.device,
-        ipAddress: s.ipAddress,
-        country: s.country,
-        timeSpent: s.timeSpent,
-        timestamp: s.timestamp,
-        pageViews: s.pageViews,
-        uniquePages: s.uniquePagesSet.size,
-        totalClicks: s.totalClicks,
-        uniqueClicks: s.uniqueClicksSet.size,
-        searchResults: finalSearchResults,
-        blogClicks: finalBlogClicks,
-        buttonInteractions: finalButtonInteractions,
-      };
-    }) as SessionDetail[];
-
-    const stats = {
-      sessions: sessionMap.size,
-      pageViews: sessions.reduce((sum: number, s: any) => sum + s.pageViews, 0),
-      uniquePages: globalUniquePages.size,
-      totalClicks: sessions.reduce((sum: number, s: any) => sum + s.totalClicks, 0),
-      uniqueClicks: globalUniqueClicks.size,
-    };
-
-    return { stats, sessions };
-  };
-
-  /**
-   * Fetch & process SearchProject analytics.
-   * - Adds empty/zeroed fields to match the new SessionDetail interface.
-   */
-  const fetchSearchProject = async () => {
-    const { data: analytics } = await searchProjectClient
-      .from('analytics')
-      .select('*')
-      .order('timestamp', { ascending: false });
-
-    const sessions: SessionDetail[] = (analytics || []).map((a: any) => ({
-      sessionId: a.session_id || `sp-${a.id || Math.random().toString(36).slice(2, 9)}`,
-      siteName: 'SearchProject',
-      siteIcon: Home,
-      siteColor: 'from-pink-500 to-pink-600',
-      device: a.device || 'Mobile • Safari',
-      ipAddress: a.ip_address || 'N/A',
-      country: a.country || 'Unknown',
-      timeSpent: formatTimeSpent(a.time_spent || 0),
-      timestamp: a.timestamp || a.created_at || new Date().toISOString(),
-      pageViews: a.page_views || 0,
-      uniquePages: a.unique_pages || (a.page_urls ? new Set(a.page_urls).size : (a.unique_pages_count || 0)),
-      totalClicks: a.clicks || 0,
-      uniqueClicks: a.unique_clicks || (a.button_ids ? new Set(a.button_ids).size : (a.unique_clicks_count || 0)),
-      searchResults: Array.isArray(a.search_results) ? a.search_results.map((sr: any) => ({
-        term: sr.term,
-        views: sr.views || 0,
-        totalClicks: sr.totalClicks || 0,
-        uniqueClicks: sr.uniqueClicks || 0,
-        visitNowClicks: 0,
-        visitNowUnique: 0,
-      })) : [{
-        term: 'results',
-        views: a.related_searches || 0,
-        totalClicks: a.result_clicks || 0,
-        uniqueClicks: a.unique_clicks || 0,
-        visitNowClicks: 0,
-        visitNowUnique: 0,
-      }],
-      blogClicks: [],
-      buttonInteractions: Array.isArray(a.button_interactions) ? a.button_interactions.map((bi: any) => ({
-        button: bi.button,
-        total: bi.total || 0,
-        unique: bi.unique || 0,
-      })) : [{ button: 'result-click', total: a.result_clicks || 0, unique: a.unique_result_clicks || 0 }],
-    }));
-
-    // build global sets if explicit arrays exist; else fallback sums
-    const globalUniquePagesSet = new Set<string>();
-    const globalUniqueClicksSet = new Set<string>();
-    (analytics || []).forEach((a: any) => {
-      if (a.page_urls && Array.isArray(a.page_urls)) a.page_urls.forEach((p: string) => globalUniquePagesSet.add(p));
-      if (a.button_ids && Array.isArray(a.button_ids)) a.button_ids.forEach((b: string) => globalUniqueClicksSet.add(b));
-    });
-
-    const stats = {
-      sessions: (analytics || []).length,
-      pageViews: (analytics || []).reduce((sum: number, a: any) => sum + (a.page_views || 0), 0),
-      uniquePages: globalUniquePagesSet.size || (sessions.reduce((sum, s) => sum + (s.uniquePages || 0), 0)),
-      totalClicks: (analytics || []).reduce((sum: number, a: any) => sum + (a.clicks || 0), 0),
-      uniqueClicks: globalUniqueClicksSet.size || (sessions.reduce((sum, s) => sum + (s.uniqueClicks || 0), 0)),
-    };
-
-    return { stats, sessions };
   };
 
   /**
