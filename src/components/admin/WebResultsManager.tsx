@@ -18,7 +18,6 @@ interface WebResult {
   position: number;
   is_active: boolean;
   is_sponsored?: boolean;
-  pre_landing_page_key?: string;
   related_search_id?: string;
 }
 
@@ -49,7 +48,6 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
     position: 1,
     is_active: true,
     is_sponsored: false,
-    pre_landing_page_key: '',
   });
 
   const isSearchProject = projectName === 'SearchProject';
@@ -109,7 +107,6 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
       position: formData.position,
       is_active: formData.is_active,
       is_sponsored: formData.is_sponsored,
-      pre_landing_page_key: formData.pre_landing_page_key || null,
     };
 
     // Only add related_search_id for projects that use it
@@ -158,7 +155,6 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
       position: result.position,
       is_active: result.is_active,
       is_sponsored: result.is_sponsored || false,
-      pre_landing_page_key: result.pre_landing_page_key || '',
     });
     setDialogOpen(true);
   };
@@ -187,7 +183,6 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
       position: 1,
       is_active: true,
       is_sponsored: false,
-      pre_landing_page_key: '',
     });
     setEditingResult(null);
   };
@@ -448,19 +443,6 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div>
-              <Label className={labelClass}>Pre-Landing Page Key (optional)</Label>
-              <Input
-                value={formData.pre_landing_page_key}
-                onChange={(e) => setFormData({ ...formData, pre_landing_page_key: e.target.value })}
-                placeholder="e.g., wr-1-pos-1"
-                className={inputClass}
-              />
-              <p className={isSearchProject ? "text-xs text-gray-500 mt-1" : "text-xs text-muted-foreground mt-1"}>
-                Link to pre-landing page for email capture before redirecting to target URL
-              </p>
             </div>
 
             <div className={`flex items-center gap-4 ${isSearchProject ? 'text-gray-300' : ''}`}>

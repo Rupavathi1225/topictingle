@@ -12,7 +12,6 @@ interface RelatedSearch {
   search_text: string;
   web_result_page: number;
   position: number;
-  pre_landing_page_key: string | null;
   is_active: boolean;
   display_order: number;
   allowed_countries: string[];
@@ -40,7 +39,6 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
     search_text: '',
     web_result_page: 1,
     position: 1,
-    pre_landing_page_key: '',
     is_active: true,
     display_order: 0,
     allowed_countries: ['WW'],
@@ -109,7 +107,6 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
       search_text: formData.search_text,
       web_result_page: formData.web_result_page,
       position: formData.position,
-      pre_landing_page_key: formData.pre_landing_page_key || null,
     };
 
     const payload = {
@@ -167,7 +164,6 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
       search_text: search.search_text,
       web_result_page: search.web_result_page,
       position: search.position,
-      pre_landing_page_key: search.pre_landing_page_key || '',
       is_active: search.is_active,
       display_order: search.display_order,
       allowed_countries: search.allowed_countries || ['WW'],
@@ -195,7 +191,6 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
       search_text: '',
       web_result_page: 1,
       position: 1,
-      pre_landing_page_key: '',
       is_active: true,
       display_order: 0,
       allowed_countries: ['WW'],
@@ -260,7 +255,6 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
               <p className={subtitleClass}>
                 {needsBlogs && (search as any).blogs?.title && <span className="text-primary font-medium">Blog: {(search as any).blogs.title} | </span>}
                 Page: wr-{search.web_result_page} | Position: {search.position}
-                {search.pre_landing_page_key && ` | Landing: ${search.pre_landing_page_key}`}
               </p>
             </div>
             <div className="space-x-2">
@@ -375,19 +369,6 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div>
-              <Label className={labelClass}>Pre-Landing Page Key (optional)</Label>
-              <Input
-                value={formData.pre_landing_page_key}
-                onChange={(e) => setFormData({ ...formData, pre_landing_page_key: e.target.value })}
-                placeholder="e.g., wr-1"
-                className={inputClass}
-              />
-              <p className={isSearchProject ? "text-xs text-gray-500 mt-1" : "text-xs text-muted-foreground mt-1"}>
-                Link to a pre-landing page for email capture before redirecting
-              </p>
             </div>
 
             <div>
