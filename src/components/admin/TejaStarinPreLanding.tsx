@@ -136,7 +136,6 @@ export const TejaStarinPreLanding = () => {
 
     const payload = {
       related_search_id: selectedSearchId,
-      web_result_id: selectedWebResultId || null,
       headline: formData.headline,
       description: formData.description || null,
       logo_url: formData.logo_url || null,
