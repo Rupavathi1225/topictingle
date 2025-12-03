@@ -2,6 +2,7 @@ import { UnifiedAnalytics } from "@/components/admin/UnifiedAnalytics";
 import { TopicMingleAnalytics } from "@/components/admin/TopicMingleAnalytics";
 import { TejaStarinAnalytics } from "@/components/admin/TejaStarinAnalytics";
 import { FastMoneyAnalytics } from "@/components/admin/FastMoneyAnalytics";
+import { OfferGrabZoneAnalytics } from "@/components/admin/OfferGrabZoneAnalytics";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AdminNew() {
@@ -14,11 +15,12 @@ export default function AdminNew() {
         </div>
         
         <Tabs defaultValue="all" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="all">All Sites</TabsTrigger>
             <TabsTrigger value="topicmingle">TopicMingle</TabsTrigger>
             <TabsTrigger value="tejastarin">Teja Starin</TabsTrigger>
             <TabsTrigger value="fastmoney">FastMoney</TabsTrigger>
+            <TabsTrigger value="offergrabzone" className="data-[state=active]:bg-zinc-800 data-[state=active]:text-white">OfferGrabZone</TabsTrigger>
           </TabsList>
           
           <TabsContent value="all" className="space-y-4">
@@ -47,6 +49,14 @@ export default function AdminNew() {
               <p className="text-muted-foreground">Detailed analytics for FastMoney website</p>
             </div>
             <FastMoneyAnalytics />
+          </TabsContent>
+
+          <TabsContent value="offergrabzone" className="space-y-4">
+            <div className="mb-4 p-4 rounded-lg bg-zinc-900 border border-zinc-800">
+              <h2 className="text-2xl font-bold text-white">🎁 OfferGrabZone Analytics</h2>
+              <p className="text-zinc-400">Detailed analytics for OfferGrabZone website</p>
+            </div>
+            <OfferGrabZoneAnalytics />
           </TabsContent>
         </Tabs>
       </div>
