@@ -203,93 +203,103 @@ export function SearchProjectManager() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-[#0a1628] min-h-screen p-6 rounded-lg">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="webresults">Web Results</TabsTrigger>
-          <TabsTrigger value="searches">Related Searches</TabsTrigger>
-          <TabsTrigger value="landing">Landing Pages</TabsTrigger>
-          <TabsTrigger value="prelanding">Pre-Landing</TabsTrigger>
-          <TabsTrigger value="emails">Email Captures</TabsTrigger>
+        <TabsList className="bg-[#1a2942] border border-[#2a3f5f]">
+          <TabsTrigger value="webresults" className="data-[state=active]:bg-[#3b82f6] data-[state=active]:text-white text-gray-300">Web Results</TabsTrigger>
+          <TabsTrigger value="searches" className="data-[state=active]:bg-[#3b82f6] data-[state=active]:text-white text-gray-300">Related Searches</TabsTrigger>
+          <TabsTrigger value="landing" className="data-[state=active]:bg-[#3b82f6] data-[state=active]:text-white text-gray-300">Landing Pages</TabsTrigger>
+          <TabsTrigger value="prelanding" className="data-[state=active]:bg-[#3b82f6] data-[state=active]:text-white text-gray-300">Pre-Landing</TabsTrigger>
+          <TabsTrigger value="emails" className="data-[state=active]:bg-[#3b82f6] data-[state=active]:text-white text-gray-300">Email Captures</TabsTrigger>
         </TabsList>
 
         <TabsContent value="webresults" className="space-y-4">
-          <Card>
+          <Card className="bg-[#1a2942] border-[#2a3f5f]">
             <CardHeader>
-              <CardTitle>{editingId ? 'Edit' : 'Add'} Web Result</CardTitle>
+              <CardTitle className="text-white">{editingId ? 'Edit' : 'Add'} Web Result</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <Input
                 placeholder="Webresult Page"
                 value={formData.webresult_page || ''}
                 onChange={(e) => setFormData({ ...formData, webresult_page: e.target.value })}
+                className="bg-[#0a1628] border-[#2a3f5f] text-white placeholder:text-gray-500"
               />
               <Input
                 placeholder="Title"
                 value={formData.title || ''}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                className="bg-[#0a1628] border-[#2a3f5f] text-white placeholder:text-gray-500"
               />
               <Textarea
                 placeholder="Description"
                 value={formData.description || ''}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className="bg-[#0a1628] border-[#2a3f5f] text-white placeholder:text-gray-500"
               />
               <Input
                 placeholder="Original Link"
                 value={formData.original_link || ''}
                 onChange={(e) => setFormData({ ...formData, original_link: e.target.value })}
+                className="bg-[#0a1628] border-[#2a3f5f] text-white placeholder:text-gray-500"
               />
               <Input
                 placeholder="Logo URL"
                 value={formData.logo_url || ''}
                 onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+                className="bg-[#0a1628] border-[#2a3f5f] text-white placeholder:text-gray-500"
               />
               <Input
                 type="number"
                 placeholder="Serial Number"
                 value={formData.serial_number || ''}
                 onChange={(e) => setFormData({ ...formData, serial_number: e.target.value })}
+                className="bg-[#0a1628] border-[#2a3f5f] text-white placeholder:text-gray-500"
               />
               <Input
                 placeholder="Offer Name"
                 value={formData.offer_name || ''}
                 onChange={(e) => setFormData({ ...formData, offer_name: e.target.value })}
+                className="bg-[#0a1628] border-[#2a3f5f] text-white placeholder:text-gray-500"
               />
               <Input
                 placeholder="Backlink URL"
                 value={formData.backlink_url || ''}
                 onChange={(e) => setFormData({ ...formData, backlink_url: e.target.value })}
+                className="bg-[#0a1628] border-[#2a3f5f] text-white placeholder:text-gray-500"
               />
               <Select
                 value={formData.access_type || 'worldwide'}
                 onValueChange={(value) => setFormData({ ...formData, access_type: value })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-[#0a1628] border-[#2a3f5f] text-white">
                   <SelectValue placeholder="Access Type" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="worldwide">Worldwide</SelectItem>
-                  <SelectItem value="restricted">Restricted</SelectItem>
+                <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
+                  <SelectItem value="worldwide" className="text-white hover:bg-[#2a3f5f]">Worldwide</SelectItem>
+                  <SelectItem value="restricted" className="text-white hover:bg-[#2a3f5f]">Restricted</SelectItem>
                 </SelectContent>
               </Select>
               <Input
                 placeholder="Allowed Countries (comma separated, e.g., US, UK, CA)"
                 value={formData.allowed_countries || ''}
                 onChange={(e) => setFormData({ ...formData, allowed_countries: e.target.value })}
+                className="bg-[#0a1628] border-[#2a3f5f] text-white placeholder:text-gray-500"
               />
               <div className="flex items-center space-x-2">
                 <Checkbox
                   checked={formData.is_sponsored || false}
                   onCheckedChange={(checked) => setFormData({ ...formData, is_sponsored: checked })}
+                  className="border-[#2a3f5f] data-[state=checked]:bg-[#3b82f6]"
                 />
-                <label className="text-sm">Is Sponsored</label>
+                <label className="text-sm text-gray-300">Is Sponsored</label>
               </div>
               <div className="flex gap-2">
-                <Button onClick={handleSaveWebResult}>
+                <Button onClick={handleSaveWebResult} className="bg-[#3b82f6] hover:bg-[#2563eb] text-white">
                   {editingId ? <><Save className="h-4 w-4 mr-2" /> Update</> : <><Plus className="h-4 w-4 mr-2" /> Create</>}
                 </Button>
                 {editingId && (
-                  <Button variant="outline" onClick={cancelEdit}>
+                  <Button variant="outline" onClick={cancelEdit} className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]">
                     <X className="h-4 w-4 mr-2" /> Cancel
                   </Button>
                 )}
@@ -299,25 +309,25 @@ export function SearchProjectManager() {
 
           <div className="grid gap-4">
             {webResults.map((result) => (
-              <Card key={result.id}>
+              <Card key={result.id} className="bg-[#1a2942] border-[#2a3f5f]">
                 <CardContent className="pt-6">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <h3 className="font-semibold">{result.serial_number}. {result.title}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">{result.description}</p>
-                      <div className="text-xs text-muted-foreground mt-2 space-y-1">
-                        <p><strong>Page:</strong> {result.webresult_page}</p>
-                        <p><strong>Link:</strong> {result.original_link}</p>
-                        {result.is_sponsored && <p className="text-yellow-600">★ Sponsored</p>}
-                        {result.offer_name && <p><strong>Offer:</strong> {result.offer_name}</p>}
-                        <p><strong>Access:</strong> {result.access_type}</p>
+                      <h3 className="font-semibold text-white">{result.serial_number}. {result.title}</h3>
+                      <p className="text-sm text-gray-400 mt-1">{result.description}</p>
+                      <div className="text-xs text-gray-500 mt-2 space-y-1">
+                        <p><strong className="text-gray-400">Page:</strong> {result.webresult_page}</p>
+                        <p><strong className="text-gray-400">Link:</strong> {result.original_link}</p>
+                        {result.is_sponsored && <p className="text-yellow-500">★ Sponsored</p>}
+                        {result.offer_name && <p><strong className="text-gray-400">Offer:</strong> {result.offer_name}</p>}
+                        <p><strong className="text-gray-400">Access:</strong> {result.access_type}</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => startEdit(result, 'webresult')}>
+                      <Button variant="outline" size="sm" onClick={() => startEdit(result, 'webresult')} className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]">
                         <Edit2 className="h-4 w-4" />
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDeleteWebResult(result.id)}>
+                      <Button variant="destructive" size="sm" onClick={() => handleDeleteWebResult(result.id)} className="bg-red-600 hover:bg-red-700">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -329,27 +339,29 @@ export function SearchProjectManager() {
         </TabsContent>
 
         <TabsContent value="landing" className="space-y-4">
-          <Card>
+          <Card className="bg-[#1a2942] border-[#2a3f5f]">
             <CardHeader>
-              <CardTitle>{editingId ? 'Edit' : 'Add'} Landing Page</CardTitle>
+              <CardTitle className="text-white">{editingId ? 'Edit' : 'Add'} Landing Page</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <Input
                 placeholder="Title"
                 value={formData.title || ''}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                className="bg-[#0a1628] border-[#2a3f5f] text-white placeholder:text-gray-500"
               />
               <Textarea
                 placeholder="Description"
                 value={formData.description || ''}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className="bg-[#0a1628] border-[#2a3f5f] text-white placeholder:text-gray-500"
               />
               <div className="flex gap-2">
-                <Button onClick={handleSaveLandingPage}>
+                <Button onClick={handleSaveLandingPage} className="bg-[#3b82f6] hover:bg-[#2563eb] text-white">
                   {editingId ? <><Save className="h-4 w-4 mr-2" /> Update</> : <><Plus className="h-4 w-4 mr-2" /> Create</>}
                 </Button>
                 {editingId && (
-                  <Button variant="outline" onClick={cancelEdit}>
+                  <Button variant="outline" onClick={cancelEdit} className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]">
                     <X className="h-4 w-4 mr-2" /> Cancel
                   </Button>
                 )}
@@ -359,18 +371,18 @@ export function SearchProjectManager() {
 
           <div className="grid gap-4">
             {landingPages.map((page) => (
-              <Card key={page.id}>
+              <Card key={page.id} className="bg-[#1a2942] border-[#2a3f5f]">
                 <CardContent className="pt-6">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <h3 className="font-semibold">{page.title}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">{page.description}</p>
+                      <h3 className="font-semibold text-white">{page.title}</h3>
+                      <p className="text-sm text-gray-400 mt-1">{page.description}</p>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => startEdit(page, 'landing')}>
+                      <Button variant="outline" size="sm" onClick={() => startEdit(page, 'landing')} className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]">
                         <Edit2 className="h-4 w-4" />
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDeleteLandingPage(page.id)}>
+                      <Button variant="destructive" size="sm" onClick={() => handleDeleteLandingPage(page.id)} className="bg-red-600 hover:bg-red-700">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
