@@ -44,13 +44,22 @@ export const TejaStarinAnalytics = () => {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const [blogsRes, searchesRes, webResultsRes, sessionsRes, emailsRes] = await Promise.all([
+      // Try fetching with different possible column names for compatibility
+      const [blogsRes, searchesRes, webResultsRes, emailsRes] = await Promise.all([
         tejaStarinClient.from('blogs').select('id', { count: 'exact', head: true }),
         tejaStarinClient.from('related_searches').select('id', { count: 'exact', head: true }),
         tejaStarinClient.from('web_results').select('id', { count: 'exact', head: true }),
-        tejaStarinClient.from('sessions').select('*').order('last_activity', { ascending: false }),
         tejaStarinClient.from('email_submissions').select('*'),
       ]);
+
+      // Try both possible column names for sessions ordering
+      let sessionsRes = await tejaStarinClient.from('sessions').select('*').order('last_active', { ascending: false });
+      if (!sessionsRes.data || sessionsRes.data.length === 0) {
+        sessionsRes = await tejaStarinClient.from('sessions').select('*').order('last_activity', { ascending: false });
+      }
+      if (!sessionsRes.data || sessionsRes.data.length === 0) {
+        sessionsRes = await tejaStarinClient.from('sessions').select('*').order('created_at', { ascending: false });
+      }
 
       setStats({
         totalBlogs: blogsRes.count || 0,
@@ -85,7 +94,7 @@ export const TejaStarinAnalytics = () => {
           country: session.country || 'Unknown',
           source: session.source || 'direct',
           device: session.device_type?.toLowerCase().includes('mobile') ? 'mobile' : 'desktop',
-          pageViews: 1,
+          pageViews: session.page_views || 1,
           totalClicks: 0,
           uniqueClicks: 0,
           relatedSearches: 0,
@@ -94,7 +103,7 @@ export const TejaStarinAnalytics = () => {
             relatedSearches: [],
             blogClicks: [],
           },
-          lastActive: session.last_activity || session.created_at || new Date().toISOString(),
+          lastActive: session.last_active || session.last_activity || session.created_at || new Date().toISOString(),
         });
         sessionClickIds.set(sid, new Set());
       });

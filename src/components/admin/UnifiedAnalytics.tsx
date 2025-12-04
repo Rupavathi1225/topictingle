@@ -130,11 +130,20 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
    * Fetch & process DataCreditZone analytics
    */
   const fetchDataCreditZone = async () => {
-    // Fetch sessions and clicks from DataCreditZone (TejaStarin database)
-    const { data: sessionsData } = await tejaStarinClient
-      .from('sessions')
-      .select('*')
-      .order('last_activity', { ascending: false });
+    // Fetch sessions from DataCreditZone - try different column names for compatibility
+    let sessionsData: any[] = [];
+    let sessionsRes = await tejaStarinClient.from('sessions').select('*').order('last_active', { ascending: false });
+    if (sessionsRes.data && sessionsRes.data.length > 0) {
+      sessionsData = sessionsRes.data;
+    } else {
+      sessionsRes = await tejaStarinClient.from('sessions').select('*').order('last_activity', { ascending: false });
+      if (sessionsRes.data && sessionsRes.data.length > 0) {
+        sessionsData = sessionsRes.data;
+      } else {
+        sessionsRes = await tejaStarinClient.from('sessions').select('*').order('created_at', { ascending: false });
+        sessionsData = sessionsRes.data || [];
+      }
+    }
 
     const { data: clicks } = await tejaStarinClient
       .from('link_tracking')
@@ -147,12 +156,12 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
     (sessionsData || []).forEach((s: any) => {
       sessionMap.set(s.session_id, {
         sessionId: s.session_id,
-        device: s.device_type?.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
+        device: s.device_type?.toLowerCase().includes('mobile') ? 'Mobile' : (s.device === 'mobile' ? 'Mobile' : 'Desktop'),
         ipAddress: s.ip_address || 'N/A',
         country: s.country || 'Unknown',
         timeSpent: '0s',
-        timestamp: s.last_activity || s.created_at || new Date().toISOString(),
-        pageViews: 1,
+        timestamp: s.last_active || s.last_activity || s.created_at || new Date().toISOString(),
+        pageViews: s.page_views || 1,
         uniquePagesSet: new Set<string>(),
         totalClicks: 0,
         uniqueClicksSet: new Set<string>(),
@@ -160,6 +169,7 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
         blogClicks: [],
         buttonInteractions: [],
       });
+      globalUniquePages.add(s.session_id);
     });
 
     (clicks || []).forEach((c: any) => {
