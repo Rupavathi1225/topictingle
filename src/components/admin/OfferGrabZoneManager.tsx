@@ -856,6 +856,25 @@ const OfferGrabZoneManager = () => {
                   className="bg-slate-900 border-slate-600 text-white"
                 />
               </div>
+              <div>
+                <Label className="text-slate-300">Country Permissions</Label>
+                <Select
+                  value={editingResult.allowed_countries?.[0] || 'worldwide'}
+                  onValueChange={(v) => setEditingResult({ ...editingResult, allowed_countries: [v] })}
+                >
+                  <SelectTrigger className="bg-slate-900 border-slate-600 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="worldwide">Worldwide</SelectItem>
+                    <SelectItem value="US">United States</SelectItem>
+                    <SelectItem value="UK">United Kingdom</SelectItem>
+                    <SelectItem value="CA">Canada</SelectItem>
+                    <SelectItem value="AU">Australia</SelectItem>
+                    <SelectItem value="IN">India</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button onClick={handleSaveResult} className="w-full bg-cyan-500 hover:bg-cyan-600">
                 <Save className="w-4 h-4 mr-2" />
                 Save Web Result
