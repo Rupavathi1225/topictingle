@@ -177,8 +177,10 @@ export const FastMoneyAnalytics = () => {
         }
       });
 
-      // Sort by total clicks descending
-      const sortedSessions = Array.from(sessionMap.values()).sort((a, b) => b.totalClicks - a.totalClicks);
+      // Sort by timestamp (latest first)
+      const sortedSessions = Array.from(sessionMap.values()).sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
       setSessionAnalytics(sortedSessions);
     } catch (error) {
       console.error("Failed to fetch analytics:", error);

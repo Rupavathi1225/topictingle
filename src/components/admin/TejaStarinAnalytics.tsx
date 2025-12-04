@@ -24,6 +24,7 @@ interface SessionData {
   relatedSearches: number;
   blogClicks: number;
   clickBreakdown: ClickBreakdown;
+  lastActive: string;
 }
 
 export const TejaStarinAnalytics = () => {
@@ -43,10 +44,11 @@ export const TejaStarinAnalytics = () => {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const [blogsRes, searchesRes, webResultsRes, emailsRes] = await Promise.all([
+      const [blogsRes, searchesRes, webResultsRes, sessionsRes, emailsRes] = await Promise.all([
         tejaStarinClient.from('blogs').select('id', { count: 'exact', head: true }),
         tejaStarinClient.from('related_searches').select('id', { count: 'exact', head: true }),
         tejaStarinClient.from('web_results').select('id', { count: 'exact', head: true }),
+        tejaStarinClient.from('sessions').select('*').order('last_activity', { ascending: false }),
         tejaStarinClient.from('email_submissions').select('*'),
       ]);
 
@@ -54,7 +56,7 @@ export const TejaStarinAnalytics = () => {
         totalBlogs: blogsRes.count || 0,
         totalSearches: searchesRes.count || 0,
         totalWebResults: webResultsRes.count || 0,
-        totalEmailSubmissions: emailsRes.count || 0,
+        totalEmailSubmissions: emailsRes.data?.length || 0,
       });
 
       // Fetch additional data for breakdown
@@ -66,47 +68,55 @@ export const TejaStarinAnalytics = () => {
         .from('blogs')
         .select('*');
 
-      // Process sessions from email submissions
+      const { data: clicks } = await tejaStarinClient
+        .from('link_tracking')
+        .select('*');
+
+      // Process sessions
       const sessionMap = new Map<string, SessionData>();
       const sessionClickIds = new Map<string, Set<string>>();
       
-      (emailsRes.data || []).forEach((submission: any) => {
-        const sid = submission.session_id || `anon-${submission.ip_address || 'unknown'}`;
-        
-        if (!sessionMap.has(sid)) {
-          sessionMap.set(sid, {
-            sessionId: sid,
-            ipAddress: submission.ip_address || 'N/A',
-            country: submission.country || 'Unknown',
-            source: submission.source || 'direct',
-            device: 'desktop',
-            pageViews: 0,
-            totalClicks: 0,
-            uniqueClicks: 0,
-            relatedSearches: 0,
-            blogClicks: 0,
-            clickBreakdown: {
-              relatedSearches: [],
-              blogClicks: [],
-            },
-          });
-          sessionClickIds.set(sid, new Set());
-        }
+      // Initialize sessions from sessions table
+      (sessionsRes.data || []).forEach((session: any) => {
+        const sid = session.session_id;
+        sessionMap.set(sid, {
+          sessionId: sid,
+          ipAddress: session.ip_address || 'N/A',
+          country: session.country || 'Unknown',
+          source: session.source || 'direct',
+          device: session.device_type?.toLowerCase().includes('mobile') ? 'mobile' : 'desktop',
+          pageViews: 1,
+          totalClicks: 0,
+          uniqueClicks: 0,
+          relatedSearches: 0,
+          blogClicks: 0,
+          clickBreakdown: {
+            relatedSearches: [],
+            blogClicks: [],
+          },
+          lastActive: session.last_activity || session.created_at || new Date().toISOString(),
+        });
+        sessionClickIds.set(sid, new Set());
+      });
+
+      // Process clicks from link_tracking
+      (clicks || []).forEach((click: any) => {
+        const sid = click.session_id;
+        if (!sessionMap.has(sid)) return;
         
         const session = sessionMap.get(sid)!;
-        session.pageViews++;
         session.totalClicks++;
         
         // Track unique clicks
-        if (submission.button_id) {
-          sessionClickIds.get(sid)!.add(submission.button_id);
+        if (click.id) {
+          sessionClickIds.get(sid)!.add(click.id);
         }
         
         // Count related search interactions with breakdown
-        if (submission.related_search_id) {
+        if (click.related_search_id) {
           session.relatedSearches++;
-          const relSearch = relSearches?.find(rs => rs.id === submission.related_search_id);
-          const searchText = relSearch?.search_text || 'Unknown Search';
+          const relSearch = relSearches?.find(rs => rs.id === click.related_search_id);
+          const searchText = relSearch?.search_text || relSearch?.title || 'Unknown Search';
           
           const existing = session.clickBreakdown.relatedSearches.find(s => s.text === searchText);
           if (existing) {
@@ -116,11 +126,10 @@ export const TejaStarinAnalytics = () => {
           }
         }
         
-        // Count blog clicks with breakdown
-        if (submission.blog_id) {
+        // Count web result/blog clicks with breakdown
+        if (click.web_result_id) {
           session.blogClicks++;
-          const blog = blogs?.find(b => b.id === submission.blog_id);
-          const blogTitle = blog?.title || 'Unknown Blog';
+          const blogTitle = click.target_url || 'Unknown Result';
           
           const existing = session.clickBreakdown.blogClicks.find(b => b.title === blogTitle);
           if (existing) {
@@ -139,7 +148,12 @@ export const TejaStarinAnalytics = () => {
         }
       });
 
-      setSessions(Array.from(sessionMap.values()));
+      // Sort by last active descending (latest first)
+      const sortedSessions = Array.from(sessionMap.values()).sort((a, b) => 
+        new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime()
+      );
+
+      setSessions(sortedSessions);
     } catch (error) {
       toast.error('Failed to fetch analytics');
       console.error(error);
@@ -154,7 +168,7 @@ export const TejaStarinAnalytics = () => {
 
   return (
     <div className="space-y-6">
-      <h3 className="text-xl font-semibold">Teja Starin Analytics</h3>
+      <h3 className="text-xl font-semibold">DataCreditZone Analytics</h3>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
@@ -210,13 +224,14 @@ export const TejaStarinAnalytics = () => {
                 <TableHead className="text-center">Page Views</TableHead>
                 <TableHead className="text-center">Clicks (Total/Unique)</TableHead>
                 <TableHead className="text-center">Related Searches</TableHead>
-                <TableHead className="text-center">Blog Clicks</TableHead>
+                <TableHead className="text-center">Result Clicks</TableHead>
+                <TableHead>Last Active</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sessions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center text-muted-foreground">
                     No session data available
                   </TableCell>
                 </TableRow>
@@ -271,22 +286,25 @@ export const TejaStarinAnalytics = () => {
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>Blog Clicks Breakdown</DialogTitle>
+                            <DialogTitle>Result Clicks Breakdown</DialogTitle>
                           </DialogHeader>
                           <div className="space-y-2">
                             {session.clickBreakdown.blogClicks.length > 0 ? (
                               session.clickBreakdown.blogClicks.map((item, idx) => (
                                 <div key={idx} className="flex justify-between items-center p-2 bg-muted rounded">
-                                  <span className="text-sm">{item.title}</span>
+                                  <span className="text-sm truncate max-w-[200px]">{item.title}</span>
                                   <Badge>{item.count} clicks</Badge>
                                 </div>
                               ))
                             ) : (
-                              <p className="text-sm text-muted-foreground">No blog clicks</p>
+                              <p className="text-sm text-muted-foreground">No result clicks</p>
                             )}
                           </div>
                         </DialogContent>
                       </Dialog>
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {new Date(session.lastActive).toLocaleString()}
                     </TableCell>
                   </TableRow>
                 ))

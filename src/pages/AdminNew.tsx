@@ -15,10 +15,10 @@ export default function AdminNew() {
         </div>
         
         <Tabs defaultValue="all" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
             <TabsTrigger value="all">All Sites</TabsTrigger>
             <TabsTrigger value="topicmingle">TopicMingle</TabsTrigger>
-            <TabsTrigger value="tejastarin">Teja Starin</TabsTrigger>
+            <TabsTrigger value="datacreditzone">DataCreditZone</TabsTrigger>
             <TabsTrigger value="fastmoney">FastMoney</TabsTrigger>
             <TabsTrigger value="offergrabzone" className="data-[state=active]:bg-zinc-800 data-[state=active]:text-white">OfferGrabZone</TabsTrigger>
           </TabsList>
@@ -35,10 +35,10 @@ export default function AdminNew() {
             <TopicMingleAnalytics />
           </TabsContent>
           
-          <TabsContent value="tejastarin" className="space-y-4">
+          <TabsContent value="datacreditzone" className="space-y-4">
             <div className="mb-4">
-              <h2 className="text-2xl font-bold">Teja Starin Analytics</h2>
-              <p className="text-muted-foreground">Detailed analytics for Teja Starin website</p>
+              <h2 className="text-2xl font-bold">DataCreditZone Analytics</h2>
+              <p className="text-muted-foreground">Detailed analytics for DataCreditZone website</p>
             </div>
             <TejaStarinAnalytics />
           </TabsContent>
