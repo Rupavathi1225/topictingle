@@ -44,7 +44,7 @@ export const TejaStarinAnalytics = () => {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      // Try fetching with different possible column names for compatibility
+      // Fetch stats counts
       const [blogsRes, searchesRes, webResultsRes, emailsRes] = await Promise.all([
         tejaStarinClient.from('blogs').select('id', { count: 'exact', head: true }),
         tejaStarinClient.from('related_searches').select('id', { count: 'exact', head: true }),
@@ -52,14 +52,9 @@ export const TejaStarinAnalytics = () => {
         tejaStarinClient.from('email_submissions').select('*'),
       ]);
 
-      // Try both possible column names for sessions ordering
-      let sessionsRes = await tejaStarinClient.from('sessions').select('*').order('last_active', { ascending: false });
-      if (!sessionsRes.data || sessionsRes.data.length === 0) {
-        sessionsRes = await tejaStarinClient.from('sessions').select('*').order('last_activity', { ascending: false });
-      }
-      if (!sessionsRes.data || sessionsRes.data.length === 0) {
-        sessionsRes = await tejaStarinClient.from('sessions').select('*').order('created_at', { ascending: false });
-      }
+      // Fetch sessions without ordering to avoid column errors
+      const sessionsRes = await tejaStarinClient.from('sessions').select('*');
+      console.log('DataCreditZone TejaStarinAnalytics sessions:', sessionsRes);
 
       setStats({
         totalBlogs: blogsRes.count || 0,
@@ -81,19 +76,26 @@ export const TejaStarinAnalytics = () => {
         .from('link_tracking')
         .select('*');
 
-      // Process sessions
+      // Process sessions - sort in JS since column names may vary
       const sessionMap = new Map<string, SessionData>();
       const sessionClickIds = new Map<string, Set<string>>();
       
+      // Sort sessions by available timestamp field
+      const sortedSessions = (sessionsRes.data || []).sort((a: any, b: any) => {
+        const dateA = new Date(a.last_active || a.last_activity || a.created_at || 0);
+        const dateB = new Date(b.last_active || b.last_activity || b.created_at || 0);
+        return dateB.getTime() - dateA.getTime();
+      });
+      
       // Initialize sessions from sessions table
-      (sessionsRes.data || []).forEach((session: any) => {
+      sortedSessions.forEach((session: any) => {
         const sid = session.session_id;
         sessionMap.set(sid, {
           sessionId: sid,
           ipAddress: session.ip_address || 'N/A',
           country: session.country || 'Unknown',
           source: session.source || 'direct',
-          device: session.device_type?.toLowerCase().includes('mobile') ? 'mobile' : 'desktop',
+          device: session.device_type?.toLowerCase().includes('mobile') ? 'mobile' : (session.device === 'mobile' ? 'mobile' : 'desktop'),
           pageViews: session.page_views || 1,
           totalClicks: 0,
           uniqueClicks: 0,
@@ -158,11 +160,11 @@ export const TejaStarinAnalytics = () => {
       });
 
       // Sort by last active descending (latest first)
-      const sortedSessions = Array.from(sessionMap.values()).sort((a, b) => 
+      const finalSessions = Array.from(sessionMap.values()).sort((a, b) => 
         new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime()
       );
 
-      setSessions(sortedSessions);
+      setSessions(finalSessions);
     } catch (error) {
       toast.error('Failed to fetch analytics');
       console.error(error);

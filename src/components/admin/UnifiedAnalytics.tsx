@@ -130,24 +130,29 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
    * Fetch & process DataCreditZone analytics
    */
   const fetchDataCreditZone = async () => {
-    // Fetch sessions from DataCreditZone - try different column names for compatibility
+    // First try to fetch sessions without ordering to see what's available
     let sessionsData: any[] = [];
-    let sessionsRes = await tejaStarinClient.from('sessions').select('*').order('last_active', { ascending: false });
+    
+    // Try fetching sessions - first without ordering to avoid column errors
+    const sessionsRes = await tejaStarinClient.from('sessions').select('*');
+    console.log('DataCreditZone sessions response:', sessionsRes);
+    
+    if (sessionsRes.error) {
+      console.error('DataCreditZone sessions error:', sessionsRes.error);
+    }
+    
     if (sessionsRes.data && sessionsRes.data.length > 0) {
-      sessionsData = sessionsRes.data;
-    } else {
-      sessionsRes = await tejaStarinClient.from('sessions').select('*').order('last_activity', { ascending: false });
-      if (sessionsRes.data && sessionsRes.data.length > 0) {
-        sessionsData = sessionsRes.data;
-      } else {
-        sessionsRes = await tejaStarinClient.from('sessions').select('*').order('created_at', { ascending: false });
-        sessionsData = sessionsRes.data || [];
-      }
+      // Sort by available timestamp field
+      sessionsData = sessionsRes.data.sort((a: any, b: any) => {
+        const dateA = new Date(a.last_active || a.last_activity || a.created_at || 0);
+        const dateB = new Date(b.last_active || b.last_activity || b.created_at || 0);
+        return dateB.getTime() - dateA.getTime();
+      });
     }
 
-    const { data: clicks } = await tejaStarinClient
-      .from('link_tracking')
-      .select('*');
+    const clicksRes = await tejaStarinClient.from('link_tracking').select('*');
+    console.log('DataCreditZone clicks response:', clicksRes);
+    const clicks = clicksRes.data;
 
     const sessionMap = new Map<string, any>();
     const globalUniquePages = new Set<string>();
