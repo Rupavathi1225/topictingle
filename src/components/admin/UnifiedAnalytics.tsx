@@ -130,7 +130,7 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
    * Fetch & process DataCreditZone analytics
    */
   const fetchDataCreditZone = async () => {
-    // Fetch sessions and clicks from DataCreditZone
+    // Fetch sessions and clicks from DataCreditZone (TejaStarin database)
     const { data: sessionsData } = await tejaStarinClient
       .from('sessions')
       .select('*')
@@ -147,7 +147,7 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
     (sessionsData || []).forEach((s: any) => {
       sessionMap.set(s.session_id, {
         sessionId: s.session_id,
-        device: s.device_type?.toLowerCase().includes('mobile') ? 'Mobile • Safari' : 'Desktop • Chrome',
+        device: s.device_type?.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
         ipAddress: s.ip_address || 'N/A',
         country: s.country || 'Unknown',
         timeSpent: '0s',
@@ -210,7 +210,7 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
     const { data: sessionsData } = await supabase
       .from('sessions')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('last_active', { ascending: false });
 
     const { data: pageViews } = await supabase
       .from('page_views')
@@ -227,11 +227,11 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
     (sessionsData || []).forEach((s: any) => {
       sessionMap.set(s.session_id, {
         sessionId: s.session_id,
-        device: s.user_agent?.includes('Mobile') ? 'Mobile • Safari' : 'Desktop • Firefox',
+        device: s.user_agent?.includes('Mobile') ? 'Mobile' : 'Desktop',
         ipAddress: s.ip_address || 'N/A',
         country: s.country || 'Unknown',
         timeSpent: '0s',
-        timestamp: s.created_at || new Date().toISOString(),
+        timestamp: s.last_active || s.created_at || new Date().toISOString(),
         pageViews: 0,
         uniquePagesSet: new Set<string>(),
         totalClicks: 0,
@@ -472,10 +472,11 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
    * Fetch & process OfferGrabZone data
    */
   const fetchOfferGrabZone = async () => {
+    // OfferGrabZone uses different column names
     const { data: sessionsData } = await offerGrabZoneClient
       .from('sessions')
       .select('*')
-      .order('last_activity', { ascending: false });
+      .order('last_active', { ascending: false });
 
     const { data: clicks } = await offerGrabZoneClient
       .from('clicks')
@@ -491,12 +492,12 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
         siteName: 'OfferGrabZone',
         siteIcon: Gift,
         siteColor: 'from-pink-500 to-pink-600',
-        device: s.device_type?.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
+        device: s.device === 'mobile' ? 'Mobile' : 'Desktop',
         ipAddress: s.ip_address || 'N/A',
         country: s.country || 'Unknown',
         timeSpent: '0s',
-        timestamp: s.last_activity || s.created_at || new Date().toISOString(),
-        pageViews: 1,
+        timestamp: s.last_active || s.first_seen || new Date().toISOString(),
+        pageViews: s.page_views || 1,
         uniquePagesSet: new Set<string>(),
         totalClicks: 0,
         uniqueClicksSet: new Set<string>(),
@@ -504,13 +505,14 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
         blogClicks: [] as Array<any>,
         buttonInteractions: [] as Array<any>,
       });
+      globalUniquePages.add(s.session_id);
     });
 
     (clicks || []).forEach((c: any) => {
       const session = sessionMap.get(c.session_id);
       if (session) {
         session.totalClicks++;
-        const clickKey = c.id || `click-${c.related_search_id || c.web_result_id}`;
+        const clickKey = c.id || `click-${c.item_id}`;
         session.uniqueClicksSet.add(clickKey);
         globalUniqueClicks.add(clickKey);
       }
