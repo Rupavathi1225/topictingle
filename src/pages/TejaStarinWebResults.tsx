@@ -8,9 +8,9 @@ interface WebResult {
   title: string;
   description?: string;
   logo_url?: string;
-  url: string;
+  target_url: string;
   page_number: number;
-  order_index: number;
+  position: number;
   is_sponsored?: boolean;
 }
 
@@ -29,8 +29,9 @@ export const TejaStarinWebResults = () => {
       .from('web_results')
       .select('*')
       .eq('page_number', pageNumber)
+      .eq('is_active', true)
       .order('is_sponsored', { ascending: false })
-      .order('order_index', { ascending: true });
+      .order('position', { ascending: true });
 
     if (error) {
       console.error('Error fetching web results', error);
@@ -46,7 +47,7 @@ export const TejaStarinWebResults = () => {
   };
 
   const handleResultClick = (result: WebResult) => {
-    window.location.href = result.url;
+    window.location.href = result.target_url;
   };
 
   return (
@@ -65,7 +66,7 @@ export const TejaStarinWebResults = () => {
                 title={result.title}
                 description={result.description}
                 logoUrl={result.logo_url}
-                targetUrl={result.url}
+                targetUrl={result.target_url}
                 isSponsored={true}
                 onClick={() => handleResultClick(result)}
               />
@@ -81,7 +82,7 @@ export const TejaStarinWebResults = () => {
               title={result.title}
               description={result.description}
               logoUrl={result.logo_url}
-              targetUrl={result.url}
+              targetUrl={result.target_url}
               onClick={() => handleResultClick(result)}
             />
           ))}
