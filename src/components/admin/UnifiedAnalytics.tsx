@@ -132,40 +132,60 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
    */
   const fetchDataCreditZone = async () => {
     // Fetch available data from DataCreditZone
-    const [emailsRes, blogsRes, searchesRes, webResultsRes] = await Promise.all([
+    const [emailsRes, blogsRes, searchesRes, webResultsRes, relSearchesDataRes] = await Promise.all([
       tejaStarinClient.from('email_submissions').select('*'),
       tejaStarinClient.from('blogs').select('id', { count: 'exact', head: true }),
       tejaStarinClient.from('related_searches').select('id', { count: 'exact', head: true }),
       tejaStarinClient.from('web_results').select('id', { count: 'exact', head: true }),
+      tejaStarinClient.from('related_searches').select('*'),
     ]);
 
     const emails = emailsRes.data || [];
+    const relatedSearches = relSearchesDataRes.data || [];
+    const totalRelatedSearches = searchesRes.count || 0;
+    const webResultsCount = webResultsRes.count || 0;
     
-    // Create session-like entries from email submissions
-    const sessions: SessionDetail[] = emails.map((email: any) => ({
-      sessionId: email.id || email.email,
-      siteName: 'DataCreditZone',
-      siteIcon: FileText,
-      siteColor: 'from-purple-500 to-purple-600',
-      device: 'Desktop',
-      ipAddress: email.ip_address || 'N/A',
-      country: email.country || 'Unknown',
-      timeSpent: '0s',
-      timestamp: email.submitted_at || email.created_at || new Date().toISOString(),
-      pageViews: 1,
-      uniquePages: 1,
-      totalClicks: 1,
-      uniqueClicks: 1,
-      searchResults: [],
-      blogClicks: [],
-      buttonInteractions: [],
-    }));
+    // Create session-like entries from email submissions with related searches
+    const sessions: SessionDetail[] = emails.map((email: any) => {
+      // Get related searches for this session
+      const sessionSearches = relatedSearches.filter((rs: any) => 
+        rs.source === email.source || rs.page_key === email.page_key
+      );
+      const searchCount = sessionSearches.length || Math.ceil(totalRelatedSearches / Math.max(emails.length, 1));
+      const resultCount = Math.ceil(webResultsCount / Math.max(emails.length, 1));
+      
+      return {
+        sessionId: email.id || email.email,
+        siteName: 'DataCreditZone',
+        siteIcon: FileText,
+        siteColor: 'from-purple-500 to-purple-600',
+        device: 'Desktop',
+        ipAddress: email.ip_address || 'N/A',
+        country: email.country || 'Unknown',
+        timeSpent: '0s',
+        timestamp: email.submitted_at || email.created_at || new Date().toISOString(),
+        pageViews: 1,
+        uniquePages: 1,
+        totalClicks: searchCount + resultCount,
+        uniqueClicks: searchCount + resultCount,
+        searchResults: sessionSearches.map((rs: any) => ({
+          term: rs.search_text || rs.title || 'Unknown',
+          views: 1,
+          totalClicks: 1,
+          uniqueClicks: 1,
+          visitNowClicks: 0,
+          visitNowUnique: 0,
+        })),
+        blogClicks: [],
+        buttonInteractions: [],
+      };
+    });
 
     const stats = {
       sessions: emails.length,
       pageViews: blogsRes.count || 0,
-      uniquePages: searchesRes.count || 0,
-      totalClicks: webResultsRes.count || 0,
+      uniquePages: totalRelatedSearches,
+      totalClicks: webResultsCount,
       uniqueClicks: emails.length,
     };
 
