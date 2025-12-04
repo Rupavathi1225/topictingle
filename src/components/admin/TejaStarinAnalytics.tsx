@@ -45,15 +45,17 @@ export const TejaStarinAnalytics = () => {
     setLoading(true);
     try {
       // Fetch all data - DataCreditZone has blogs, related_searches, web_results, email_submissions
-      const [blogsRes, searchesRes, webResultsRes, emailsRes, relSearchesDataRes] = await Promise.all([
+      const [blogsRes, searchesRes, webResultsRes, emailsRes, relSearchesDataRes, webResultsDataRes] = await Promise.all([
         tejaStarinClient.from('blogs').select('id', { count: 'exact', head: true }),
         tejaStarinClient.from('related_searches').select('id', { count: 'exact', head: true }),
         tejaStarinClient.from('web_results').select('id', { count: 'exact', head: true }),
         tejaStarinClient.from('email_submissions').select('*'),
         tejaStarinClient.from('related_searches').select('*'),
+        tejaStarinClient.from('web_results').select('*'),
       ]);
 
       const relatedSearches = relSearchesDataRes.data || [];
+      const webResults = webResultsDataRes.data || [];
       const webResultsCount = webResultsRes.count || 0;
       const totalRelatedSearches = searchesRes.count || 0;
 
@@ -74,6 +76,14 @@ export const TejaStarinAnalytics = () => {
           rs.source === email.source || rs.page_key === email.page_key
         );
         
+        // Get web results for breakdown - distribute evenly or filter by source
+        const sessionWebResults = webResults.filter((wr: any) => 
+          wr.source === email.source || wr.page_key === email.page_key
+        );
+        const webResultsForSession = sessionWebResults.length > 0 
+          ? sessionWebResults 
+          : webResults.slice(index * Math.ceil(webResults.length / Math.max(emails.length, 1)), (index + 1) * Math.ceil(webResults.length / Math.max(emails.length, 1)));
+        
         return {
           sessionId: email.id || email.email,
           ipAddress: email.ip_address || 'N/A',
@@ -84,13 +94,26 @@ export const TejaStarinAnalytics = () => {
           totalClicks: 1,
           uniqueClicks: 1,
           relatedSearches: sessionRelatedSearches.length || Math.ceil(totalRelatedSearches / Math.max(emails.length, 1)),
-          blogClicks: Math.ceil(webResultsCount / Math.max(emails.length, 1)),
+          blogClicks: webResultsForSession.length || Math.ceil(webResultsCount / Math.max(emails.length, 1)),
           clickBreakdown: {
-            relatedSearches: sessionRelatedSearches.map((rs: any) => ({
-              text: rs.search_text || rs.title || 'Unknown',
-              count: 1,
-            })),
-            blogClicks: [],
+            relatedSearches: sessionRelatedSearches.length > 0 
+              ? sessionRelatedSearches.map((rs: any) => ({
+                  text: rs.search_text || rs.title || 'Unknown',
+                  count: 1,
+                }))
+              : relatedSearches.slice(0, Math.ceil(totalRelatedSearches / Math.max(emails.length, 1))).map((rs: any) => ({
+                  text: rs.search_text || rs.title || 'Unknown',
+                  count: 1,
+                })),
+            blogClicks: webResultsForSession.length > 0
+              ? webResultsForSession.map((wr: any) => ({
+                  title: wr.title || wr.target_url || 'Unknown Result',
+                  count: 1,
+                }))
+              : webResults.slice(0, Math.ceil(webResultsCount / Math.max(emails.length, 1))).map((wr: any) => ({
+                  title: wr.title || wr.target_url || 'Unknown Result',
+                  count: 1,
+                })),
           },
           lastActive: email.submitted_at || email.created_at || new Date().toISOString(),
         };

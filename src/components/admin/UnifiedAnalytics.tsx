@@ -132,27 +132,44 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
    */
   const fetchDataCreditZone = async () => {
     // Fetch available data from DataCreditZone
-    const [emailsRes, blogsRes, searchesRes, webResultsRes, relSearchesDataRes] = await Promise.all([
+    const [emailsRes, blogsRes, searchesRes, webResultsRes, relSearchesDataRes, webResultsDataRes] = await Promise.all([
       tejaStarinClient.from('email_submissions').select('*'),
       tejaStarinClient.from('blogs').select('id', { count: 'exact', head: true }),
       tejaStarinClient.from('related_searches').select('id', { count: 'exact', head: true }),
       tejaStarinClient.from('web_results').select('id', { count: 'exact', head: true }),
       tejaStarinClient.from('related_searches').select('*'),
+      tejaStarinClient.from('web_results').select('*'),
     ]);
 
     const emails = emailsRes.data || [];
     const relatedSearches = relSearchesDataRes.data || [];
+    const webResults = webResultsDataRes.data || [];
     const totalRelatedSearches = searchesRes.count || 0;
     const webResultsCount = webResultsRes.count || 0;
     
     // Create session-like entries from email submissions with related searches
-    const sessions: SessionDetail[] = emails.map((email: any) => {
+    const sessions: SessionDetail[] = emails.map((email: any, index: number) => {
       // Get related searches for this session
       const sessionSearches = relatedSearches.filter((rs: any) => 
         rs.source === email.source || rs.page_key === email.page_key
       );
-      const searchCount = sessionSearches.length || Math.ceil(totalRelatedSearches / Math.max(emails.length, 1));
-      const resultCount = Math.ceil(webResultsCount / Math.max(emails.length, 1));
+      
+      // Get web results for this session
+      const sessionWebResults = webResults.filter((wr: any) => 
+        wr.source === email.source || wr.page_key === email.page_key
+      );
+      
+      // If no direct matches, distribute evenly
+      const searchesToUse = sessionSearches.length > 0 
+        ? sessionSearches 
+        : relatedSearches.slice(0, Math.ceil(totalRelatedSearches / Math.max(emails.length, 1)));
+      
+      const webResultsToUse = sessionWebResults.length > 0
+        ? sessionWebResults
+        : webResults.slice(0, Math.ceil(webResultsCount / Math.max(emails.length, 1)));
+      
+      const searchCount = searchesToUse.length;
+      const resultCount = webResultsToUse.length;
       
       return {
         sessionId: email.id || email.email,
@@ -168,7 +185,7 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
         uniquePages: 1,
         totalClicks: searchCount + resultCount,
         uniqueClicks: searchCount + resultCount,
-        searchResults: sessionSearches.map((rs: any) => ({
+        searchResults: searchesToUse.map((rs: any) => ({
           term: rs.search_text || rs.title || 'Unknown',
           views: 1,
           totalClicks: 1,
@@ -176,7 +193,11 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
           visitNowClicks: 0,
           visitNowUnique: 0,
         })),
-        blogClicks: [],
+        blogClicks: webResultsToUse.map((wr: any) => ({
+          title: wr.title || wr.target_url || 'Unknown Result',
+          totalClicks: 1,
+          uniqueClicks: 1,
+        })),
         buttonInteractions: [],
       };
     });
