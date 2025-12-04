@@ -20,11 +20,12 @@ export const TejaStarinWebResults = () => {
   const [editingResult, setEditingResult] = useState<any>(null);
   const [formData, setFormData] = useState({
     title: '',
-    url: '',
+    target_url: '',
     description: '',
     logo_url: '',
     is_sponsored: false,
     related_search_id: '',
+    position: 1,
   });
 
   useEffect(() => {
@@ -37,7 +38,7 @@ export const TejaStarinWebResults = () => {
     const { data, error } = await tejaStarinClient
       .from('related_searches')
       .select('*, blogs(title)')
-      .order('order_index', { ascending: true });
+      .order('display_order', { ascending: true });
     
     if (error) {
       console.error('Failed to fetch related searches:', error);
@@ -64,7 +65,7 @@ export const TejaStarinWebResults = () => {
       .select('*, related_searches(search_text, blogs(title))')
       .eq('page_number', parseInt(selectedPage))
       .order('is_sponsored', { ascending: false })
-      .order('order_index', { ascending: true });
+      .order('position', { ascending: true });
     
     if (error) {
       toast.error('Failed to fetch web results');
@@ -76,7 +77,7 @@ export const TejaStarinWebResults = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.title || !formData.url) {
+    if (!formData.title || !formData.target_url) {
       toast.error('Please fill in required fields');
       return;
     }
@@ -84,11 +85,13 @@ export const TejaStarinWebResults = () => {
     const payload = {
       page_number: parseInt(selectedPage),
       title: formData.title,
-      url: formData.url,
+      target_url: formData.target_url,
       description: formData.description || null,
       logo_url: formData.logo_url || null,
       is_sponsored: formData.is_sponsored,
       related_search_id: formData.related_search_id || null,
+      position: formData.position,
+      is_active: true,
     };
 
     if (editingResult) {
@@ -106,16 +109,17 @@ export const TejaStarinWebResults = () => {
         fetchWebResults();
       }
     } else {
-      const nextOrderIndex = webResults.length > 0 
-        ? Math.max(...webResults.map(r => r.order_index ?? 0)) + 1 
-        : 0;
+      const nextPosition = webResults.length > 0 
+        ? Math.max(...webResults.map(r => r.position ?? 0)) + 1 
+        : 1;
 
       const { error } = await tejaStarinClient
         .from('web_results')
-        .insert([{ ...payload, order_index: nextOrderIndex }]);
+        .insert([{ ...payload, position: nextPosition }]);
       
       if (error) {
         toast.error('Failed to add web result');
+        console.error(error);
       } else {
         toast.success('Web result added successfully');
         setDialogOpen(false);
@@ -128,11 +132,12 @@ export const TejaStarinWebResults = () => {
     setEditingResult(result);
     setFormData({
       title: result.title,
-      url: result.url,
+      target_url: result.target_url,
       description: result.description || '',
       logo_url: result.logo_url || '',
       is_sponsored: result.is_sponsored || false,
       related_search_id: result.related_search_id || '',
+      position: result.position || 1,
     });
     setDialogOpen(true);
   };
@@ -157,11 +162,12 @@ export const TejaStarinWebResults = () => {
     setEditingResult(null);
     setFormData({
       title: '',
-      url: '',
+      target_url: '',
       description: '',
       logo_url: '',
       is_sponsored: false,
       related_search_id: '',
+      position: 1,
     });
   };
 
@@ -208,18 +214,19 @@ export const TejaStarinWebResults = () => {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label>Related Search (Optional)</Label>
+              <Label>Related Search *</Label>
               <Select value={formData.related_search_id} onValueChange={(value) => setFormData({ ...formData, related_search_id: value })}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Link to related search..." />
+                  <SelectValue placeholder="Select a related search..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
                   {relatedSearches.map((search) => (
                     <SelectItem key={search.id} value={search.id}>
                       <span className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">RS</Badge>
                         {search.search_text}
+                        {search.blogs?.title && (
+                          <span className="text-muted-foreground text-xs">({search.blogs.title})</span>
+                        )}
                         {hasPreLanding(search.id) && (
                           <Badge className="text-xs bg-green-600">Has Pre-landing</Badge>
                         )}
@@ -228,6 +235,9 @@ export const TejaStarinWebResults = () => {
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {relatedSearches.length} related searches available
+              </p>
             </div>
             <div>
               <Label>Title *</Label>
@@ -240,8 +250,8 @@ export const TejaStarinWebResults = () => {
             <div>
               <Label>URL *</Label>
               <Input
-                value={formData.url}
-                onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                value={formData.target_url}
+                onChange={(e) => setFormData({ ...formData, target_url: e.target.value })}
                 required
               />
             </div>
@@ -258,6 +268,14 @@ export const TejaStarinWebResults = () => {
               <Input
                 value={formData.logo_url}
                 onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Position</Label>
+              <Input
+                type="number"
+                value={formData.position}
+                onChange={(e) => setFormData({ ...formData, position: parseInt(e.target.value) || 1 })}
               />
             </div>
             <div className="flex items-center space-x-2">
@@ -305,7 +323,7 @@ export const TejaStarinWebResults = () => {
                         <span className="text-muted-foreground">-</span>
                       )}
                     </td>
-                    <td className="p-4 text-sm text-muted-foreground truncate max-w-xs">{result.url}</td>
+                    <td className="p-4 text-sm text-muted-foreground truncate max-w-xs">{result.target_url}</td>
                     <td className="p-4">
                       {result.is_sponsored && (
                         <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">

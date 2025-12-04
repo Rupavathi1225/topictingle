@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Trash2, Plus, Edit } from 'lucide-react';
@@ -17,8 +17,7 @@ export const TejaStarinRelatedSearches = () => {
   const [formData, setFormData] = useState({
     search_text: '',
     blog_id: '',
-    wr: 1,
-    order_index: 0,
+    display_order: 0,
   });
 
   useEffect(() => {
@@ -43,7 +42,7 @@ export const TejaStarinRelatedSearches = () => {
     const { data, error } = await tejaStarinClient
       .from('related_searches')
       .select('*, blogs(title)')
-      .order('order_index', { ascending: true });
+      .order('display_order', { ascending: true });
     
     if (error) {
       toast.error('Failed to fetch related searches');
@@ -63,8 +62,8 @@ export const TejaStarinRelatedSearches = () => {
     const payload = {
       blog_id: formData.blog_id,
       search_text: formData.search_text,
-      wr: formData.wr,
-      order_index: formData.order_index,
+      display_order: formData.display_order,
+      is_active: true,
     };
 
     if (editingSearch) {
@@ -75,6 +74,7 @@ export const TejaStarinRelatedSearches = () => {
       
       if (error) {
         toast.error('Failed to update related search');
+        console.error(error);
       } else {
         toast.success('Related search updated!');
         setDialogOpen(false);
@@ -84,15 +84,16 @@ export const TejaStarinRelatedSearches = () => {
     } else {
       const currentForBlog = relatedSearches.filter(s => s.blog_id === formData.blog_id);
       const nextOrderIndex = currentForBlog.length > 0 
-        ? Math.max(...currentForBlog.map(s => s.order_index ?? 0)) + 1 
+        ? Math.max(...currentForBlog.map(s => s.display_order ?? 0)) + 1 
         : 0;
 
       const { error } = await tejaStarinClient
         .from('related_searches')
-        .insert([{ ...payload, order_index: nextOrderIndex }]);
+        .insert([{ ...payload, display_order: nextOrderIndex }]);
       
       if (error) {
         toast.error('Failed to add related search');
+        console.error(error);
       } else {
         toast.success('Related search added!');
         setDialogOpen(false);
@@ -106,8 +107,7 @@ export const TejaStarinRelatedSearches = () => {
     setFormData({
       search_text: search.search_text,
       blog_id: search.blog_id,
-      wr: search.wr || 1,
-      order_index: search.order_index || 0,
+      display_order: search.display_order || 0,
     });
     setDialogOpen(true);
   };
@@ -130,7 +130,7 @@ export const TejaStarinRelatedSearches = () => {
 
   const resetForm = () => {
     setEditingSearch(null);
-    setFormData({ search_text: '', blog_id: '', wr: 1, order_index: 0 });
+    setFormData({ search_text: '', blog_id: '', display_order: 0 });
   };
 
   return (
@@ -173,28 +173,11 @@ export const TejaStarinRelatedSearches = () => {
               />
             </div>
             <div>
-              <Label>Web Result Page (1-4)</Label>
-              <Select 
-                value={formData.wr.toString()} 
-                onValueChange={(value) => setFormData({ ...formData, wr: parseInt(value) })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select page" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">Page 1 (wr=1)</SelectItem>
-                  <SelectItem value="2">Page 2 (wr=2)</SelectItem>
-                  <SelectItem value="3">Page 3 (wr=3)</SelectItem>
-                  <SelectItem value="4">Page 4 (wr=4)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Order Index</Label>
+              <Label>Display Order</Label>
               <Input
                 type="number"
-                value={formData.order_index}
-                onChange={(e) => setFormData({ ...formData, order_index: parseInt(e.target.value) || 0 })}
+                value={formData.display_order}
+                onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })}
               />
             </div>
             <Button type="submit" className="w-full">
@@ -212,7 +195,6 @@ export const TejaStarinRelatedSearches = () => {
                 <tr>
                   <th className="text-left p-4">Search Text</th>
                   <th className="text-left p-4">Blog</th>
-                  <th className="text-left p-4">WR</th>
                   <th className="text-left p-4">Order</th>
                   <th className="text-right p-4">Actions</th>
                 </tr>
@@ -222,12 +204,7 @@ export const TejaStarinRelatedSearches = () => {
                   <tr key={search.id} className="border-b">
                     <td className="p-4 font-medium">{search.search_text}</td>
                     <td className="p-4">{search.blogs?.title || '-'}</td>
-                    <td className="p-4">
-                      <span className="px-2 py-1 bg-primary/10 text-primary rounded text-xs font-medium">
-                        WR-{search.wr}
-                      </span>
-                    </td>
-                    <td className="p-4">{search.order_index}</td>
+                    <td className="p-4">{search.display_order}</td>
                     <td className="p-4 text-right space-x-2">
                       <Button size="sm" variant="outline" onClick={() => handleEdit(search)}>
                         <Edit className="w-4 h-4" />
