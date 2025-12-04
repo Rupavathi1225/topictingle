@@ -97,13 +97,22 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
       toast.error('Please select a related search');
       return;
     }
+
+    // Get page_number from the selected related search for projects that use related searches
+    let pageNumber = formData.page_number;
+    if (!isDataOrbitZone && !isSearchProject && formData.related_search_id) {
+      const selectedSearch = relatedSearches.find(s => s.id === formData.related_search_id);
+      if (selectedSearch) {
+        pageNumber = selectedSearch.web_result_page || 1;
+      }
+    }
     
     const payload: any = {
       title: formData.title,
       description: formData.description || null,
       logo_url: formData.logo_url || null,
       target_url: formData.target_url,
-      page_number: formData.page_number,
+      page_number: pageNumber,
       position: formData.position,
       is_active: formData.is_active,
       is_sponsored: formData.is_sponsored,
@@ -407,43 +416,80 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className={labelClass}>Page Number (1-4)</Label>
-                <Select
-                  value={formData.page_number.toString()}
-                  onValueChange={(value) => setFormData({ ...formData, page_number: parseInt(value) })}
-                >
-                  <SelectTrigger className={inputClass}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Page 1 (/wr=1)</SelectItem>
-                    <SelectItem value="2">Page 2 (/wr=2)</SelectItem>
-                    <SelectItem value="3">Page 3 (/wr=3)</SelectItem>
-                    <SelectItem value="4">Page 4 (/wr=4)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            {/* Page number - auto-inherited from related search for projects that use it, or manual for others */}
+            {(isDataOrbitZone || isSearchProject) ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className={labelClass}>Page Number (1-4)</Label>
+                  <Select
+                    value={formData.page_number.toString()}
+                    onValueChange={(value) => setFormData({ ...formData, page_number: parseInt(value) })}
+                  >
+                    <SelectTrigger className={inputClass}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Page 1 (/wr=1)</SelectItem>
+                      <SelectItem value="2">Page 2 (/wr=2)</SelectItem>
+                      <SelectItem value="3">Page 3 (/wr=3)</SelectItem>
+                      <SelectItem value="4">Page 4 (/wr=4)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div>
-                <Label className={labelClass}>Position (1-4)</Label>
-                <Select
-                  value={formData.position.toString()}
-                  onValueChange={(value) => setFormData({ ...formData, position: parseInt(value) })}
-                >
-                  <SelectTrigger className={inputClass}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Position 1</SelectItem>
-                    <SelectItem value="2">Position 2</SelectItem>
-                    <SelectItem value="3">Position 3</SelectItem>
-                    <SelectItem value="4">Position 4</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div>
+                  <Label className={labelClass}>Position (1-4)</Label>
+                  <Select
+                    value={formData.position.toString()}
+                    onValueChange={(value) => setFormData({ ...formData, position: parseInt(value) })}
+                  >
+                    <SelectTrigger className={inputClass}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Position 1</SelectItem>
+                      <SelectItem value="2">Position 2</SelectItem>
+                      <SelectItem value="3">Position 3</SelectItem>
+                      <SelectItem value="4">Position 4</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className={labelClass}>Page Number (Auto from Related Search)</Label>
+                  <div className={`p-2 rounded border ${isSearchProject ? 'bg-[#0a1628] border-[#2a3f5f] text-gray-400' : 'bg-muted border-border text-muted-foreground'}`}>
+                    {formData.related_search_id ? (
+                      <span>Page {relatedSearches.find(s => s.id === formData.related_search_id)?.web_result_page || 1}</span>
+                    ) : (
+                      <span className="italic">Select a related search first</span>
+                    )}
+                  </div>
+                  <p className={isSearchProject ? "text-xs text-gray-500 mt-1" : "text-xs text-muted-foreground mt-1"}>
+                    Page is inherited from the selected related search
+                  </p>
+                </div>
+
+                <div>
+                  <Label className={labelClass}>Position (1-4)</Label>
+                  <Select
+                    value={formData.position.toString()}
+                    onValueChange={(value) => setFormData({ ...formData, position: parseInt(value) })}
+                  >
+                    <SelectTrigger className={inputClass}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Position 1</SelectItem>
+                      <SelectItem value="2">Position 2</SelectItem>
+                      <SelectItem value="3">Position 3</SelectItem>
+                      <SelectItem value="4">Position 4</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
 
             <div className={`flex items-center gap-4 ${isSearchProject ? 'text-gray-300' : ''}`}>
               <div className="flex items-center gap-2">

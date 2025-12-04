@@ -87,6 +87,7 @@ export const FastMoneyManager = () => {
   const [selectedPage, setSelectedPage] = useState(1);
   const [webResultDialog, setWebResultDialog] = useState(false);
   const [editingWebResult, setEditingWebResult] = useState<WebResult | null>(null);
+  const [selectedSearchForResult, setSelectedSearchForResult] = useState<string>("");
   const [webResultForm, setWebResultForm] = useState({
     title: "", description: "", logo_url: "", original_link: "",
     web_result_page: 1, display_order: 0, is_active: true,
@@ -200,7 +201,17 @@ export const FastMoneyManager = () => {
   // Web Result CRUD
   const handleWebResultSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = { ...webResultForm };
+    
+    // Get page from selected related search (not from form)
+    let pageNumber = webResultForm.web_result_page;
+    if (selectedSearchForResult && !editingWebResult) {
+      const selectedSearch = relatedSearches.find(s => s.id === selectedSearchForResult);
+      if (selectedSearch) {
+        pageNumber = selectedSearch.web_result_page;
+      }
+    }
+    
+    const data = { ...webResultForm, web_result_page: pageNumber };
 
     if (editingWebResult) {
       const { error } = await fastMoneyClient.from("web_results").update({
@@ -209,6 +220,10 @@ export const FastMoneyManager = () => {
       if (error) toast.error("Failed to update");
       else { toast.success("Updated"); fetchWebResults(); resetWebResultForm(); }
     } else {
+      if (!selectedSearchForResult) {
+        toast.error("Please select a related search first");
+        return;
+      }
       const { error } = await fastMoneyClient.from("web_results").insert([data]);
       if (error) toast.error("Failed to create");
       else { toast.success("Created"); fetchWebResults(); resetWebResultForm(); }
@@ -229,6 +244,7 @@ export const FastMoneyManager = () => {
       web_result_page: selectedPage, display_order: 0, is_active: true,
       country_permissions: ["worldwide"], fallback_link: ""
     });
+    setSelectedSearchForResult("");
     setEditingWebResult(null);
     setWebResultDialog(false);
   };
@@ -415,18 +431,52 @@ export const FastMoneyManager = () => {
               </div>
               <Dialog open={webResultDialog} onOpenChange={setWebResultDialog}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => { resetWebResultForm(); setWebResultForm(f => ({ ...f, web_result_page: selectedPage })); }} className="bg-[#00b4d8] hover:bg-[#0096b4] text-white"><Plus className="mr-2 h-4 w-4" />Add Result</Button>
+                  <Button onClick={() => { resetWebResultForm(); }} className="bg-[#00b4d8] hover:bg-[#0096b4] text-white"><Plus className="mr-2 h-4 w-4" />Add Result</Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1a2942] border-[#2a3f5f] text-white">
                   <DialogHeader><DialogTitle className="text-white">{editingWebResult ? "Edit" : "Create"} Web Result</DialogTitle></DialogHeader>
                   <form onSubmit={handleWebResultSubmit} className="space-y-4">
+                    {/* Related Search Selection (only for new, not editing) */}
+                    {!editingWebResult && (
+                      <div>
+                        <Label className="text-gray-300">Select Related Search *</Label>
+                        <Select value={selectedSearchForResult} onValueChange={setSelectedSearchForResult}>
+                          <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white">
+                            <SelectValue placeholder="Choose a related search..." />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#1a2942] border-[#2a3f5f] max-h-[200px]">
+                            {relatedSearches.map(s => (
+                              <SelectItem key={s.id} value={s.id} className="text-white hover:bg-[#2a3f5f]">
+                                <span className="text-[#00b4d8] mr-2">(Related Search)</span>
+                                {s.title} → WR Page {s.web_result_page}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedSearchForResult && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Web result will be added to Page {relatedSearches.find(s => s.id === selectedSearchForResult)?.web_result_page || 1}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <div><Label className="text-gray-300">Title *</Label><Input value={webResultForm.title} onChange={(e) => setWebResultForm({ ...webResultForm, title: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div><Label className="text-gray-300">Description</Label><Textarea value={webResultForm.description} onChange={(e) => setWebResultForm({ ...webResultForm, description: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" /></div>
                     <div><Label className="text-gray-300">Logo URL (optional)</Label><Input value={webResultForm.logo_url} onChange={(e) => setWebResultForm({ ...webResultForm, logo_url: e.target.value })} placeholder="https://..." className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" /></div>
                     <div><Label className="text-gray-300">Original Link *</Label><Input value={webResultForm.original_link} onChange={(e) => setWebResultForm({ ...webResultForm, original_link: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div><Label className="text-gray-300">Fallback Link</Label><Input value={webResultForm.fallback_link} onChange={(e) => setWebResultForm({ ...webResultForm, fallback_link: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div><Label className="text-gray-300">Page</Label><Input type="number" value={webResultForm.web_result_page} onChange={(e) => setWebResultForm({ ...webResultForm, web_result_page: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                      {/* Page: read-only for new (auto from search), editable for edit */}
+                      <div>
+                        <Label className="text-gray-300">Page {!editingWebResult && "(Auto from Related Search)"}</Label>
+                        {editingWebResult ? (
+                          <Input type="number" value={webResultForm.web_result_page} onChange={(e) => setWebResultForm({ ...webResultForm, web_result_page: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" />
+                        ) : (
+                          <div className="p-2 rounded border bg-[#0d1520] border-[#2a3f5f] text-gray-400">
+                            {selectedSearchForResult ? `Page ${relatedSearches.find(s => s.id === selectedSearchForResult)?.web_result_page || 1}` : "Select a related search first"}
+                          </div>
+                        )}
+                      </div>
                       <div><Label className="text-gray-300">Display Order</Label><Input type="number" value={webResultForm.display_order} onChange={(e) => setWebResultForm({ ...webResultForm, display_order: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     </div>
                     <div>
