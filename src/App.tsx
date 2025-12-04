@@ -14,6 +14,7 @@ import PreLandingPage from "./pages/PreLandingPage";
 import { WebResults } from "./pages/WebResults";
 import { DataOrbitZoneWebResults } from "./pages/DataOrbitZoneWebResults";
 import { SearchProjectWebResults } from "./pages/SearchProjectWebResults";
+import { TejaStarinWebResults } from "./pages/TejaStarinWebResults";
 import DataOrbitZonePreLanding from "./pages/DataOrbitZonePreLanding";
 import SearchProjectPreLanding from "./pages/SearchProjectPreLanding";
 import DataOrbitZoneHome from "./pages/DataOrbitZoneHome";
@@ -50,6 +51,9 @@ const App = () => (
           {/* SearchProject Routes */}
           <Route path="/searchproject/wr" element={<SearchProjectWebResults />} />
           <Route path="/searchproject/prelanding" element={<SearchProjectPreLanding />} />
+          
+          {/* TejaStarin Routes */}
+          <Route path="/tejastarin/wr" element={<TejaStarinWebResults />} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

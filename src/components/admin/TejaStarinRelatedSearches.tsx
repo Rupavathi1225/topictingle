@@ -140,12 +140,21 @@ export const TejaStarinRelatedSearches = () => {
                 />
               </div>
               <div>
-                <Label>WR</Label>
-                <Input
-                  type="number"
-                  value={formData.wr}
-                  onChange={(e) => setFormData({ ...formData, wr: parseInt(e.target.value) || 1 })}
-                />
+                <Label>Web Result Page (1-4)</Label>
+                <Select 
+                  value={formData.wr.toString()} 
+                  onValueChange={(value) => setFormData({ ...formData, wr: parseInt(value) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select page" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Page 1</SelectItem>
+                    <SelectItem value="2">Page 2</SelectItem>
+                    <SelectItem value="3">Page 3</SelectItem>
+                    <SelectItem value="4">Page 4</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <Button type="submit">Save Related Search</Button>
             </form>
