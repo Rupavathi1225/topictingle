@@ -84,7 +84,7 @@ export const FastMoneyManager = () => {
 
   // Web Results
   const [webResults, setWebResults] = useState<WebResult[]>([]);
-  const [selectedPage, setSelectedPage] = useState(0);
+  const [selectedPage, setSelectedPage] = useState(1);
   const [webResultDialog, setWebResultDialog] = useState(false);
   const [editingWebResult, setEditingWebResult] = useState<WebResult | null>(null);
   const [selectedSearchForResult, setSelectedSearchForResult] = useState<string>("");
@@ -135,10 +135,6 @@ export const FastMoneyManager = () => {
   };
 
   const fetchWebResults = async () => {
-    if (selectedPage === 0) {
-      setWebResults([]);
-      return;
-    }
     const { data, error } = await fastMoneyClient
       .from("web_results")
       .select("*")
@@ -423,10 +419,9 @@ export const FastMoneyManager = () => {
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <Select value={selectedPage.toString()} onValueChange={(v) => setSelectedPage(parseInt(v))}>
-                  <SelectTrigger className="w-56 bg-[#0d1520] border-[#2a3f5f] text-white"><SelectValue placeholder="Select Related Search" /></SelectTrigger>
+                  <SelectTrigger className="w-32 bg-[#0d1520] border-[#2a3f5f] text-white"><SelectValue placeholder="Page" /></SelectTrigger>
                   <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
-                    <SelectItem value="0" className="text-white hover:bg-[#2a3f5f]">-- Select Related Search --</SelectItem>
-                    {relatedSearches.map(s => <SelectItem key={s.id} value={s.web_result_page.toString()} className="text-white hover:bg-[#2a3f5f]">{s.title} → Page {s.web_result_page}</SelectItem>)}
+                    {[1, 2, 3, 4, 5].map(p => <SelectItem key={p} value={p.toString()} className="text-white hover:bg-[#2a3f5f]">Page {p}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <div className="relative flex-1 max-w-sm">

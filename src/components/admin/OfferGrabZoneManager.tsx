@@ -412,14 +412,9 @@ const OfferGrabZoneManager = () => {
     is_active: false
   };
 
-  // Filter web results by selected related search's target_wr
-  const getFilteredResults = () => {
-    if (selectedWrPage === 0) return [];
-    const selectedSearch = searches.find(s => s.target_wr === selectedWrPage);
-    if (!selectedSearch) return [];
-    return webResults.filter(r => r.wr_page === selectedSearch.target_wr);
-  };
-  const filteredResults = getFilteredResults();
+  const filteredResults = selectedWrPage === 0 
+    ? webResults 
+    : webResults.filter(r => r.wr_page === selectedWrPage);
 
   if (loading) {
     return (
@@ -624,15 +619,13 @@ const OfferGrabZoneManager = () => {
               </CardTitle>
               <div className="flex gap-2">
                 <Select value={selectedWrPage.toString()} onValueChange={(v) => setSelectedWrPage(parseInt(v))}>
-                  <SelectTrigger className="w-48 bg-slate-800 border-slate-600 text-white">
-                    <SelectValue placeholder="Select Related Search" />
+                  <SelectTrigger className="w-32 bg-slate-800 border-slate-600 text-white">
+                    <SelectValue placeholder="Filter WR" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="0">-- Select Related Search --</SelectItem>
-                    {searches.map(s => (
-                      <SelectItem key={s.id} value={s.target_wr.toString()}>
-                        {s.title} → WR {s.target_wr}
-                      </SelectItem>
+                    <SelectItem value="0">All Pages</SelectItem>
+                    {[1, 2, 3, 4, 5].map(n => (
+                      <SelectItem key={n} value={n.toString()}>WR {n}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -815,7 +808,7 @@ const OfferGrabZoneManager = () => {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label className="text-slate-300">WR Page {!editingResult.id && "(Auto)"}</Label>
                   {editingResult.id ? (
@@ -838,6 +831,15 @@ const OfferGrabZoneManager = () => {
                     </div>
                   )}
                 </div>
+                <div>
+                  <Label className="text-slate-300">Serial #</Label>
+                  <Input
+                    type="number"
+                    value={editingResult.serial_number}
+                    onChange={(e) => setEditingResult({ ...editingResult, serial_number: parseInt(e.target.value) || 1 })}
+                    className="bg-slate-900 border-slate-600 text-white"
+                  />
+                </div>
                 <div className="flex items-center gap-2 pt-6">
                   <Switch
                     checked={editingResult.is_sponsored}
@@ -845,6 +847,33 @@ const OfferGrabZoneManager = () => {
                   />
                   <Label className="text-slate-300">Sponsored</Label>
                 </div>
+              </div>
+              <div>
+                <Label className="text-slate-300">Fallback Link</Label>
+                <Input
+                  value={editingResult.fallback_link || ''}
+                  onChange={(e) => setEditingResult({ ...editingResult, fallback_link: e.target.value })}
+                  className="bg-slate-900 border-slate-600 text-white"
+                />
+              </div>
+              <div>
+                <Label className="text-slate-300">Country Permissions</Label>
+                <Select
+                  value={editingResult.allowed_countries?.[0] || 'worldwide'}
+                  onValueChange={(v) => setEditingResult({ ...editingResult, allowed_countries: [v] })}
+                >
+                  <SelectTrigger className="bg-slate-900 border-slate-600 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="worldwide">Worldwide</SelectItem>
+                    <SelectItem value="US">United States</SelectItem>
+                    <SelectItem value="UK">United Kingdom</SelectItem>
+                    <SelectItem value="CA">Canada</SelectItem>
+                    <SelectItem value="AU">Australia</SelectItem>
+                    <SelectItem value="IN">India</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <Button onClick={handleSaveResult} className="w-full bg-cyan-500 hover:bg-cyan-600">
                 <Save className="w-4 h-4 mr-2" />

@@ -38,7 +38,6 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
   const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingResult, setEditingResult] = useState<WebResult | null>(null);
-  const [selectedRelatedSearchId, setSelectedRelatedSearchId] = useState<string>('');
   const [formData, setFormData] = useState({
     related_search_id: '',
     title: '',
@@ -55,14 +54,11 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
   const isDataOrbitZone = projectName === 'DataOrbitZone';
 
   useEffect(() => {
+    fetchWebResults();
     if (!isDataOrbitZone) {
       fetchRelatedSearches();
     }
   }, [projectName]);
-
-  useEffect(() => {
-    fetchWebResults();
-  }, [selectedRelatedSearchId, projectName]);
  
   const fetchRelatedSearches = async () => {
     const { data, error } = await projectClient
@@ -79,24 +75,11 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
   };
 
   const fetchWebResults = async () => {
-    // For TopicMingle, only fetch if a related search is selected
-    if (!isDataOrbitZone && !isSearchProject && !selectedRelatedSearchId) {
-      setWebResults([]);
-      return;
-    }
-
-    let query = projectClient
+    const { data, error } = await projectClient
       .from('web_results')
       .select('*')
       .order('page_number', { ascending: true })
       .order('position', { ascending: true });
-
-    // Filter by related_search_id for TopicMingle
-    if (!isDataOrbitZone && !isSearchProject && selectedRelatedSearchId) {
-      query = query.eq('related_search_id', selectedRelatedSearchId);
-    }
-    
-    const { data, error } = await query;
     
     if (error) {
       console.error('Error fetching web results:', error);
@@ -258,41 +241,16 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
 
   return (
     <div className={containerClass}>
-      <div className="flex justify-between items-center gap-4">
+      <div className="flex justify-between items-center">
         <h3 className={headerClass}>Web Results for {projectName}</h3>
-        <div className="flex gap-2">
-          {showRelatedSearchField && (
-            <Select value={selectedRelatedSearchId} onValueChange={setSelectedRelatedSearchId}>
-              <SelectTrigger className={`w-56 ${inputClass}`}>
-                <SelectValue placeholder="Select Related Search" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">-- Select Related Search --</SelectItem>
-                {relatedSearches.map((search) => (
-                  <SelectItem key={search.id} value={search.id}>
-                    {search.search_text} → WR-{search.web_result_page}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <Button 
-            onClick={() => { resetForm(); setDialogOpen(true); }}
-            className={buttonClass}
-          >
-            Add Web Result
-          </Button>
-        </div>
+        <Button 
+          onClick={() => { resetForm(); setDialogOpen(true); }}
+          className={buttonClass}
+        >
+          Add Web Result
+        </Button>
       </div>
 
-      {/* Show message when no related search is selected for TopicMingle */}
-      {showRelatedSearchField && !selectedRelatedSearchId && (
-        <div className="p-8 text-center text-muted-foreground">
-          Please select a related search above to view its web results
-        </div>
-      )}
-
-      {(isDataOrbitZone || isSearchProject || selectedRelatedSearchId) && (
       <div className={tableContainerClass}>
         <table className="w-full">
           <thead className={isSearchProject ? "border-b border-[#2a3f5f]" : "border-b"}>
@@ -374,7 +332,7 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
           </tbody>
         </table>
       </div>
-      )}
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className={dialogClass}>
           <DialogHeader>
