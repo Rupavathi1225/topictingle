@@ -4,18 +4,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Edit } from 'lucide-react';
 import { tejaStarinClient } from '@/integrations/tejastarin/client';
 
 export const TejaStarinRelatedSearches = () => {
   const [relatedSearches, setRelatedSearches] = useState<any[]>([]);
   const [blogs, setBlogs] = useState<any[]>([]);
-  const [showForm, setShowForm] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingSearch, setEditingSearch] = useState<any>(null);
   const [formData, setFormData] = useState({
     search_text: '',
     blog_id: '',
     wr: 1,
+    order_index: 0,
   });
 
   useEffect(() => {
@@ -57,30 +60,56 @@ export const TejaStarinRelatedSearches = () => {
       return;
     }
 
-    const currentForBlog = relatedSearches.filter(s => s.blog_id === formData.blog_id);
-    const nextOrderIndex = currentForBlog.length > 0 
-      ? Math.max(...currentForBlog.map(s => s.order_index ?? 0)) + 1 
-      : 0;
-
     const payload = {
       blog_id: formData.blog_id,
       search_text: formData.search_text,
       wr: formData.wr,
-      order_index: nextOrderIndex,
+      order_index: formData.order_index,
     };
 
-    const { error } = await tejaStarinClient
-      .from('related_searches')
-      .insert([payload]);
-    
-    if (error) {
-      toast.error('Failed to add related search');
+    if (editingSearch) {
+      const { error } = await tejaStarinClient
+        .from('related_searches')
+        .update(payload)
+        .eq('id', editingSearch.id);
+      
+      if (error) {
+        toast.error('Failed to update related search');
+      } else {
+        toast.success('Related search updated!');
+        setDialogOpen(false);
+        setEditingSearch(null);
+        fetchRelatedSearches();
+      }
     } else {
-      toast.success('Related search added!');
-      setShowForm(false);
-      setFormData({ search_text: '', blog_id: '', wr: 1 });
-      fetchRelatedSearches();
+      const currentForBlog = relatedSearches.filter(s => s.blog_id === formData.blog_id);
+      const nextOrderIndex = currentForBlog.length > 0 
+        ? Math.max(...currentForBlog.map(s => s.order_index ?? 0)) + 1 
+        : 0;
+
+      const { error } = await tejaStarinClient
+        .from('related_searches')
+        .insert([{ ...payload, order_index: nextOrderIndex }]);
+      
+      if (error) {
+        toast.error('Failed to add related search');
+      } else {
+        toast.success('Related search added!');
+        setDialogOpen(false);
+        fetchRelatedSearches();
+      }
     }
+  };
+
+  const handleEdit = (search: any) => {
+    setEditingSearch(search);
+    setFormData({
+      search_text: search.search_text,
+      blog_id: search.blog_id,
+      wr: search.wr || 1,
+      order_index: search.order_index || 0,
+    });
+    setDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -99,68 +128,81 @@ export const TejaStarinRelatedSearches = () => {
     }
   };
 
+  const resetForm = () => {
+    setEditingSearch(null);
+    setFormData({ search_text: '', blog_id: '', wr: 1, order_index: 0 });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-xl font-semibold">Related Searches</h3>
-        <Button onClick={() => setShowForm(!showForm)}>
+        <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
           <Plus className="w-4 h-4 mr-2" />
-          {showForm ? 'Cancel' : 'Add Related Search'}
+          Add Related Search
         </Button>
       </div>
 
-      {showForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Add Related Search</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label>Blog *</Label>
-                <Select value={formData.blog_id} onValueChange={(value) => setFormData({ ...formData, blog_id: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select blog" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {blogs.map((blog) => (
-                      <SelectItem key={blog.id} value={blog.id}>
-                        {blog.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Search Text *</Label>
-                <Input
-                  value={formData.search_text}
-                  onChange={(e) => setFormData({ ...formData, search_text: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label>Web Result Page (1-4)</Label>
-                <Select 
-                  value={formData.wr.toString()} 
-                  onValueChange={(value) => setFormData({ ...formData, wr: parseInt(value) })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select page" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Page 1</SelectItem>
-                    <SelectItem value="2">Page 2</SelectItem>
-                    <SelectItem value="3">Page 3</SelectItem>
-                    <SelectItem value="4">Page 4</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button type="submit">Save Related Search</Button>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+      <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingSearch ? 'Edit Related Search' : 'Add Related Search'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label>Blog *</Label>
+              <Select value={formData.blog_id} onValueChange={(value) => setFormData({ ...formData, blog_id: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select blog" />
+                </SelectTrigger>
+                <SelectContent>
+                  {blogs.map((blog) => (
+                    <SelectItem key={blog.id} value={blog.id}>
+                      {blog.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Search Text *</Label>
+              <Input
+                value={formData.search_text}
+                onChange={(e) => setFormData({ ...formData, search_text: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label>Web Result Page (1-4)</Label>
+              <Select 
+                value={formData.wr.toString()} 
+                onValueChange={(value) => setFormData({ ...formData, wr: parseInt(value) })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select page" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Page 1 (wr=1)</SelectItem>
+                  <SelectItem value="2">Page 2 (wr=2)</SelectItem>
+                  <SelectItem value="3">Page 3 (wr=3)</SelectItem>
+                  <SelectItem value="4">Page 4 (wr=4)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Order Index</Label>
+              <Input
+                type="number"
+                value={formData.order_index}
+                onChange={(e) => setFormData({ ...formData, order_index: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+            <Button type="submit" className="w-full">
+              {editingSearch ? 'Update Related Search' : 'Save Related Search'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardContent className="p-0">
@@ -171,6 +213,7 @@ export const TejaStarinRelatedSearches = () => {
                   <th className="text-left p-4">Search Text</th>
                   <th className="text-left p-4">Blog</th>
                   <th className="text-left p-4">WR</th>
+                  <th className="text-left p-4">Order</th>
                   <th className="text-right p-4">Actions</th>
                 </tr>
               </thead>
@@ -179,8 +222,16 @@ export const TejaStarinRelatedSearches = () => {
                   <tr key={search.id} className="border-b">
                     <td className="p-4 font-medium">{search.search_text}</td>
                     <td className="p-4">{search.blogs?.title || '-'}</td>
-                    <td className="p-4">{search.wr}</td>
-                    <td className="p-4 text-right">
+                    <td className="p-4">
+                      <span className="px-2 py-1 bg-primary/10 text-primary rounded text-xs font-medium">
+                        WR-{search.wr}
+                      </span>
+                    </td>
+                    <td className="p-4">{search.order_index}</td>
+                    <td className="p-4 text-right space-x-2">
+                      <Button size="sm" variant="outline" onClick={() => handleEdit(search)}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
                       <Button size="sm" variant="destructive" onClick={() => handleDelete(search.id)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
