@@ -44,17 +44,13 @@ export const TejaStarinAnalytics = () => {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      // Fetch stats counts
+      // Fetch stats counts - DataCreditZone only has these tables
       const [blogsRes, searchesRes, webResultsRes, emailsRes] = await Promise.all([
         tejaStarinClient.from('blogs').select('id', { count: 'exact', head: true }),
         tejaStarinClient.from('related_searches').select('id', { count: 'exact', head: true }),
         tejaStarinClient.from('web_results').select('id', { count: 'exact', head: true }),
         tejaStarinClient.from('email_submissions').select('*'),
       ]);
-
-      // Fetch sessions without ordering to avoid column errors
-      const sessionsRes = await tejaStarinClient.from('sessions').select('*');
-      console.log('DataCreditZone TejaStarinAnalytics sessions:', sessionsRes);
 
       setStats({
         totalBlogs: blogsRes.count || 0,
@@ -63,108 +59,34 @@ export const TejaStarinAnalytics = () => {
         totalEmailSubmissions: emailsRes.data?.length || 0,
       });
 
-      // Fetch additional data for breakdown
-      const { data: relSearches } = await tejaStarinClient
-        .from('related_searches')
-        .select('*');
+      // DataCreditZone doesn't have sessions/link_tracking tables
+      // Create session-like data from email_submissions
+      const emails = emailsRes.data || [];
       
-      const { data: blogs } = await tejaStarinClient
-        .from('blogs')
-        .select('*');
-
-      const { data: clicks } = await tejaStarinClient
-        .from('link_tracking')
-        .select('*');
-
-      // Process sessions - sort in JS since column names may vary
-      const sessionMap = new Map<string, SessionData>();
-      const sessionClickIds = new Map<string, Set<string>>();
-      
-      // Sort sessions by available timestamp field
-      const sortedSessions = (sessionsRes.data || []).sort((a: any, b: any) => {
-        const dateA = new Date(a.last_active || a.last_activity || a.created_at || 0);
-        const dateB = new Date(b.last_active || b.last_activity || b.created_at || 0);
-        return dateB.getTime() - dateA.getTime();
-      });
-      
-      // Initialize sessions from sessions table
-      sortedSessions.forEach((session: any) => {
-        const sid = session.session_id;
-        sessionMap.set(sid, {
-          sessionId: sid,
-          ipAddress: session.ip_address || 'N/A',
-          country: session.country || 'Unknown',
-          source: session.source || 'direct',
-          device: session.device_type?.toLowerCase().includes('mobile') ? 'mobile' : (session.device === 'mobile' ? 'mobile' : 'desktop'),
-          pageViews: session.page_views || 1,
-          totalClicks: 0,
-          uniqueClicks: 0,
-          relatedSearches: 0,
-          blogClicks: 0,
-          clickBreakdown: {
-            relatedSearches: [],
-            blogClicks: [],
-          },
-          lastActive: session.last_active || session.last_activity || session.created_at || new Date().toISOString(),
-        });
-        sessionClickIds.set(sid, new Set());
-      });
-
-      // Process clicks from link_tracking
-      (clicks || []).forEach((click: any) => {
-        const sid = click.session_id;
-        if (!sessionMap.has(sid)) return;
-        
-        const session = sessionMap.get(sid)!;
-        session.totalClicks++;
-        
-        // Track unique clicks
-        if (click.id) {
-          sessionClickIds.get(sid)!.add(click.id);
-        }
-        
-        // Count related search interactions with breakdown
-        if (click.related_search_id) {
-          session.relatedSearches++;
-          const relSearch = relSearches?.find(rs => rs.id === click.related_search_id);
-          const searchText = relSearch?.search_text || relSearch?.title || 'Unknown Search';
-          
-          const existing = session.clickBreakdown.relatedSearches.find(s => s.text === searchText);
-          if (existing) {
-            existing.count++;
-          } else {
-            session.clickBreakdown.relatedSearches.push({ text: searchText, count: 1 });
-          }
-        }
-        
-        // Count web result/blog clicks with breakdown
-        if (click.web_result_id) {
-          session.blogClicks++;
-          const blogTitle = click.target_url || 'Unknown Result';
-          
-          const existing = session.clickBreakdown.blogClicks.find(b => b.title === blogTitle);
-          if (existing) {
-            existing.count++;
-          } else {
-            session.clickBreakdown.blogClicks.push({ title: blogTitle, count: 1 });
-          }
-        }
-      });
-
-      // Set unique clicks
-      sessionClickIds.forEach((clickIds, sid) => {
-        const session = sessionMap.get(sid);
-        if (session) {
-          session.uniqueClicks = clickIds.size || session.totalClicks;
-        }
-      });
+      const sessionData: SessionData[] = emails.map((email: any) => ({
+        sessionId: email.id || email.email,
+        ipAddress: email.ip_address || 'N/A',
+        country: email.country || 'Unknown',
+        source: email.source || 'email',
+        device: 'desktop',
+        pageViews: 1,
+        totalClicks: 1,
+        uniqueClicks: 1,
+        relatedSearches: 0,
+        blogClicks: 0,
+        clickBreakdown: {
+          relatedSearches: [],
+          blogClicks: [],
+        },
+        lastActive: email.submitted_at || email.created_at || new Date().toISOString(),
+      }));
 
       // Sort by last active descending (latest first)
-      const finalSessions = Array.from(sessionMap.values()).sort((a, b) => 
+      const sortedSessions = sessionData.sort((a, b) => 
         new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime()
       );
 
-      setSessions(finalSessions);
+      setSessions(sortedSessions);
     } catch (error) {
       toast.error('Failed to fetch analytics');
       console.error(error);

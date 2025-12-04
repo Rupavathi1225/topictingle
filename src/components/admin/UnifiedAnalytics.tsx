@@ -128,90 +128,45 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
 
   /**
    * Fetch & process DataCreditZone analytics
+   * Note: DataCreditZone doesn't have sessions/link_tracking tables, use email_submissions instead
    */
   const fetchDataCreditZone = async () => {
-    // First try to fetch sessions without ordering to see what's available
-    let sessionsData: any[] = [];
+    // Fetch available data from DataCreditZone
+    const [emailsRes, blogsRes, searchesRes, webResultsRes] = await Promise.all([
+      tejaStarinClient.from('email_submissions').select('*'),
+      tejaStarinClient.from('blogs').select('id', { count: 'exact', head: true }),
+      tejaStarinClient.from('related_searches').select('id', { count: 'exact', head: true }),
+      tejaStarinClient.from('web_results').select('id', { count: 'exact', head: true }),
+    ]);
+
+    const emails = emailsRes.data || [];
     
-    // Try fetching sessions - first without ordering to avoid column errors
-    const sessionsRes = await tejaStarinClient.from('sessions').select('*');
-    console.log('DataCreditZone sessions response:', sessionsRes);
-    
-    if (sessionsRes.error) {
-      console.error('DataCreditZone sessions error:', sessionsRes.error);
-    }
-    
-    if (sessionsRes.data && sessionsRes.data.length > 0) {
-      // Sort by available timestamp field
-      sessionsData = sessionsRes.data.sort((a: any, b: any) => {
-        const dateA = new Date(a.last_active || a.last_activity || a.created_at || 0);
-        const dateB = new Date(b.last_active || b.last_activity || b.created_at || 0);
-        return dateB.getTime() - dateA.getTime();
-      });
-    }
-
-    const clicksRes = await tejaStarinClient.from('link_tracking').select('*');
-    console.log('DataCreditZone clicks response:', clicksRes);
-    const clicks = clicksRes.data;
-
-    const sessionMap = new Map<string, any>();
-    const globalUniquePages = new Set<string>();
-    const globalUniqueClicks = new Set<string>();
-
-    (sessionsData || []).forEach((s: any) => {
-      sessionMap.set(s.session_id, {
-        sessionId: s.session_id,
-        device: s.device_type?.toLowerCase().includes('mobile') ? 'Mobile' : (s.device === 'mobile' ? 'Mobile' : 'Desktop'),
-        ipAddress: s.ip_address || 'N/A',
-        country: s.country || 'Unknown',
-        timeSpent: '0s',
-        timestamp: s.last_active || s.last_activity || s.created_at || new Date().toISOString(),
-        pageViews: s.page_views || 1,
-        uniquePagesSet: new Set<string>(),
-        totalClicks: 0,
-        uniqueClicksSet: new Set<string>(),
-        searchResults: [],
-        blogClicks: [],
-        buttonInteractions: [],
-      });
-      globalUniquePages.add(s.session_id);
-    });
-
-    (clicks || []).forEach((c: any) => {
-      const session = sessionMap.get(c.session_id);
-      if (session) {
-        session.totalClicks++;
-        const clickKey = c.id || `click-${c.related_search_id || c.web_result_id}`;
-        session.uniqueClicksSet.add(clickKey);
-        globalUniqueClicks.add(clickKey);
-      }
-    });
-
-    const sessions = Array.from(sessionMap.values()).map((s: any) => ({
-      sessionId: s.sessionId,
+    // Create session-like entries from email submissions
+    const sessions: SessionDetail[] = emails.map((email: any) => ({
+      sessionId: email.id || email.email,
       siteName: 'DataCreditZone',
       siteIcon: FileText,
       siteColor: 'from-purple-500 to-purple-600',
-      device: s.device,
-      ipAddress: s.ipAddress,
-      country: s.country,
-      timeSpent: s.timeSpent,
-      timestamp: s.timestamp,
-      pageViews: s.pageViews,
-      uniquePages: s.uniquePagesSet.size,
-      totalClicks: s.totalClicks,
-      uniqueClicks: s.uniqueClicksSet.size,
-      searchResults: s.searchResults,
-      blogClicks: s.blogClicks,
-      buttonInteractions: s.buttonInteractions,
-    })) as SessionDetail[];
+      device: 'Desktop',
+      ipAddress: email.ip_address || 'N/A',
+      country: email.country || 'Unknown',
+      timeSpent: '0s',
+      timestamp: email.submitted_at || email.created_at || new Date().toISOString(),
+      pageViews: 1,
+      uniquePages: 1,
+      totalClicks: 1,
+      uniqueClicks: 1,
+      searchResults: [],
+      blogClicks: [],
+      buttonInteractions: [],
+    }));
 
     const stats = {
-      sessions: sessionMap.size,
-      pageViews: sessions.reduce((sum: number, s: any) => sum + s.pageViews, 0),
-      uniquePages: globalUniquePages.size,
-      totalClicks: sessions.reduce((sum: number, s: any) => sum + s.totalClicks, 0),
-      uniqueClicks: globalUniqueClicks.size,
+      sessions: emails.length,
+      pageViews: blogsRes.count || 0,
+      uniquePages: searchesRes.count || 0,
+      totalClicks: webResultsRes.count || 0,
+      uniqueClicks: emails.length,
     };
 
     return { stats, sessions };
