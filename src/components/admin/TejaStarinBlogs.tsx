@@ -116,23 +116,71 @@ export const TejaStarinBlogs = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this blog?')) return;
+    if (!confirm('Are you sure you want to delete this blog? This will also delete all related searches, web results, pre-landing configs, and email submissions.')) return;
     
-    const { error, data } = await tejaStarinClient
-      .from('blogs')
-      .delete()
-      .eq('id', id)
-      .select();
-    
-    if (error) {
-      console.error('Delete error:', error);
-      toast.error(`Failed to delete blog: ${error.message}`);
-    } else if (!data || data.length === 0) {
-      // RLS blocked the delete - no rows affected
-      toast.error('Delete blocked by database permissions. Update RLS policies on TejaStarin database.');
-    } else {
-      toast.success('Blog deleted');
-      fetchBlogs();
+    try {
+      // Get all related searches for this blog
+      const { data: relatedSearches } = await tejaStarinClient
+        .from('related_searches')
+        .select('id')
+        .eq('blog_id', id);
+      
+      if (relatedSearches && relatedSearches.length > 0) {
+        const relatedSearchIds = relatedSearches.map(rs => rs.id);
+        
+        // Delete email submissions linked to related searches
+        await tejaStarinClient
+          .from('email_submissions')
+          .delete()
+          .in('related_search_id', relatedSearchIds);
+        
+        // Delete analytics events linked to related searches
+        await tejaStarinClient
+          .from('analytics_events')
+          .delete()
+          .in('related_search_id', relatedSearchIds);
+        
+        // Delete pre-landing configs linked to related searches
+        await tejaStarinClient
+          .from('pre_landing_config')
+          .delete()
+          .in('related_search_id', relatedSearchIds);
+        
+        // Delete web results linked to related searches
+        await tejaStarinClient
+          .from('web_results')
+          .delete()
+          .in('related_search_id', relatedSearchIds);
+        
+        // Delete related searches
+        await tejaStarinClient
+          .from('related_searches')
+          .delete()
+          .eq('blog_id', id);
+      }
+      
+      // Delete analytics events linked directly to blog
+      await tejaStarinClient
+        .from('analytics_events')
+        .delete()
+        .eq('blog_id', id);
+      
+      // Finally delete the blog
+      const { error } = await tejaStarinClient
+        .from('blogs')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Delete error:', error);
+        toast.error(`Failed to delete blog: ${error.message}`);
+      } else {
+        toast.success('Blog and related data deleted');
+        fetchBlogs();
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+      toast.error('Error deleting blog');
     }
   };
 
