@@ -118,13 +118,18 @@ export const TejaStarinBlogs = () => {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this blog?')) return;
     
-    const { error } = await tejaStarinClient
+    const { error, data } = await tejaStarinClient
       .from('blogs')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .select();
     
     if (error) {
-      toast.error('Failed to delete blog');
+      console.error('Delete error:', error);
+      toast.error(`Failed to delete blog: ${error.message}`);
+    } else if (!data || data.length === 0) {
+      // RLS blocked the delete - no rows affected
+      toast.error('Delete blocked by database permissions. Update RLS policies on TejaStarin database.');
     } else {
       toast.success('Blog deleted');
       fetchBlogs();
