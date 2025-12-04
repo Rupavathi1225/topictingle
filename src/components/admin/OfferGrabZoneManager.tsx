@@ -106,6 +106,7 @@ const OfferGrabZoneManager = () => {
   const [editingResult, setEditingResult] = useState<WebResult | null>(null);
   const [resultDialogOpen, setResultDialogOpen] = useState(false);
   const [selectedWrPage, setSelectedWrPage] = useState<number>(0);
+  const [selectedSearchForWebResult, setSelectedSearchForWebResult] = useState<string>("");
   
   // Prelandings
   const [prelandings, setPrelandings] = useState<Prelanding[]>([]);
@@ -267,11 +268,20 @@ const OfferGrabZoneManager = () => {
       toast.error("Name, title and link are required");
       return;
     }
+
+    // For new web results, get page from selected related search
+    let resultToSave = { ...editingResult };
+    if (!editingResult.id && selectedSearchForWebResult) {
+      const selectedSearch = searches.find(s => s.id === selectedSearchForWebResult);
+      if (selectedSearch) {
+        resultToSave.wr_page = selectedSearch.target_wr;
+      }
+    }
     
     if (editingResult.id) {
       const { error } = await offerGrabZoneClient
         .from('web_results')
-        .update(editingResult)
+        .update(resultToSave)
         .eq('id', editingResult.id);
       
       if (error) {
@@ -280,10 +290,15 @@ const OfferGrabZoneManager = () => {
         toast.success("Updated!");
         setResultDialogOpen(false);
         setEditingResult(null);
+        setSelectedSearchForWebResult("");
         fetchWebResults();
       }
     } else {
-      const { id, ...insertData } = editingResult;
+      if (!selectedSearchForWebResult) {
+        toast.error("Please select a related search first");
+        return;
+      }
+      const { id, ...insertData } = resultToSave;
       const { error } = await offerGrabZoneClient.from('web_results').insert(insertData);
       
       if (error) {
@@ -292,6 +307,7 @@ const OfferGrabZoneManager = () => {
         toast.success("Added!");
         setResultDialogOpen(false);
         setEditingResult(null);
+        setSelectedSearchForWebResult("");
         fetchWebResults();
       }
     }
@@ -614,7 +630,7 @@ const OfferGrabZoneManager = () => {
                   </SelectContent>
                 </Select>
                 <Button 
-                  onClick={() => { setEditingResult({ ...emptyResult }); setResultDialogOpen(true); }}
+                  onClick={() => { setEditingResult({ ...emptyResult }); setSelectedSearchForWebResult(""); setResultDialogOpen(true); }}
                   className="bg-cyan-500 hover:bg-cyan-600"
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -724,6 +740,30 @@ const OfferGrabZoneManager = () => {
           </DialogHeader>
           {editingResult && (
             <div className="space-y-4">
+              {/* Related Search Selection (only for new, not editing) */}
+              {!editingResult.id && (
+                <div>
+                  <Label className="text-slate-300">Select Related Search *</Label>
+                  <Select value={selectedSearchForWebResult} onValueChange={setSelectedSearchForWebResult}>
+                    <SelectTrigger className="bg-slate-900 border-slate-600 text-white">
+                      <SelectValue placeholder="Choose a related search..." />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[200px]">
+                      {searches.map(s => (
+                        <SelectItem key={s.id} value={s.id}>
+                          <span className="text-amber-400 mr-2">(Related Search)</span>
+                          {s.title} → WR {s.target_wr}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedSearchForWebResult && (
+                    <p className="text-xs text-slate-400 mt-1">
+                      Web result will be added to WR Page {searches.find(s => s.id === selectedSearchForWebResult)?.target_wr || 1}
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-slate-300">Name *</Label>
@@ -770,20 +810,26 @@ const OfferGrabZoneManager = () => {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label className="text-slate-300">WR Page</Label>
-                  <Select
-                    value={editingResult.wr_page.toString()}
-                    onValueChange={(v) => setEditingResult({ ...editingResult, wr_page: parseInt(v) })}
-                  >
-                    <SelectTrigger className="bg-slate-900 border-slate-600 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[1, 2, 3, 4, 5].map(n => (
-                        <SelectItem key={n} value={n.toString()}>WR {n}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-slate-300">WR Page {!editingResult.id && "(Auto)"}</Label>
+                  {editingResult.id ? (
+                    <Select
+                      value={editingResult.wr_page.toString()}
+                      onValueChange={(v) => setEditingResult({ ...editingResult, wr_page: parseInt(v) })}
+                    >
+                      <SelectTrigger className="bg-slate-900 border-slate-600 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <SelectItem key={n} value={n.toString()}>WR {n}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="p-2 rounded border bg-slate-900 border-slate-600 text-slate-400">
+                      {selectedSearchForWebResult ? `WR ${searches.find(s => s.id === selectedSearchForWebResult)?.target_wr || 1}` : "Select search first"}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label className="text-slate-300">Serial #</Label>
