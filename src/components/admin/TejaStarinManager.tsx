@@ -396,7 +396,7 @@ export const TejaStarinManager = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Teja Starin Manager</h2>
+        <h2 className="text-2xl font-bold">DataCreditZone Manager</h2>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>

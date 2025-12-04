@@ -180,7 +180,7 @@ const Admin = () => {
     },
     {
       id: 'tejastarin' as Website,
-      name: 'Teja Starin',
+      name: 'DataCreditZone',
       description: 'Blog & Web Results Platform',
       color: 'bg-orange-500',
       icon: '📄'
@@ -665,7 +665,7 @@ const Admin = () => {
   const getProjectName = (website: Website) => {
     switch (website) {
       case 'topicmingle': return 'TopicMingle';
-      case 'tejastarin': return 'Teja Starin';
+      case 'tejastarin': return 'DataCreditZone';
       case 'fastmoney': return 'FastMoney';
       case 'offergrabzone': return 'OfferGrabZone';
       default: return 'TopicMingle';

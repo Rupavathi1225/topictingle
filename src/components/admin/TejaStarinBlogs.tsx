@@ -134,7 +134,7 @@ export const TejaStarinBlogs = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-xl font-semibold">Teja Starin Blogs</h3>
+        <h3 className="text-xl font-semibold">DataCreditZone Blogs</h3>
         <Button onClick={() => {
           setEditingBlog(null);
           setFormData({

@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { tejaStarinClient } from '@/integrations/tejastarin/client';
 import { fastMoneyClient } from '@/integrations/fastmoney/client';
+import { offerGrabZoneClient } from '@/integrations/offergrabzone/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp, RefreshCw, Download, ShoppingCart, Home, Palette, Search, FileText, MousePointerClick, DollarSign } from 'lucide-react';
+import { ChevronDown, ChevronUp, RefreshCw, Download, ShoppingCart, Home, Palette, Search, FileText, MousePointerClick, DollarSign, Gift } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface SiteStats {
@@ -68,9 +69,10 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
 
   const sites = [
-    { id: 'tejastarin', name: 'Teja Starin', icon: FileText, color: 'from-purple-500 to-purple-600' },
+    { id: 'datacreditzone', name: 'DataCreditZone', icon: FileText, color: 'from-purple-500 to-purple-600' },
     { id: 'main', name: 'TopicMingle', icon: Palette, color: 'from-cyan-500 to-cyan-600' },
     { id: 'fastmoney', name: 'FastMoney', icon: DollarSign, color: 'from-yellow-500 to-yellow-600' },
+    { id: 'offergrabzone', name: 'OfferGrabZone', icon: ShoppingCart, color: 'from-pink-500 to-pink-600' },
   ];
 
   useEffect(() => {
@@ -90,31 +92,31 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const [tejaStarin, mainProj, fastMoney] = await Promise.all([
-        fetchTejaStarin(),
+      const [dataCreditZone, mainProj, fastMoney, offerGrabZone] = await Promise.all([
+        fetchDataCreditZone(),
         fetchMainProject(),
         fetchFastMoney(),
+        fetchOfferGrabZone(),
       ]);
 
       const allStats: SiteStats[] = [
-        { siteName: 'Teja Starin', icon: FileText, color: 'from-purple-500 to-purple-600', ...tejaStarin.stats },
+        { siteName: 'DataCreditZone', icon: FileText, color: 'from-purple-500 to-purple-600', ...dataCreditZone.stats },
         { siteName: 'TopicMingle', icon: Palette, color: 'from-cyan-500 to-cyan-600', ...mainProj.stats },
         { siteName: 'FastMoney', icon: DollarSign, color: 'from-yellow-500 to-yellow-600', ...fastMoney.stats },
+        { siteName: 'OfferGrabZone', icon: Gift, color: 'from-pink-500 to-pink-600', ...offerGrabZone.stats },
       ];
 
       setSiteStats(allStats);
 
       const allSessions = [
-        ...tejaStarin.sessions,
+        ...dataCreditZone.sessions,
         ...mainProj.sessions,
         ...fastMoney.sessions,
+        ...offerGrabZone.sessions,
       ];
 
-      // Sort by total clicks first (most clicks at top), then by timestamp for ties
+      // Sort by timestamp (latest first)
       setSessions(allSessions.sort((a, b) => {
-        if (b.totalClicks !== a.totalClicks) {
-          return b.totalClicks - a.totalClicks;
-        }
         return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
       }));
     } catch (error) {
@@ -125,50 +127,54 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
   };
 
   /**
-   * Fetch & process Teja Starin analytics
+   * Fetch & process DataCreditZone analytics
    */
-  const fetchTejaStarin = async () => {
-    // Fetch email submissions as session-like data
-    const { data: emailSubmissions } = await tejaStarinClient
-      .from('email_submissions')
+  const fetchDataCreditZone = async () => {
+    // Fetch sessions and clicks from DataCreditZone
+    const { data: sessionsData } = await tejaStarinClient
+      .from('sessions')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('last_activity', { ascending: false });
+
+    const { data: clicks } = await tejaStarinClient
+      .from('link_tracking')
+      .select('*');
 
     const sessionMap = new Map<string, any>();
     const globalUniquePages = new Set<string>();
     const globalUniqueClicks = new Set<string>();
 
-    (emailSubmissions || []).forEach((submission: any) => {
-      const sid = submission.session_id || submission.ip_address || `ts-${submission.id}`;
-      
-      if (!sessionMap.has(sid)) {
-        sessionMap.set(sid, {
-          sessionId: sid,
-          device: 'Desktop • Chrome',
-          ipAddress: submission.ip_address || 'N/A',
-          country: 'Unknown',
-          timeSpent: '0s',
-          timestamp: submission.created_at || new Date().toISOString(),
-          pageViews: 1,
-          uniquePagesSet: new Set<string>(),
-          totalClicks: 1,
-          uniqueClicksSet: new Set<string>(),
-          searchResults: [],
-          blogClicks: [],
-          buttonInteractions: [],
-        });
-      }
+    (sessionsData || []).forEach((s: any) => {
+      sessionMap.set(s.session_id, {
+        sessionId: s.session_id,
+        device: s.device_type?.toLowerCase().includes('mobile') ? 'Mobile • Safari' : 'Desktop • Chrome',
+        ipAddress: s.ip_address || 'N/A',
+        country: s.country || 'Unknown',
+        timeSpent: '0s',
+        timestamp: s.last_activity || s.created_at || new Date().toISOString(),
+        pageViews: 1,
+        uniquePagesSet: new Set<string>(),
+        totalClicks: 0,
+        uniqueClicksSet: new Set<string>(),
+        searchResults: [],
+        blogClicks: [],
+        buttonInteractions: [],
+      });
+    });
 
-      const session = sessionMap.get(sid);
-      session.uniquePagesSet.add(`pre-landing-${submission.related_search_id || 'unknown'}`);
-      session.uniqueClicksSet.add(`email-submit-${submission.id}`);
-      globalUniquePages.add(`pre-landing-${submission.related_search_id || 'unknown'}`);
-      globalUniqueClicks.add(`email-submit-${submission.id}`);
+    (clicks || []).forEach((c: any) => {
+      const session = sessionMap.get(c.session_id);
+      if (session) {
+        session.totalClicks++;
+        const clickKey = c.id || `click-${c.related_search_id || c.web_result_id}`;
+        session.uniqueClicksSet.add(clickKey);
+        globalUniqueClicks.add(clickKey);
+      }
     });
 
     const sessions = Array.from(sessionMap.values()).map((s: any) => ({
       sessionId: s.sessionId,
-      siteName: 'Teja Starin',
+      siteName: 'DataCreditZone',
       siteIcon: FileText,
       siteColor: 'from-purple-500 to-purple-600',
       device: s.device,
@@ -447,6 +453,87 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
         uniqueClicks: session.uniqueClicksSet.size,
         searchResults,
         blogClicks,
+        buttonInteractions: [],
+      });
+    });
+
+    const stats = {
+      sessions: sessionMap.size,
+      pageViews: sessions.reduce((sum: number, s: any) => sum + s.pageViews, 0),
+      uniquePages: globalUniquePages.size,
+      totalClicks: sessions.reduce((sum: number, s: any) => sum + s.totalClicks, 0),
+      uniqueClicks: globalUniqueClicks.size,
+    };
+
+    return { stats, sessions };
+  };
+
+  /**
+   * Fetch & process OfferGrabZone data
+   */
+  const fetchOfferGrabZone = async () => {
+    const { data: sessionsData } = await offerGrabZoneClient
+      .from('sessions')
+      .select('*')
+      .order('last_activity', { ascending: false });
+
+    const { data: clicks } = await offerGrabZoneClient
+      .from('clicks')
+      .select('*');
+
+    const sessionMap = new Map<string, any>();
+    const globalUniquePages = new Set<string>();
+    const globalUniqueClicks = new Set<string>();
+
+    (sessionsData || []).forEach((s: any) => {
+      sessionMap.set(s.session_id, {
+        sessionId: s.session_id,
+        siteName: 'OfferGrabZone',
+        siteIcon: Gift,
+        siteColor: 'from-pink-500 to-pink-600',
+        device: s.device_type?.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
+        ipAddress: s.ip_address || 'N/A',
+        country: s.country || 'Unknown',
+        timeSpent: '0s',
+        timestamp: s.last_activity || s.created_at || new Date().toISOString(),
+        pageViews: 1,
+        uniquePagesSet: new Set<string>(),
+        totalClicks: 0,
+        uniqueClicksSet: new Set<string>(),
+        searchResults: [] as Array<any>,
+        blogClicks: [] as Array<any>,
+        buttonInteractions: [] as Array<any>,
+      });
+    });
+
+    (clicks || []).forEach((c: any) => {
+      const session = sessionMap.get(c.session_id);
+      if (session) {
+        session.totalClicks++;
+        const clickKey = c.id || `click-${c.related_search_id || c.web_result_id}`;
+        session.uniqueClicksSet.add(clickKey);
+        globalUniqueClicks.add(clickKey);
+      }
+    });
+
+    const sessions: SessionDetail[] = [];
+    sessionMap.forEach((session) => {
+      sessions.push({
+        sessionId: session.sessionId,
+        siteName: session.siteName,
+        siteIcon: session.siteIcon,
+        siteColor: session.siteColor,
+        device: session.device,
+        ipAddress: session.ipAddress,
+        country: session.country,
+        timeSpent: session.timeSpent,
+        timestamp: session.timestamp,
+        pageViews: session.pageViews,
+        uniquePages: session.uniquePagesSet.size,
+        totalClicks: session.totalClicks,
+        uniqueClicks: session.uniqueClicksSet.size,
+        searchResults: session.searchResults,
+        blogClicks: session.blogClicks,
         buttonInteractions: [],
       });
     });
