@@ -53,6 +53,17 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
   const isSearchProject = projectName === 'SearchProject';
   const isDataOrbitZone = projectName === 'DataOrbitZone';
 
+  // Get taken positions for current related search
+  const getTakenPositions = () => {
+    if (!formData.related_search_id) return [];
+    return webResults
+      .filter(wr => wr.related_search_id === formData.related_search_id)
+      .filter(wr => editingResult ? wr.id !== editingResult.id : true)
+      .map(wr => wr.position);
+  };
+
+  const takenPositions = getTakenPositions();
+
   useEffect(() => {
     fetchWebResults();
     if (!isDataOrbitZone) {
@@ -416,39 +427,64 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
               />
             </div>
 
-            {(isDataOrbitZone || isSearchProject) ? (
-              <div>
-                <Label className={labelClass}>Page Number (1-4)</Label>
-                <Select
-                  value={formData.page_number.toString()}
-                  onValueChange={(value) => setFormData({ ...formData, page_number: parseInt(value) })}
-                >
-                  <SelectTrigger className={inputClass}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Page 1 (/wr=1)</SelectItem>
-                    <SelectItem value="2">Page 2 (/wr=2)</SelectItem>
-                    <SelectItem value="3">Page 3 (/wr=3)</SelectItem>
-                    <SelectItem value="4">Page 4 (/wr=4)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <div>
-                <Label className={labelClass}>Page Number (Auto from Related Search)</Label>
-                <div className={`p-2 rounded border ${isSearchProject ? 'bg-[#0a1628] border-[#2a3f5f] text-gray-400' : 'bg-muted border-border text-muted-foreground'}`}>
-                  {formData.related_search_id ? (
-                    <span>Page {relatedSearches.find(s => s.id === formData.related_search_id)?.web_result_page || 1}</span>
-                  ) : (
-                    <span className="italic">Select a related search first</span>
-                  )}
+            <div className="grid grid-cols-2 gap-4">
+              {(isDataOrbitZone || isSearchProject) ? (
+                <div>
+                  <Label className={labelClass}>Page Number (1-4)</Label>
+                  <Select
+                    value={formData.page_number.toString()}
+                    onValueChange={(value) => setFormData({ ...formData, page_number: parseInt(value) })}
+                  >
+                    <SelectTrigger className={inputClass}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Page 1 (/wr=1)</SelectItem>
+                      <SelectItem value="2">Page 2 (/wr=2)</SelectItem>
+                      <SelectItem value="3">Page 3 (/wr=3)</SelectItem>
+                      <SelectItem value="4">Page 4 (/wr=4)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+              ) : (
+                <div>
+                  <Label className={labelClass}>Page Number (Auto)</Label>
+                  <div className={`p-2 rounded border ${isSearchProject ? 'bg-[#0a1628] border-[#2a3f5f] text-gray-400' : 'bg-muted border-border text-muted-foreground'}`}>
+                    {formData.related_search_id ? (
+                      <span>Page {relatedSearches.find(s => s.id === formData.related_search_id)?.web_result_page || 1}</span>
+                    ) : (
+                      <span className="italic">Select search first</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <Label className={labelClass}>Position *</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={formData.position}
+                  onChange={(e) => setFormData({ ...formData, position: parseInt(e.target.value) || 1 })}
+                  className={`${inputClass} ${takenPositions.includes(formData.position) ? 'border-yellow-500' : ''}`}
+                  placeholder="1"
+                />
                 <p className={isSearchProject ? "text-xs text-gray-500 mt-1" : "text-xs text-muted-foreground mt-1"}>
-                  Page is inherited from the selected related search
+                  Display order (1 = first)
                 </p>
+                {takenPositions.length > 0 && (
+                  <p className="text-xs text-yellow-600 mt-1">
+                    Taken positions: {takenPositions.sort((a, b) => a - b).join(', ')}
+                  </p>
+                )}
+                {takenPositions.includes(formData.position) && (
+                  <p className="text-xs text-orange-500 mt-0.5">
+                    ⚠️ Position {formData.position} is already taken
+                  </p>
+                )}
               </div>
-            )}
+            </div>
 
             <div className={`flex items-center gap-4 ${isSearchProject ? 'text-gray-300' : ''}`}>
               <div className="flex items-center gap-2">

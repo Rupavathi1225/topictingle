@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Search } from 'lucide-react';
 
 interface RelatedSearch {
   id: string;
@@ -56,24 +56,27 @@ export const WebResultsWithSearches = ({ projectClient, currentPage }: WebResult
   }, [currentPage, userCountry]);
 
   const handleSearchClick = (search: RelatedSearch) => {
-    // Always redirect to web results page first - prelanding is handled at web result click level
-    window.location.href = `/wr?wr=${search.web_result_page}`;
+    // Navigate to web results with related search ID to show only that search's results
+    window.location.href = `/wr?rs=${search.id}`;
   };
 
   if (searches.length === 0) return null;
 
   return (
-    <div className="my-12 max-w-4xl mx-auto px-4">
-      <h3 className="text-lg font-semibold mb-4">Related Searches</h3>
-      <div className="grid gap-3">
+    <div className="my-8 max-w-4xl mx-auto px-4">
+      <div className="flex items-center gap-2 mb-4">
+        <Search className="h-5 w-5 text-muted-foreground" />
+        <h3 className="text-lg font-semibold text-foreground">Related Searches</h3>
+      </div>
+      <div className="grid gap-2">
         {searches.map((search) => (
           <button
             key={search.id}
             onClick={() => handleSearchClick(search)}
-            className="flex items-center justify-between p-4 bg-card hover:bg-accent text-foreground rounded-lg transition-colors duration-200 group border"
+            className="flex items-center justify-between p-4 bg-card hover:bg-accent/50 text-foreground rounded-xl transition-all duration-200 group border border-border hover:border-primary/30 hover:shadow-sm"
           >
             <span className="text-left font-medium">{search.title || search.search_text}</span>
-            <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+            <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
           </button>
         ))}
       </div>
