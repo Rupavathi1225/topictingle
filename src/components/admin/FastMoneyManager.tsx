@@ -156,7 +156,6 @@ export const FastMoneyManager = () => {
     const { error } = await fastMoneyClient
       .from("landing_settings")
       .update({
-        site_name: landingSettings.site_name,
         title: landingSettings.title,
         description: landingSettings.description,
         updated_at: new Date().toISOString()
@@ -314,14 +313,6 @@ export const FastMoneyManager = () => {
           <TabsContent value="landing" className="space-y-4">
             {landingSettings ? (
               <div className="space-y-4 max-w-xl">
-                <div>
-                  <Label className="text-gray-300">Site Name</Label>
-                  <Input
-                    value={landingSettings.site_name}
-                    onChange={(e) => setLandingSettings({ ...landingSettings, site_name: e.target.value })}
-                    className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500"
-                  />
-                </div>
                 <div>
                   <Label className="text-gray-300">Title</Label>
                   <Input
