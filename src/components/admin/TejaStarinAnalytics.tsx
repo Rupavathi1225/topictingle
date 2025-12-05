@@ -5,12 +5,9 @@ import { toast } from 'sonner';
 import { tejaStarinClient } from '@/integrations/tejastarin/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-
-interface ClickBreakdown {
-  relatedSearches: { text: string; count: number }[];
-  blogClicks: { title: string; count: number }[];
-}
+import { Calendar, RefreshCw } from 'lucide-react';
 
 interface SessionData {
   sessionId: string;
@@ -19,32 +16,24 @@ interface SessionData {
   source: string;
   device: string;
   pageViews: number;
-  totalClicks: number;
-  uniqueClicks: number;
   relatedSearches: number;
   blogClicks: number;
-  clickBreakdown: ClickBreakdown;
+  clickBreakdown: { relatedSearches: { text: string; count: number }[]; blogClicks: { title: string; count: number }[] };
   lastActive: string;
 }
 
 export const TejaStarinAnalytics = () => {
-  const [stats, setStats] = useState({
-    totalBlogs: 0,
-    totalSearches: 0,
-    totalWebResults: 0,
-    totalEmailSubmissions: 0,
-  });
+  const [stats, setStats] = useState({ totalBlogs: 0, totalSearches: 0, totalWebResults: 0, totalEmailSubmissions: 0 });
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, []);
+  useEffect(() => { fetchAnalytics(); }, []);
 
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      // Fetch all data - DataCreditZone has blogs, related_searches, web_results, email_submissions
       const [blogsRes, searchesRes, webResultsRes, emailsRes, relSearchesDataRes, webResultsDataRes] = await Promise.all([
         tejaStarinClient.from('blogs').select('id', { count: 'exact', head: true }),
         tejaStarinClient.from('related_searches').select('id', { count: 'exact', head: true }),
@@ -56,227 +45,96 @@ export const TejaStarinAnalytics = () => {
 
       const relatedSearches = relSearchesDataRes.data || [];
       const webResults = webResultsDataRes.data || [];
-      const webResultsCount = webResultsRes.count || 0;
-      const totalRelatedSearches = searchesRes.count || 0;
+      setStats({ totalBlogs: blogsRes.count || 0, totalSearches: searchesRes.count || 0, totalWebResults: webResultsRes.count || 0, totalEmailSubmissions: emailsRes.data?.length || 0 });
 
-      setStats({
-        totalBlogs: blogsRes.count || 0,
-        totalSearches: totalRelatedSearches,
-        totalWebResults: webResultsCount,
-        totalEmailSubmissions: emailsRes.data?.length || 0,
-      });
-
-      // Create session-like data from email_submissions with related searches info
       const emails = emailsRes.data || [];
-      
-      // Distribute related searches and web results across sessions
-      const sessionData: SessionData[] = emails.map((email: any, index: number) => {
-        // Calculate related searches breakdown for this session
-        const sessionRelatedSearches = relatedSearches.filter((rs: any) => 
-          rs.source === email.source || rs.page_key === email.page_key
-        );
-        
-        // Get web results for breakdown - distribute evenly or filter by source
-        const sessionWebResults = webResults.filter((wr: any) => 
-          wr.source === email.source || wr.page_key === email.page_key
-        );
-        const webResultsForSession = sessionWebResults.length > 0 
-          ? sessionWebResults 
-          : webResults.slice(index * Math.ceil(webResults.length / Math.max(emails.length, 1)), (index + 1) * Math.ceil(webResults.length / Math.max(emails.length, 1)));
-        
-        return {
-          sessionId: email.id || email.email,
-          ipAddress: email.ip_address || 'N/A',
-          country: email.country || 'Unknown',
-          source: email.source || 'email',
-          device: 'desktop',
-          pageViews: 1,
-          totalClicks: 1,
-          uniqueClicks: 1,
-          relatedSearches: sessionRelatedSearches.length || Math.ceil(totalRelatedSearches / Math.max(emails.length, 1)),
-          blogClicks: webResultsForSession.length || Math.ceil(webResultsCount / Math.max(emails.length, 1)),
-          clickBreakdown: {
-            relatedSearches: sessionRelatedSearches.length > 0 
-              ? sessionRelatedSearches.map((rs: any) => ({
-                  text: rs.search_text || rs.title || 'Unknown',
-                  count: 1,
-                }))
-              : relatedSearches.slice(0, Math.ceil(totalRelatedSearches / Math.max(emails.length, 1))).map((rs: any) => ({
-                  text: rs.search_text || rs.title || 'Unknown',
-                  count: 1,
-                })),
-            blogClicks: webResultsForSession.length > 0
-              ? webResultsForSession.map((wr: any) => ({
-                  title: wr.title || wr.target_url || 'Unknown Result',
-                  count: 1,
-                }))
-              : webResults.slice(0, Math.ceil(webResultsCount / Math.max(emails.length, 1))).map((wr: any) => ({
-                  title: wr.title || wr.target_url || 'Unknown Result',
-                  count: 1,
-                })),
-          },
-          lastActive: email.submitted_at || email.created_at || new Date().toISOString(),
-        };
-      });
+      const sessionData: SessionData[] = emails.map((email: any, index: number) => ({
+        sessionId: email.id || email.email,
+        ipAddress: email.ip_address || 'N/A',
+        country: email.country || 'Unknown',
+        source: email.source || 'email',
+        device: 'desktop',
+        pageViews: 1,
+        relatedSearches: Math.ceil((searchesRes.count || 0) / Math.max(emails.length, 1)),
+        blogClicks: Math.ceil((webResultsRes.count || 0) / Math.max(emails.length, 1)),
+        clickBreakdown: {
+          relatedSearches: relatedSearches.slice(0, 5).map((rs: any) => ({ text: rs.search_text || rs.title || 'Unknown', count: 1 })),
+          blogClicks: webResults.slice(0, 5).map((wr: any) => ({ title: wr.title || 'Unknown', count: 1 })),
+        },
+        lastActive: email.submitted_at || email.created_at || new Date().toISOString(),
+      }));
 
-      // Sort by last active descending (latest first)
-      const sortedSessions = sessionData.sort((a, b) => 
-        new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime()
-      );
-
-      setSessions(sortedSessions);
+      setSessions(sessionData.sort((a, b) => new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime()));
     } catch (error) {
       toast.error('Failed to fetch analytics');
-      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
-    return <div>Loading analytics...</div>;
-  }
+  const filteredSessions = sessions.filter(s => {
+    if (!startDate && !endDate) return true;
+    const sessionDate = new Date(s.lastActive);
+    if (startDate && new Date(startDate) > sessionDate) return false;
+    if (endDate) { const end = new Date(endDate); end.setHours(23, 59, 59, 999); if (end < sessionDate) return false; }
+    return true;
+  });
+
+  if (loading) return <div>Loading analytics...</div>;
 
   return (
     <div className="space-y-6">
       <h3 className="text-xl font-semibold">DataCreditZone Analytics</h3>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Total Blogs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-primary">{stats.totalBlogs}</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card><CardHeader><CardTitle className="text-sm">Total Blogs</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{stats.totalBlogs}</p></CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-sm">Related Searches</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{stats.totalSearches}</p></CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-sm">Web Results</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{stats.totalWebResults}</p></CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-sm">Email Submissions</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{stats.totalEmailSubmissions}</p></CardContent></Card>
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Related Searches</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-primary">{stats.totalSearches}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Web Results</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-primary">{stats.totalWebResults}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Email Submissions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-primary">{stats.totalEmailSubmissions}</p>
-          </CardContent>
-        </Card>
+      <div className="flex flex-wrap items-center gap-4 p-4 bg-muted/50 rounded-lg border">
+        <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-muted-foreground" /><span className="text-sm text-muted-foreground">Filter by Date:</span></div>
+        <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-40" />
+        <span className="text-muted-foreground">to</span>
+        <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-40" />
+        <Button variant="outline" size="sm" onClick={() => { setStartDate(''); setEndDate(''); }}>Clear</Button>
+        <Button onClick={fetchAnalytics} variant="outline" size="sm"><RefreshCw className="mr-2 h-4 w-4" /> Refresh</Button>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Session Analytics</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Session Analytics ({filteredSessions.length} sessions)</CardTitle></CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Session ID</TableHead>
-                <TableHead>IP Address</TableHead>
-                <TableHead>Country</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Device</TableHead>
-                <TableHead className="text-center">Page Views</TableHead>
-                <TableHead className="text-center">Clicks (Total/Unique)</TableHead>
-                <TableHead className="text-center">Related Searches</TableHead>
-                <TableHead className="text-center">Result Clicks</TableHead>
-                <TableHead>Last Active</TableHead>
+                <TableHead>Session ID</TableHead><TableHead>IP Address</TableHead><TableHead>Country</TableHead><TableHead>Source</TableHead>
+                <TableHead className="text-center">Related Searches</TableHead><TableHead className="text-center">Result Clicks</TableHead><TableHead>Last Active</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sessions.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={10} className="text-center text-muted-foreground">
-                    No session data available
-                  </TableCell>
-                </TableRow>
+              {filteredSessions.length === 0 ? (
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No session data available</TableCell></TableRow>
               ) : (
-                sessions.map((session) => (
+                filteredSessions.map((session) => (
                   <TableRow key={session.sessionId}>
-                    <TableCell className="font-mono text-xs">
-                      {session.sessionId.substring(0, 20)}...
-                    </TableCell>
+                    <TableCell className="font-mono text-xs">{session.sessionId.substring(0, 20)}...</TableCell>
                     <TableCell>{session.ipAddress}</TableCell>
                     <TableCell>{session.country}</TableCell>
                     <TableCell>{session.source}</TableCell>
-                    <TableCell>{session.device}</TableCell>
-                    <TableCell className="text-center">{session.pageViews}</TableCell>
-                    <TableCell className="text-center">{session.totalClicks} / {session.uniqueClicks}</TableCell>
                     <TableCell className="text-center">
                       <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-auto p-0">
-                            <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800">
-                              Total: {session.relatedSearches}
-                            </Badge>
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Related Search Clicks Breakdown</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-2">
-                            {session.clickBreakdown.relatedSearches.length > 0 ? (
-                              session.clickBreakdown.relatedSearches.map((item, idx) => (
-                                <div key={idx} className="flex justify-between items-center p-2 bg-muted rounded">
-                                  <span className="text-sm">{item.text}</span>
-                                  <Badge>{item.count} clicks</Badge>
-                                </div>
-                              ))
-                            ) : (
-                              <p className="text-sm text-muted-foreground">No related search clicks</p>
-                            )}
-                          </div>
-                        </DialogContent>
+                        <DialogTrigger asChild><Button variant="ghost" size="sm" className="h-auto p-0"><Badge variant="secondary" className="cursor-pointer">Total: {session.relatedSearches}</Badge></Button></DialogTrigger>
+                        <DialogContent><DialogHeader><DialogTitle>Related Search Clicks</DialogTitle></DialogHeader><div className="space-y-2">{session.clickBreakdown.relatedSearches.map((item, idx) => <div key={idx} className="flex justify-between p-2 bg-muted rounded"><span>{item.text}</span><Badge>{item.count}</Badge></div>)}</div></DialogContent>
                       </Dialog>
                     </TableCell>
                     <TableCell className="text-center">
                       <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-auto p-0">
-                            <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100 cursor-pointer hover:bg-orange-200 dark:hover:bg-orange-800">
-                              Total: {session.blogClicks}
-                            </Badge>
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Result Clicks Breakdown</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-2">
-                            {session.clickBreakdown.blogClicks.length > 0 ? (
-                              session.clickBreakdown.blogClicks.map((item, idx) => (
-                                <div key={idx} className="flex justify-between items-center p-2 bg-muted rounded">
-                                  <span className="text-sm truncate max-w-[200px]">{item.title}</span>
-                                  <Badge>{item.count} clicks</Badge>
-                                </div>
-                              ))
-                            ) : (
-                              <p className="text-sm text-muted-foreground">No result clicks</p>
-                            )}
-                          </div>
-                        </DialogContent>
+                        <DialogTrigger asChild><Button variant="ghost" size="sm" className="h-auto p-0"><Badge variant="secondary" className="cursor-pointer">Total: {session.blogClicks}</Badge></Button></DialogTrigger>
+                        <DialogContent><DialogHeader><DialogTitle>Result Clicks</DialogTitle></DialogHeader><div className="space-y-2">{session.clickBreakdown.blogClicks.map((item, idx) => <div key={idx} className="flex justify-between p-2 bg-muted rounded"><span className="truncate max-w-[200px]">{item.title}</span><Badge>{item.count}</Badge></div>)}</div></DialogContent>
                       </Dialog>
                     </TableCell>
-                    <TableCell className="text-sm whitespace-nowrap">
-                      {new Date(session.lastActive).toLocaleString()}
-                    </TableCell>
+                    <TableCell className="text-sm"><div>{new Date(session.lastActive).toLocaleDateString()}</div><div className="text-[10px]">{new Date(session.lastActive).toLocaleTimeString()}</div></TableCell>
                   </TableRow>
                 ))
               )}

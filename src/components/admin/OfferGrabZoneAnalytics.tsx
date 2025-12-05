@@ -3,7 +3,8 @@ import { offerGrabZoneClient } from "@/integrations/offergrabzone/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Eye, MousePointer, Search, Link, Globe, Monitor, Smartphone, ChevronDown, ChevronUp } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Users, Eye, MousePointer, Search, Link, Globe, Monitor, Smartphone, ChevronDown, ChevronUp, Calendar, RefreshCw } from "lucide-react";
 
 interface Session {
   id: string;
@@ -54,6 +55,8 @@ export const OfferGrabZoneAnalytics = () => {
   });
   const [loading, setLoading] = useState(true);
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   useEffect(() => {
     fetchAnalytics();
@@ -100,13 +103,25 @@ export const OfferGrabZoneAnalytics = () => {
   };
 
   const getCountryFlag = (countryCode: string) => {
-    if (!countryCode || countryCode === 'XX') return '🌍';
+    if (!countryCode || countryCode === 'XX' || countryCode === 'WW') return '🌍';
     const codePoints = countryCode
       .toUpperCase()
       .split('')
       .map(char => 127397 + char.charCodeAt(0));
     return String.fromCodePoint(...codePoints);
   };
+
+  const filteredSessions = sessions.filter(session => {
+    if (!startDate && !endDate) return true;
+    const sessionDate = new Date(session.last_active);
+    if (startDate && new Date(startDate) > sessionDate) return false;
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      if (end < sessionDate) return false;
+    }
+    return true;
+  });
 
   if (loading) {
     return (
@@ -118,6 +133,42 @@ export const OfferGrabZoneAnalytics = () => {
 
   return (
     <div className="space-y-6">
+      {/* Date Filter */}
+      <div className="flex flex-wrap items-center gap-4 p-4 bg-zinc-900 rounded-lg border border-zinc-800">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-zinc-400" />
+          <span className="text-sm text-zinc-400">Filter by Date:</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="bg-zinc-800 border-zinc-700 text-white w-40"
+            placeholder="Start Date"
+          />
+          <span className="text-zinc-500">to</span>
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="bg-zinc-800 border-zinc-700 text-white w-40"
+            placeholder="End Date"
+          />
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => { setStartDate(""); setEndDate(""); }}
+          className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+        >
+          Clear
+        </Button>
+        <Button onClick={fetchAnalytics} variant="outline" size="sm" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">
+          <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+        </Button>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="bg-zinc-900 border-zinc-800">
@@ -180,7 +231,7 @@ export const OfferGrabZoneAnalytics = () => {
       {/* Sessions Table */}
       <Card className="bg-zinc-900 border-zinc-800">
         <CardHeader className="bg-amber-500/10 border-b border-zinc-800">
-          <CardTitle className="text-amber-400">Session Analytics</CardTitle>
+          <CardTitle className="text-amber-400">Session Analytics ({filteredSessions.length} sessions)</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -200,94 +251,97 @@ export const OfferGrabZoneAnalytics = () => {
                 </tr>
               </thead>
               <tbody>
-                {sessions.map((session) => (
-                  <>
-                    <tr key={session.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
-                      <td className="p-3 text-white font-mono text-sm">{session.session_id.slice(0, 12)}...</td>
-                      <td className="p-3 text-zinc-300">{session.ip_address || '-'}</td>
-                      <td className="p-3">
-                        <Badge variant="outline" className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
-                          {getCountryFlag(session.country_code)} {session.country || 'Unknown'}
-                        </Badge>
-                      </td>
-                      <td className="p-3">
-                        <Badge className="bg-cyan-600 text-white">{session.source}</Badge>
-                      </td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-2 text-zinc-300">
-                          {session.device === 'mobile' ? (
-                            <Smartphone className="w-4 h-4" />
-                          ) : (
-                            <Monitor className="w-4 h-4" />
-                          )}
-                          {session.device}
+                {filteredSessions.map((session) => (
+                  <tr key={session.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                    <td className="p-3 text-white font-mono text-sm">{session.session_id.slice(0, 12)}...</td>
+                    <td className="p-3 text-zinc-300">{session.ip_address || '-'}</td>
+                    <td className="p-3">
+                      <Badge variant="outline" className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
+                        {getCountryFlag(session.country_code)} {session.country || 'Unknown'}
+                      </Badge>
+                    </td>
+                    <td className="p-3">
+                      <Badge className="bg-cyan-600 text-white">{session.source}</Badge>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-2 text-zinc-300">
+                        {session.device === 'mobile' ? (
+                          <Smartphone className="w-4 h-4" />
+                        ) : (
+                          <Monitor className="w-4 h-4" />
+                        )}
+                        {session.device}
+                      </div>
+                    </td>
+                    <td className="p-3 text-white font-medium">{session.page_views}</td>
+                    <td className="p-3 text-white font-medium">{session.totalClicks}</td>
+                    <td className="p-3">
+                      {session.relatedSearchClicks > 0 ? (
+                        <div className="flex flex-col items-start gap-1">
+                          <Badge className="bg-cyan-500 text-white">Total: {session.relatedSearchClicks}</Badge>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-cyan-400 text-xs p-0 h-auto"
+                            onClick={() => setExpandedSession(expandedSession === session.id ? null : session.id)}
+                          >
+                            {expandedSession === session.id ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
+                            View breakdown
+                          </Button>
+                          <span className="text-zinc-500 text-xs">Unique: {session.relatedSearchClicks}</span>
+                        </div>
+                      ) : (
+                        <span className="text-zinc-500">-</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      {session.webResultClicks > 0 ? (
+                        <div className="flex flex-col items-start gap-1">
+                          <Badge className="bg-amber-500 text-white">Total: {session.webResultClicks}</Badge>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-amber-400 text-xs p-0 h-auto"
+                            onClick={() => setExpandedSession(expandedSession === session.id ? null : session.id)}
+                          >
+                            {expandedSession === session.id ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
+                            View breakdown
+                          </Button>
+                          <span className="text-zinc-500 text-xs">Unique: {session.webResultClicks}</span>
+                        </div>
+                      ) : (
+                        <span className="text-zinc-500">-</span>
+                      )}
+                    </td>
+                    <td className="p-3 text-zinc-400 text-sm">
+                      <div>
+                        <div>{new Date(session.last_active).toLocaleDateString()}</div>
+                        <div className="text-[10px]">{new Date(session.last_active).toLocaleTimeString()}</div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filteredSessions.map((session) => (
+                  expandedSession === session.id && session.clickBreakdown.length > 0 && (
+                    <tr key={`${session.id}-breakdown`}>
+                      <td colSpan={10} className="bg-zinc-950 p-4">
+                        <div className="text-sm text-zinc-400 mb-2">Click Breakdown:</div>
+                        <div className="space-y-2">
+                          {session.clickBreakdown.map((click) => (
+                            <div key={click.id} className="flex items-center gap-4 p-2 bg-zinc-900 rounded border border-zinc-800">
+                              <Badge className={click.click_type === 'related_search' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-amber-500/20 text-amber-400'}>
+                                {click.click_type === 'related_search' ? 'Related Search' : 'Web Result'}
+                              </Badge>
+                              <span className="text-white">{click.item_name || 'Unknown'}</span>
+                              <span className="text-zinc-500 text-sm ml-auto">
+                                {new Date(click.clicked_at).toLocaleString()}
+                              </span>
+                            </div>
+                          ))}
                         </div>
                       </td>
-                      <td className="p-3 text-white font-medium">{session.page_views}</td>
-                      <td className="p-3 text-white font-medium">{session.totalClicks}</td>
-                      <td className="p-3">
-                        {session.relatedSearchClicks > 0 ? (
-                          <div className="flex flex-col items-start gap-1">
-                            <Badge className="bg-cyan-500 text-white">Total: {session.relatedSearchClicks}</Badge>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="text-cyan-400 text-xs p-0 h-auto"
-                              onClick={() => setExpandedSession(expandedSession === session.id ? null : session.id)}
-                            >
-                              {expandedSession === session.id ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
-                              View breakdown
-                            </Button>
-                            <span className="text-zinc-500 text-xs">Unique: {session.relatedSearchClicks}</span>
-                          </div>
-                        ) : (
-                          <span className="text-zinc-500">-</span>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        {session.webResultClicks > 0 ? (
-                          <div className="flex flex-col items-start gap-1">
-                            <Badge className="bg-amber-500 text-white">Total: {session.webResultClicks}</Badge>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="text-amber-400 text-xs p-0 h-auto"
-                              onClick={() => setExpandedSession(expandedSession === session.id ? null : session.id)}
-                            >
-                              {expandedSession === session.id ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
-                              View breakdown
-                            </Button>
-                            <span className="text-zinc-500 text-xs">Unique: {session.webResultClicks}</span>
-                          </div>
-                        ) : (
-                          <span className="text-zinc-500">-</span>
-                        )}
-                      </td>
-                      <td className="p-3 text-zinc-400 text-sm">
-                        {new Date(session.last_active).toLocaleString()}
-                      </td>
                     </tr>
-                    {expandedSession === session.id && session.clickBreakdown.length > 0 && (
-                      <tr key={`${session.id}-breakdown`}>
-                        <td colSpan={10} className="bg-zinc-950 p-4">
-                          <div className="text-sm text-zinc-400 mb-2">Click Breakdown:</div>
-                          <div className="space-y-2">
-                            {session.clickBreakdown.map((click) => (
-                              <div key={click.id} className="flex items-center gap-4 p-2 bg-zinc-900 rounded border border-zinc-800">
-                                <Badge className={click.click_type === 'related_search' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-amber-500/20 text-amber-400'}>
-                                  {click.click_type === 'related_search' ? 'Related Search' : 'Web Result'}
-                                </Badge>
-                                <span className="text-white">{click.item_name || 'Unknown'}</span>
-                                <span className="text-zinc-500 text-sm ml-auto">
-                                  {new Date(click.clicked_at).toLocaleString()}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </>
+                  )
                 ))}
               </tbody>
             </table>
