@@ -67,9 +67,26 @@ const COUNTRIES = [
   { code: 'IN', name: 'India' },
 ];
 
-const OfferGrabZoneManager = () => {
-  const [activeTab, setActiveTab] = useState("landing");
+interface OfferGrabZoneManagerProps {
+  initialTab?: string;
+}
+
+const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerProps) => {
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Sync activeTab when initialTab prop changes
+  useEffect(() => {
+    if (initialTab) {
+      const tabMap: Record<string, string> = {
+        'landing': 'landing',
+        'searches': 'searches',
+        'webresults': 'webresults',
+        'prelanding': 'prelandings'
+      };
+      setActiveTab(tabMap[initialTab] || initialTab);
+    }
+  }, [initialTab]);
 
   // Landing Content
   const [landingContent, setLandingContent] = useState<LandingContent | null>(null);

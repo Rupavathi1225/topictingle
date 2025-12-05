@@ -55,9 +55,26 @@ interface Prelanding {
   is_active: boolean;
 }
 
-export const MingleMoodyManager = () => {
-  const [activeTab, setActiveTab] = useState("landing");
+interface MingleMoodyManagerProps {
+  initialTab?: string;
+}
+
+export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManagerProps) => {
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Sync activeTab when initialTab prop changes
+  useEffect(() => {
+    if (initialTab) {
+      const tabMap: Record<string, string> = {
+        'landing': 'landing',
+        'searches': 'searches',
+        'webresults': 'webresults',
+        'prelanding': 'prelandings'
+      };
+      setActiveTab(tabMap[initialTab] || initialTab);
+    }
+  }, [initialTab]);
 
   // Landing Content
   const [landingContent, setLandingContent] = useState<LandingContent | null>(null);
