@@ -1,17 +1,17 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { mingleMoodyClient } from "@/integrations/minglemoody/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Pencil, Trash2, Eye, Plus } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Trash2, Edit, Plus, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface RelatedSearch {
   id: string;
@@ -28,12 +28,18 @@ interface WebResult {
   web_result_page: number;
   title: string;
   description: string | null;
-  original_link: string;
   logo_url: string | null;
+  original_link: string;
   position: number;
   prelanding_key: string | null;
   is_sponsored: boolean;
   is_active: boolean;
+}
+
+interface LandingContent {
+  id: string;
+  title: string;
+  description: string;
 }
 
 interface Prelanding {
@@ -48,686 +54,502 @@ interface Prelanding {
   is_active: boolean;
 }
 
-interface LandingContent {
-  id: string;
-  title: string;
-  description: string;
-  created_at: string | null;
-  updated_at: string | null;
-}
-
-interface ClickDetail {
-  id: string;
-  ip_address: string | null;
-  country: string | null;
-  device_type: string | null;
-  timestamp: string | null;
-}
-
 export const MingleMoodyManager = () => {
-  // Related Searches State
-  const [searches, setSearches] = useState<RelatedSearch[]>([]);
-  const [searchText, setSearchText] = useState("");
-  const [searchTitle, setSearchTitle] = useState("");
-  const [webResultPage, setWebResultPage] = useState(1);
-  const [searchPosition, setSearchPosition] = useState(1);
-  const [searchDisplayOrder, setSearchDisplayOrder] = useState(0);
-  const [searchIsActive, setSearchIsActive] = useState(true);
-  const [editingSearchId, setEditingSearchId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("landing");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Web Results State
-  const [results, setResults] = useState<WebResult[]>([]);
-  const [resultTitle, setResultTitle] = useState("");
-  const [resultDescription, setResultDescription] = useState("");
-  const [originalLink, setOriginalLink] = useState("");
-  const [logoUrl, setLogoUrl] = useState("");
-  const [resultWebResultPage, setResultWebResultPage] = useState(1);
-  const [selectedRelatedSearchId, setSelectedRelatedSearchId] = useState<string>("");
-  const [resultPosition, setResultPosition] = useState(0);
-  const [prelandingKey, setPrelandingKey] = useState("");
-  const [isSponsored, setIsSponsored] = useState(false);
-  const [resultIsActive, setResultIsActive] = useState(true);
-  const [editingResultId, setEditingResultId] = useState<string | null>(null);
-
-  // Prelandings State
-  const [prelandings, setPrelandings] = useState<Prelanding[]>([]);
-  const [plKey, setPlKey] = useState("");
-  const [plLogoUrl, setPlLogoUrl] = useState("");
-  const [plMainImage, setPlMainImage] = useState("");
-  const [plHeadline, setPlHeadline] = useState("");
-  const [plSubtitle, setPlSubtitle] = useState("");
-  const [plDescription, setPlDescription] = useState("");
-  const [plRedirectDesc, setPlRedirectDesc] = useState("You will be redirected to...");
-  const [plIsActive, setPlIsActive] = useState(true);
-  const [editingPlId, setEditingPlId] = useState<string | null>(null);
-
-  // Landing Content State
+  // Landing Content
   const [landingContent, setLandingContent] = useState<LandingContent | null>(null);
-  const [lcTitle, setLcTitle] = useState("Mingle Moody");
-  const [lcDescription, setLcDescription] = useState("Discover the best platforms for connecting, sharing, and engaging with people worldwide.");
 
-  // Breakdown Dialog
-  const [showBreakdown, setShowBreakdown] = useState(false);
-  const [clickDetails, setClickDetails] = useState<ClickDetail[]>([]);
-  const [selectedItemName, setSelectedItemName] = useState("");
+  // Related Searches
+  const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
+  const [searchDialog, setSearchDialog] = useState(false);
+  const [editingSearch, setEditingSearch] = useState<RelatedSearch | null>(null);
+  const [searchForm, setSearchForm] = useState({
+    search_text: "", title: "", web_result_page: 1, position: 1, display_order: 0, is_active: true
+  });
+
+  // Web Results
+  const [webResults, setWebResults] = useState<WebResult[]>([]);
+  const [selectedPage, setSelectedPage] = useState(1);
+  const [webResultDialog, setWebResultDialog] = useState(false);
+  const [editingWebResult, setEditingWebResult] = useState<WebResult | null>(null);
+  const [selectedSearchForResult, setSelectedSearchForResult] = useState<string>("");
+  const [webResultForm, setWebResultForm] = useState({
+    title: "", description: "", logo_url: "", original_link: "",
+    web_result_page: 1, position: 0, prelanding_key: "", is_active: true
+  });
+
+  // Prelandings
+  const [prelandings, setPrelandings] = useState<Prelanding[]>([]);
+  const [prelandingDialog, setPrelandingDialog] = useState(false);
+  const [editingPrelanding, setEditingPrelanding] = useState<Prelanding | null>(null);
+  const [prelandingForm, setPrelandingForm] = useState({
+    key: "", logo_url: "", main_image_url: "", headline: "", subtitle: "",
+    description: "", redirect_description: "You will be redirected to...", is_active: true
+  });
 
   useEffect(() => {
-    fetchSearches();
-    fetchResults();
-    fetchPrelandings();
-    fetchLandingContent();
+    fetchAll();
   }, []);
 
-  // Fetch Functions
-  const fetchSearches = async () => {
-    const { data } = await mingleMoodyClient.from('related_searches').select('*').order('display_order');
-    if (data) setSearches(data);
-  };
+  useEffect(() => {
+    if (activeTab === "webresults") fetchWebResults();
+  }, [selectedPage]);
 
-  const fetchResults = async () => {
-    const { data } = await mingleMoodyClient.from('web_results').select('*').order('web_result_page').order('position');
-    if (data) setResults(data);
+  const fetchAll = async () => {
+    await Promise.all([
+      fetchLandingContent(),
+      fetchRelatedSearches(),
+      fetchWebResults(),
+      fetchPrelandings()
+    ]);
   };
 
   const fetchLandingContent = async () => {
-    const { data } = await mingleMoodyClient.from('landing_content').select('*').limit(1).single();
-    if (data) {
-      setLandingContent(data);
-      setLcTitle(data.title);
-      setLcDescription(data.description);
-    }
+    const { data } = await mingleMoodyClient.from("landing_content").select("*").limit(1).maybeSingle();
+    if (data) setLandingContent(data);
+  };
+
+  const fetchRelatedSearches = async () => {
+    const { data, error } = await mingleMoodyClient.from("related_searches").select("*").order("display_order");
+    if (error) toast.error("Failed to fetch related searches");
+    else setRelatedSearches(data || []);
+  };
+
+  const fetchWebResults = async () => {
+    const { data, error } = await mingleMoodyClient
+      .from("web_results")
+      .select("*")
+      .eq("web_result_page", selectedPage)
+      .order("position");
+    if (error) toast.error("Failed to fetch web results");
+    else setWebResults(data || []);
   };
 
   const fetchPrelandings = async () => {
-    const { data } = await mingleMoodyClient.from('prelandings').select('*').order('created_at', { ascending: false });
+    const { data } = await mingleMoodyClient.from("prelandings").select("*").order("created_at", { ascending: false });
     if (data) setPrelandings(data);
   };
 
-  // Related Search Handlers
-  const handleSaveSearch = async () => {
-    if (!searchText) {
-      toast.error("Search text is required");
-      return;
-    }
-
-    const payload = {
-      search_text: searchText,
-      title: searchTitle || searchText,
-      web_result_page: webResultPage,
-      position: searchPosition,
-      display_order: searchDisplayOrder,
-      is_active: searchIsActive
-    };
-
-    if (editingSearchId) {
-      const { error } = await mingleMoodyClient.from('related_searches').update(payload).eq('id', editingSearchId);
-      if (error) toast.error("Error updating: " + error.message);
-      else toast.success("Search updated!");
-    } else {
-      const { error } = await mingleMoodyClient.from('related_searches').insert(payload);
-      if (error) toast.error("Error creating: " + error.message);
-      else toast.success("Search created!");
-    }
-
-    resetSearchForm();
-    fetchSearches();
+  // Landing Content CRUD
+  const handleSaveLanding = async () => {
+    if (!landingContent) return;
+    const { error } = await mingleMoodyClient
+      .from("landing_content")
+      .update({ title: landingContent.title, description: landingContent.description, updated_at: new Date().toISOString() })
+      .eq("id", landingContent.id);
+    if (error) toast.error("Failed to save landing settings");
+    else toast.success("Landing settings saved");
   };
 
-  const handleEditSearch = (search: RelatedSearch) => {
-    setEditingSearchId(search.id);
-    setSearchText(search.search_text);
-    setSearchTitle(search.title || "");
-    setWebResultPage(search.web_result_page);
-    setSearchPosition(search.position);
-    setSearchDisplayOrder(search.display_order);
-    setSearchIsActive(search.is_active);
+  // Related Search CRUD
+  const handleSearchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const data = { ...searchForm, title: searchForm.title || searchForm.search_text };
+
+    if (editingSearch) {
+      const { error } = await mingleMoodyClient.from("related_searches").update(data).eq("id", editingSearch.id);
+      if (error) toast.error("Failed to update");
+      else { toast.success("Updated"); fetchRelatedSearches(); resetSearchForm(); }
+    } else {
+      const { error } = await mingleMoodyClient.from("related_searches").insert([data]);
+      if (error) toast.error("Failed to create");
+      else { toast.success("Created"); fetchRelatedSearches(); resetSearchForm(); }
+    }
   };
 
   const handleDeleteSearch = async (id: string) => {
-    if (!confirm("Delete this search? This will also delete related click tracking data.")) return;
-    // First delete related click_tracking records
-    await mingleMoodyClient.from('click_tracking').delete().eq('related_search_id', id);
-    const { error } = await mingleMoodyClient.from('related_searches').delete().eq('id', id);
-    if (error) toast.error("Error: " + error.message);
-    else toast.success("Deleted!");
-    fetchSearches();
+    if (confirm("Delete this search?")) {
+      await mingleMoodyClient.from('click_tracking').delete().eq('related_search_id', id);
+      const { error } = await mingleMoodyClient.from("related_searches").delete().eq("id", id);
+      if (error) toast.error("Failed to delete");
+      else { toast.success("Deleted"); fetchRelatedSearches(); }
+    }
   };
 
   const resetSearchForm = () => {
-    setEditingSearchId(null);
-    setSearchText("");
-    setSearchTitle("");
-    setWebResultPage(1);
-    setSearchPosition(1);
-    setSearchDisplayOrder(0);
-    setSearchIsActive(true);
+    setSearchForm({ search_text: "", title: "", web_result_page: 1, position: 1, display_order: 0, is_active: true });
+    setEditingSearch(null);
+    setSearchDialog(false);
   };
 
-  // Web Result Handlers
-  const handleSaveResult = async () => {
-    if (!resultTitle || !originalLink) {
-      toast.error("Title and link are required");
-      return;
+  // Web Result CRUD
+  const handleWebResultSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    let pageNumber = webResultForm.web_result_page;
+    if (selectedSearchForResult && !editingWebResult) {
+      const selectedSearch = relatedSearches.find(s => s.id === selectedSearchForResult);
+      if (selectedSearch) pageNumber = selectedSearch.web_result_page;
     }
+    
+    const data = { ...webResultForm, web_result_page: pageNumber, prelanding_key: webResultForm.prelanding_key || null };
 
-    const payload: any = {
-      title: resultTitle,
-      description: resultDescription || null,
-      original_link: originalLink,
-      logo_url: logoUrl || null,
-      web_result_page: resultWebResultPage,
-      position: resultPosition,
-      prelanding_key: prelandingKey || null,
-      is_active: resultIsActive
-    };
-
-    if (editingResultId) {
-      const { error } = await mingleMoodyClient.from('web_results').update(payload).eq('id', editingResultId);
-      if (error) toast.error("Error updating: " + error.message);
-      else toast.success("Web result updated!");
+    if (editingWebResult) {
+      const { error } = await mingleMoodyClient.from("web_results").update(data).eq("id", editingWebResult.id);
+      if (error) toast.error("Failed to update");
+      else { toast.success("Updated"); fetchWebResults(); resetWebResultForm(); }
     } else {
-      const { error } = await mingleMoodyClient.from('web_results').insert(payload);
-      if (error) toast.error("Error creating: " + error.message);
-      else toast.success("Web result created!");
+      if (!selectedSearchForResult) {
+        toast.error("Please select a related search first");
+        return;
+      }
+      const { error } = await mingleMoodyClient.from("web_results").insert([data]);
+      if (error) toast.error("Failed to create");
+      else { toast.success("Created"); fetchWebResults(); resetWebResultForm(); }
     }
-
-    resetResultForm();
-    fetchResults();
   };
 
-  const handleEditResult = (result: WebResult) => {
-    setEditingResultId(result.id);
-    setResultTitle(result.title);
-    setResultDescription(result.description || "");
-    setOriginalLink((result as any).original_link);
-    setLogoUrl(result.logo_url || "");
-    setResultWebResultPage(result.web_result_page);
-    // Find matching related search by page
-    const matchingSearch = searches.find(s => s.web_result_page === result.web_result_page);
-    setSelectedRelatedSearchId(matchingSearch?.id || "");
-    setResultPosition(result.position);
-    setPrelandingKey(result.prelanding_key || "");
-    setIsSponsored(result.is_sponsored || false);
-    setResultIsActive(result.is_active);
-  };
-
-  const handleDeleteResult = async (id: string) => {
-    if (!confirm("Delete this web result? This will also delete related tracking data.")) return;
-    // Delete related records from all tracking tables
-    await mingleMoodyClient.from('click_tracking').delete().eq('link_id', id);
-    await mingleMoodyClient.from('link_clicks').delete().eq('web_result_id', id);
-    const { error } = await mingleMoodyClient.from('web_results').delete().eq('id', id);
-    if (error) toast.error("Error: " + error.message);
-    else toast.success("Deleted!");
-    fetchResults();
-  };
-
-  const resetResultForm = () => {
-    setEditingResultId(null);
-    setResultTitle("");
-    setResultDescription("");
-    setOriginalLink("");
-    setLogoUrl("");
-    setResultWebResultPage(1);
-    setSelectedRelatedSearchId("");
-    setResultPosition(0);
-    setPrelandingKey("");
-    setIsSponsored(false);
-    setResultIsActive(true);
-  };
-
-  // Prelanding Handlers
-  const generateKey = (text: string) => {
-    return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString(36);
-  };
-
-  const handleSavePrelanding = async () => {
-    if (!plHeadline) {
-      toast.error("Headline is required");
-      return;
+  const handleDeleteWebResult = async (id: string) => {
+    if (confirm("Delete this web result?")) {
+      await mingleMoodyClient.from('click_tracking').delete().eq('link_id', id);
+      await mingleMoodyClient.from('link_clicks').delete().eq('web_result_id', id);
+      const { error } = await mingleMoodyClient.from("web_results").delete().eq("id", id);
+      if (error) toast.error("Failed to delete");
+      else { toast.success("Deleted"); fetchWebResults(); }
     }
+  };
 
-    const payload = {
-      key: editingPlId ? undefined : generateKey(plHeadline),
-      logo_url: plLogoUrl || null,
-      main_image_url: plMainImage || null,
-      headline: plHeadline,
-      subtitle: plSubtitle || null,
-      description: plDescription || null,
-      redirect_description: plRedirectDesc || null,
-      is_active: plIsActive
-    };
+  const resetWebResultForm = () => {
+    setWebResultForm({
+      title: "", description: "", logo_url: "", original_link: "",
+      web_result_page: selectedPage, position: 0, prelanding_key: "", is_active: true
+    });
+    setSelectedSearchForResult("");
+    setEditingWebResult(null);
+    setWebResultDialog(false);
+  };
 
-    if (editingPlId) {
-      const { error } = await mingleMoodyClient.from('prelandings').update(payload).eq('id', editingPlId);
-      if (error) toast.error("Error updating: " + error.message);
-      else toast.success("Prelanding updated!");
+  // Prelanding CRUD
+  const generateKey = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString(36);
+
+  const handlePrelandingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const data = { ...prelandingForm, key: editingPrelanding ? prelandingForm.key : generateKey(prelandingForm.headline) };
+
+    if (editingPrelanding) {
+      const { error } = await mingleMoodyClient.from("prelandings").update(data).eq("id", editingPrelanding.id);
+      if (error) toast.error("Failed to update");
+      else { toast.success("Updated"); fetchPrelandings(); resetPrelandingForm(); }
     } else {
-      const { error } = await mingleMoodyClient.from('prelandings').insert({ ...payload, key: generateKey(plHeadline) });
-      if (error) toast.error("Error creating: " + error.message);
-      else toast.success("Prelanding created!");
+      const { error } = await mingleMoodyClient.from("prelandings").insert([data]);
+      if (error) toast.error("Failed to create");
+      else { toast.success("Created"); fetchPrelandings(); resetPrelandingForm(); }
     }
-
-    resetPlForm();
-    fetchPrelandings();
-  };
-
-  const handleEditPrelanding = (pl: Prelanding) => {
-    setEditingPlId(pl.id);
-    setPlKey(pl.key);
-    setPlLogoUrl(pl.logo_url || "");
-    setPlMainImage(pl.main_image_url || "");
-    setPlHeadline(pl.headline);
-    setPlSubtitle(pl.subtitle || "");
-    setPlDescription(pl.description || "");
-    setPlRedirectDesc(pl.redirect_description || "");
-    setPlIsActive(pl.is_active);
   };
 
   const handleDeletePrelanding = async (id: string) => {
-    if (!confirm("Delete this prelanding?")) return;
-    const { error } = await mingleMoodyClient.from('prelandings').delete().eq('id', id);
-    if (error) toast.error("Error: " + error.message);
-    else toast.success("Deleted!");
-    fetchPrelandings();
-  };
-
-  const resetPlForm = () => {
-    setEditingPlId(null);
-    setPlKey("");
-    setPlLogoUrl("");
-    setPlMainImage("");
-    setPlHeadline("");
-    setPlSubtitle("");
-    setPlDescription("");
-    setPlRedirectDesc("You will be redirected to...");
-    setPlIsActive(true);
-  };
-
-  // Landing Content Handler
-  const handleSaveLandingContent = async () => {
-    const payload = {
-      title: lcTitle,
-      description: lcDescription,
-      updated_at: new Date().toISOString()
-    };
-
-    if (landingContent?.id) {
-      const { error } = await mingleMoodyClient.from('landing_content').update(payload).eq('id', landingContent.id);
-      if (error) toast.error("Error updating: " + error.message);
-      else toast.success("Landing content updated!");
-    } else {
-      const { error } = await mingleMoodyClient.from('landing_content').insert(payload);
-      if (error) toast.error("Error creating: " + error.message);
-      else toast.success("Landing content created!");
+    if (confirm("Delete this prelanding?")) {
+      const { error } = await mingleMoodyClient.from("prelandings").delete().eq("id", id);
+      if (error) toast.error("Failed to delete");
+      else { toast.success("Deleted"); fetchPrelandings(); }
     }
-    fetchLandingContent();
   };
 
-  // View Breakdown
-  const handleViewSearchBreakdown = async (search: RelatedSearch) => {
-    const { data } = await mingleMoodyClient
-      .from('click_tracking')
-      .select('*')
-      .eq('related_search_id', search.id)
-      .order('timestamp', { ascending: false });
-    setClickDetails(data || []);
-    setSelectedItemName(search.search_text);
-    setShowBreakdown(true);
+  const resetPrelandingForm = () => {
+    setPrelandingForm({
+      key: "", logo_url: "", main_image_url: "", headline: "", subtitle: "",
+      description: "", redirect_description: "You will be redirected to...", is_active: true
+    });
+    setEditingPrelanding(null);
+    setPrelandingDialog(false);
   };
 
-  const handleViewResultBreakdown = async (result: WebResult) => {
-    const { data } = await mingleMoodyClient
-      .from('click_tracking')
-      .select('*')
-      .eq('link_id', result.id)
-      .order('timestamp', { ascending: false });
-    setClickDetails(data || []);
-    setSelectedItemName(result.title);
-    setShowBreakdown(true);
-  };
+  const filteredSearches = relatedSearches.filter(s =>
+    s.search_text.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (s.title || "").toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredWebResults = webResults.filter(w =>
+    w.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div className="space-y-6">
-      <Tabs defaultValue="landing" className="space-y-6">
-        <TabsList className="bg-zinc-900 border border-cyan-800">
-          <TabsTrigger value="landing" className="data-[state=active]:bg-cyan-600">Landing Content</TabsTrigger>
-          <TabsTrigger value="searches" className="data-[state=active]:bg-cyan-600">Related Searches</TabsTrigger>
-          <TabsTrigger value="webresults" className="data-[state=active]:bg-cyan-600">Web Results</TabsTrigger>
-          <TabsTrigger value="prelandings" className="data-[state=active]:bg-cyan-600">Prelandings</TabsTrigger>
-        </TabsList>
+    <Card className="bg-[#1a2942] border-[#2a3f5f] text-white">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-white">
+          <span className="text-2xl">🎭</span> MingleMoody Manager
+        </CardTitle>
+        <CardDescription className="text-gray-400">Manage landing page, related searches, web results, and prelandings</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-4 bg-[#0d1520]">
+            <TabsTrigger value="landing" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">Landing</TabsTrigger>
+            <TabsTrigger value="searches" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">Searches ({relatedSearches.length})</TabsTrigger>
+            <TabsTrigger value="webresults" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">Web Results ({webResults.length})</TabsTrigger>
+            <TabsTrigger value="prelandings" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">Prelandings ({prelandings.length})</TabsTrigger>
+          </TabsList>
 
-        {/* Landing Content Tab */}
-        <TabsContent value="landing">
-          <Card className="bg-zinc-900 border-cyan-800">
-            <CardHeader className="bg-cyan-500/10 border-b border-cyan-800">
-              <CardTitle className="text-cyan-400">Landing Page Content</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              <div className="space-y-4">
+          {/* Landing Tab */}
+          <TabsContent value="landing" className="space-y-4">
+            {landingContent ? (
+              <div className="space-y-4 max-w-xl">
                 <div>
-                  <label className="text-sm text-white mb-2 block">Title *</label>
-                  <Input value={lcTitle} onChange={(e) => setLcTitle(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
+                  <Label className="text-gray-300">Title</Label>
+                  <Input
+                    value={landingContent.title}
+                    onChange={(e) => setLandingContent({ ...landingContent, title: e.target.value })}
+                    className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500"
+                  />
                 </div>
                 <div>
-                  <label className="text-sm text-white mb-2 block">Description *</label>
-                  <Textarea value={lcDescription} onChange={(e) => setLcDescription(e.target.value)} rows={4} className="bg-zinc-800 border-zinc-700 text-white" />
+                  <Label className="text-gray-300">Description</Label>
+                  <Textarea
+                    value={landingContent.description}
+                    onChange={(e) => setLandingContent({ ...landingContent, description: e.target.value })}
+                    className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500"
+                  />
                 </div>
+                <Button onClick={handleSaveLanding} className="bg-[#00b4d8] hover:bg-[#0096b4] text-white">Save Settings</Button>
               </div>
-              <Button onClick={handleSaveLandingContent} className="bg-cyan-600 hover:bg-cyan-700">
-                {landingContent ? "Update" : "Save"} Landing Content
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            ) : (
+              <p className="text-gray-400">No landing settings found.</p>
+            )}
+          </TabsContent>
 
-        {/* Related Searches Tab */}
-        <TabsContent value="searches">
-          <Card className="bg-zinc-900 border-cyan-800">
-            <CardHeader className="bg-cyan-500/10 border-b border-cyan-800">
-              <CardTitle className="text-cyan-400">{editingSearchId ? "Edit" : "Add"} Related Search</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-white mb-2 block">Search Text *</label>
-                  <Input value={searchText} onChange={(e) => setSearchText(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
-                </div>
-                <div>
-                  <label className="text-sm text-white mb-2 block">Title</label>
-                  <Input value={searchTitle} onChange={(e) => setSearchTitle(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
-                </div>
-                <div>
-                  <label className="text-sm text-white mb-2 block">Web Result Page (wr=)</label>
-                  <Input type="number" value={webResultPage} onChange={(e) => setWebResultPage(Number(e.target.value))} className="bg-zinc-800 border-zinc-700 text-white" />
-                </div>
-                <div>
-                  <label className="text-sm text-white mb-2 block">Position</label>
-                  <Input type="number" value={searchPosition} onChange={(e) => setSearchPosition(Number(e.target.value))} className="bg-zinc-800 border-zinc-700 text-white" />
-                </div>
-                <div>
-                  <label className="text-sm text-white mb-2 block">Display Order</label>
-                  <Input type="number" value={searchDisplayOrder} onChange={(e) => setSearchDisplayOrder(Number(e.target.value))} className="bg-zinc-800 border-zinc-700 text-white" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={searchIsActive} onCheckedChange={setSearchIsActive} />
-                  <label className="text-sm text-white">Active</label>
-                </div>
+          {/* Related Searches Tab */}
+          <TabsContent value="searches" className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500"
+                />
               </div>
-              <div className="flex gap-2">
-                <Button onClick={handleSaveSearch} className="bg-cyan-600 hover:bg-cyan-700">{editingSearchId ? "Update" : "Create"}</Button>
-                {editingSearchId && <Button variant="outline" onClick={resetSearchForm}>Cancel</Button>}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-zinc-900 border-cyan-800 mt-4">
-            <CardHeader className="bg-cyan-500/10 border-b border-cyan-800">
-              <CardTitle className="text-cyan-400">Existing Searches</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="space-y-2">
-                {searches.map((search) => (
-                  <div key={search.id} className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
-                    <div>
-                      <p className="font-medium text-white">{search.title || search.search_text}</p>
-                      <p className="text-sm text-zinc-400">Page {search.web_result_page} | Pos: {search.position} | Order: {search.display_order}</p>
+              <Dialog open={searchDialog} onOpenChange={setSearchDialog}>
+                <DialogTrigger asChild>
+                  <Button onClick={resetSearchForm} className="bg-[#00b4d8] hover:bg-[#0096b4] text-white"><Plus className="mr-2 h-4 w-4" />New Search</Button>
+                </DialogTrigger>
+                <DialogContent className="bg-[#1a2942] border-[#2a3f5f] text-white">
+                  <DialogHeader><DialogTitle className="text-white">{editingSearch ? "Edit" : "Create"} Related Search</DialogTitle></DialogHeader>
+                  <form onSubmit={handleSearchSubmit} className="space-y-4">
+                    <div><Label className="text-gray-300">Search Text *</Label><Input value={searchForm.search_text} onChange={(e) => setSearchForm({ ...searchForm, search_text: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Title</Label><Input value={searchForm.title} onChange={(e) => setSearchForm({ ...searchForm, title: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><Label className="text-gray-300">Web Result Page</Label><Input type="number" value={searchForm.web_result_page} onChange={(e) => setSearchForm({ ...searchForm, web_result_page: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                      <div><Label className="text-gray-300">Position</Label><Input type="number" value={searchForm.position} onChange={(e) => setSearchForm({ ...searchForm, position: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    </div>
+                    <div><Label className="text-gray-300">Display Order</Label><Input type="number" value={searchForm.display_order} onChange={(e) => setSearchForm({ ...searchForm, display_order: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={searchForm.is_active} onCheckedChange={(checked) => setSearchForm({ ...searchForm, is_active: checked })} />
+                      <Label className="text-gray-300">Active</Label>
                     </div>
                     <div className="flex gap-2">
-                      <Badge className={search.is_active ? "bg-cyan-500" : "bg-zinc-600"}>{search.is_active ? "Active" : "Inactive"}</Badge>
-                      <Button size="sm" variant="outline" className="border-cyan-600 text-cyan-400" onClick={() => handleViewSearchBreakdown(search)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleEditSearch(search)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDeleteSearch(search.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <Button type="submit" className="flex-1 bg-[#00b4d8] hover:bg-[#0096b4] text-white">{editingSearch ? "Update" : "Create"}</Button>
+                      <Button type="button" variant="outline" onClick={resetSearchForm} className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]">Cancel</Button>
                     </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+            <div className="space-y-2">
+              {filteredSearches.map((search) => (
+                <div key={search.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="outline" className="text-xs border-[#2a3f5f] text-[#00b4d8]">(Related Search)</Badge>
+                      <h3 className="font-semibold text-white">{search.title || search.search_text}</h3>
+                    </div>
+                    <p className="text-sm text-gray-400">{search.search_text} • Page {search.web_result_page} • Pos {search.position}</p>
+                    <span className={`text-xs px-2 py-1 rounded ${search.is_active ? 'bg-[#00b4d8]/20 text-[#00b4d8]' : 'bg-red-500/20 text-red-400'}`}>
+                      {search.is_active ? 'Active' : 'Inactive'}
+                    </span>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]" onClick={() => {
+                      setEditingSearch(search);
+                      setSearchForm({
+                        search_text: search.search_text, title: search.title || "",
+                        web_result_page: search.web_result_page, position: search.position,
+                        display_order: search.display_order, is_active: search.is_active
+                      });
+                      setSearchDialog(true);
+                    }}><Edit className="h-4 w-4" /></Button>
+                    <Button size="sm" variant="destructive" onClick={() => handleDeleteSearch(search.id)}><Trash2 className="h-4 w-4" /></Button>
+                  </div>
+                </div>
+              ))}
+              {filteredSearches.length === 0 && <p className="text-gray-400 text-center py-8">No related searches found.</p>}
+            </div>
+          </TabsContent>
 
-        {/* Web Results Tab */}
-        <TabsContent value="webresults">
-          <Card className="bg-zinc-900 border-cyan-800">
-            <CardHeader className="bg-cyan-500/10 border-b border-cyan-800">
-              <CardTitle className="text-cyan-400">{editingResultId ? "Edit" : "Add"} Web Result</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-white mb-2 block">Title *</label>
-                  <Input value={resultTitle} onChange={(e) => setResultTitle(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
-                </div>
-                <div>
-                  <label className="text-sm text-white mb-2 block">Original Link *</label>
-                  <Input value={originalLink} onChange={(e) => setOriginalLink(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="text-sm text-white mb-2 block">Description</label>
-                  <Textarea value={resultDescription} onChange={(e) => setResultDescription(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
-                </div>
-                <div>
-                  <label className="text-sm text-white mb-2 block">Logo URL</label>
-                  <Input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
-                </div>
-                <div>
-                  <label className="text-sm text-white mb-2 block">Related Search (determines page)</label>
-                  <Select 
-                    value={selectedRelatedSearchId || "__none__"} 
-                    onValueChange={(val) => {
-                      if (val === "__none__") {
-                        setSelectedRelatedSearchId("");
-                        setResultWebResultPage(1);
-                      } else {
-                        setSelectedRelatedSearchId(val);
-                        const search = searches.find(s => s.id === val);
-                        if (search) setResultWebResultPage(search.web_result_page);
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
-                      <SelectValue placeholder="Select related search" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Select related search</SelectItem>
-                      {searches.map((search) => (
-                        <SelectItem key={search.id} value={search.id}>
-                          {search.title || search.search_text} (Page {search.web_result_page})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm text-white mb-2 block">Prelanding (optional)</label>
-                  <Select value={prelandingKey || "__none__"} onValueChange={(val) => setPrelandingKey(val === "__none__" ? "" : val)}>
-                    <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
-                      <SelectValue placeholder="No prelanding (direct link)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">No prelanding (direct link)</SelectItem>
-                      {prelandings.map((pl) => (
-                        <SelectItem key={pl.id} value={pl.key}>{pl.headline}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={resultIsActive} onCheckedChange={setResultIsActive} />
-                  <label className="text-sm text-white">Active</label>
+          {/* Web Results Tab */}
+          <TabsContent value="webresults" className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <Select value={selectedPage.toString()} onValueChange={(v) => setSelectedPage(parseInt(v))}>
+                  <SelectTrigger className="w-32 bg-[#0d1520] border-[#2a3f5f] text-white"><SelectValue placeholder="Page" /></SelectTrigger>
+                  <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
+                    {[1, 2, 3, 4, 5].map(p => <SelectItem key={p} value={p.toString()} className="text-white hover:bg-[#2a3f5f]">Page {p}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" />
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Button onClick={handleSaveResult} className="bg-cyan-600 hover:bg-cyan-700">{editingResultId ? "Update" : "Create"}</Button>
-                {editingResultId && <Button variant="outline" onClick={resetResultForm}>Cancel</Button>}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-zinc-900 border-cyan-800 mt-4">
-            <CardHeader className="bg-cyan-500/10 border-b border-cyan-800">
-              <CardTitle className="text-cyan-400">Existing Web Results</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="space-y-2">
-                {results.map((result) => {
-                  const relatedSearch = searches.find(s => s.web_result_page === result.web_result_page);
-                  return (
-                  <div key={result.id} className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      {result.logo_url ? (
-                        <img src={result.logo_url} alt="" className="w-10 h-10 rounded object-cover" />
-                      ) : (
-                        <div className="w-10 h-10 rounded bg-cyan-500/20 flex items-center justify-center">
-                          <span className="text-cyan-400 font-bold">{result.title.charAt(0)}</span>
-                        </div>
-                      )}
+              <Dialog open={webResultDialog} onOpenChange={setWebResultDialog}>
+                <DialogTrigger asChild>
+                  <Button onClick={resetWebResultForm} className="bg-[#00b4d8] hover:bg-[#0096b4] text-white"><Plus className="mr-2 h-4 w-4" />Add Result</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1a2942] border-[#2a3f5f] text-white">
+                  <DialogHeader><DialogTitle className="text-white">{editingWebResult ? "Edit" : "Create"} Web Result</DialogTitle></DialogHeader>
+                  <form onSubmit={handleWebResultSubmit} className="space-y-4">
+                    {!editingWebResult && (
                       <div>
-                        <p className="font-medium text-white">{result.title}</p>
-                        <p className="text-sm text-zinc-400">
-                          {relatedSearch ? relatedSearch.title || relatedSearch.search_text : `Page ${result.web_result_page}`}
-                          {result.prelanding_key && <span className="text-cyan-400"> • Has Prelanding</span>}
-                        </p>
+                        <Label className="text-gray-300">Select Related Search *</Label>
+                        <Select value={selectedSearchForResult} onValueChange={setSelectedSearchForResult}>
+                          <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white">
+                            <SelectValue placeholder="Choose a related search..." />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#1a2942] border-[#2a3f5f] max-h-[200px]">
+                            {relatedSearches.map(s => (
+                              <SelectItem key={s.id} value={s.id} className="text-white hover:bg-[#2a3f5f]">
+                                <span className="text-[#00b4d8] mr-2">(Related Search)</span>
+                                {s.title || s.search_text} → WR Page {s.web_result_page}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedSearchForResult && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Web result will be added to Page {relatedSearches.find(s => s.id === selectedSearchForResult)?.web_result_page || 1}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    <div><Label className="text-gray-300">Title *</Label><Input value={webResultForm.title} onChange={(e) => setWebResultForm({ ...webResultForm, title: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Description</Label><Textarea value={webResultForm.description} onChange={(e) => setWebResultForm({ ...webResultForm, description: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" /></div>
+                    <div><Label className="text-gray-300">Logo URL</Label><Input value={webResultForm.logo_url} onChange={(e) => setWebResultForm({ ...webResultForm, logo_url: e.target.value })} placeholder="https://..." className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" /></div>
+                    <div><Label className="text-gray-300">Original Link *</Label><Input value={webResultForm.original_link} onChange={(e) => setWebResultForm({ ...webResultForm, original_link: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-gray-300">Page {!editingWebResult && "(Auto)"}</Label>
+                        {editingWebResult ? (
+                          <Input type="number" value={webResultForm.web_result_page} onChange={(e) => setWebResultForm({ ...webResultForm, web_result_page: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" />
+                        ) : (
+                          <div className="p-2 rounded border bg-[#0d1520] border-[#2a3f5f] text-gray-400">
+                            {selectedSearchForResult ? `Page ${relatedSearches.find(s => s.id === selectedSearchForResult)?.web_result_page || 1}` : "Select search first"}
+                          </div>
+                        )}
+                      </div>
+                      <div><Label className="text-gray-300">Position</Label><Input type="number" value={webResultForm.position} onChange={(e) => setWebResultForm({ ...webResultForm, position: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    </div>
+                    <div><Label className="text-gray-300">Prelanding Key</Label><Input value={webResultForm.prelanding_key} onChange={(e) => setWebResultForm({ ...webResultForm, prelanding_key: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={webResultForm.is_active} onCheckedChange={(checked) => setWebResultForm({ ...webResultForm, is_active: checked })} />
+                      <Label className="text-gray-300">Active</Label>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="submit" className="flex-1 bg-[#00b4d8] hover:bg-[#0096b4] text-white">{editingWebResult ? "Update" : "Create"}</Button>
+                      <Button type="button" variant="outline" onClick={resetWebResultForm} className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]">Cancel</Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+            <div className="space-y-2">
+              {filteredWebResults.map((result) => {
+                const hasPrelander = result.prelanding_key && prelandings.some(p => p.key === result.prelanding_key);
+                return (
+                  <div key={result.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
+                    <div className="flex items-center gap-4">
+                      {result.logo_url && <img src={result.logo_url} alt="" className="w-10 h-10 rounded object-contain" />}
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className="text-xs border-[#2a3f5f] text-[#00b4d8]">(Web Result)</Badge>
+                          <h3 className="font-semibold text-white">{result.title}</h3>
+                          {hasPrelander && <Badge className="text-xs bg-green-600 text-white">Has Pre-landing</Badge>}
+                        </div>
+                        <p className="text-sm text-gray-400 truncate max-w-md">{result.description}</p>
+                        <p className="text-xs text-gray-500">Position: {result.position}</p>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Badge className={result.is_active ? "bg-cyan-500" : "bg-zinc-600"}>{result.is_active ? "Active" : "Inactive"}</Badge>
-                      <Button size="sm" variant="outline" className="border-cyan-600 text-cyan-400" onClick={() => handleViewResultBreakdown(result)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleEditResult(result)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDeleteResult(result.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs px-2 py-1 rounded ${result.is_active ? 'bg-[#00b4d8]/20 text-[#00b4d8]' : 'bg-red-500/20 text-red-400'}`}>
+                        {result.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                      <Button size="sm" variant="outline" className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]" onClick={() => {
+                        setEditingWebResult(result);
+                        setWebResultForm({
+                          title: result.title, description: result.description || "",
+                          logo_url: result.logo_url || "", original_link: result.original_link,
+                          web_result_page: result.web_result_page, position: result.position,
+                          is_active: result.is_active, prelanding_key: result.prelanding_key || ""
+                        });
+                        setWebResultDialog(true);
+                      }}><Edit className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleDeleteWebResult(result.id)}><Trash2 className="h-4 w-4" /></Button>
                     </div>
                   </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                );
+              })}
+              {filteredWebResults.length === 0 && <p className="text-gray-400 text-center py-8">No web results found for page {selectedPage}.</p>}
+            </div>
+          </TabsContent>
 
-        {/* Prelandings Tab */}
-        <TabsContent value="prelandings">
-          <Card className="bg-zinc-900 border-cyan-800">
-            <CardHeader className="bg-cyan-500/10 border-b border-cyan-800">
-              <CardTitle className="text-cyan-400">{editingPlId ? "Edit" : "Add"} Prelanding</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-white mb-2 block">Headline *</label>
-                  <Input value={plHeadline} onChange={(e) => setPlHeadline(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
-                </div>
-                <div>
-                  <label className="text-sm text-white mb-2 block">Subtitle</label>
-                  <Input value={plSubtitle} onChange={(e) => setPlSubtitle(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="text-sm text-white mb-2 block">Description</label>
-                  <Textarea value={plDescription} onChange={(e) => setPlDescription(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
-                </div>
-                <div>
-                  <label className="text-sm text-white mb-2 block">Logo URL</label>
-                  <Input value={plLogoUrl} onChange={(e) => setPlLogoUrl(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
-                </div>
-                <div>
-                  <label className="text-sm text-white mb-2 block">Main Image URL</label>
-                  <Input value={plMainImage} onChange={(e) => setPlMainImage(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
-                </div>
-                <div>
-                  <label className="text-sm text-white mb-2 block">Redirect Description</label>
-                  <Input value={plRedirectDesc} onChange={(e) => setPlRedirectDesc(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={plIsActive} onCheckedChange={setPlIsActive} />
-                  <label className="text-sm text-white">Active</label>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleSavePrelanding} className="bg-cyan-600 hover:bg-cyan-700">{editingPlId ? "Update" : "Create"}</Button>
-                {editingPlId && <Button variant="outline" onClick={resetPlForm}>Cancel</Button>}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-zinc-900 border-cyan-800 mt-4">
-            <CardHeader className="bg-cyan-500/10 border-b border-cyan-800">
-              <CardTitle className="text-cyan-400">Existing Prelandings</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="space-y-2">
-                {prelandings.map((pl) => (
-                  <div key={pl.id} className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
-                    <div>
-                      <p className="font-medium text-white">{pl.headline}</p>
-                      <p className="text-sm text-zinc-400">Key: {pl.key}</p>
+          {/* Prelandings Tab */}
+          <TabsContent value="prelandings" className="space-y-4">
+            <div className="flex justify-end">
+              <Dialog open={prelandingDialog} onOpenChange={setPrelandingDialog}>
+                <DialogTrigger asChild>
+                  <Button onClick={resetPrelandingForm} className="bg-[#00b4d8] hover:bg-[#0096b4] text-white"><Plus className="mr-2 h-4 w-4" />New Prelanding</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1a2942] border-[#2a3f5f] text-white">
+                  <DialogHeader><DialogTitle className="text-white">{editingPrelanding ? "Edit" : "Create"} Prelanding</DialogTitle></DialogHeader>
+                  <form onSubmit={handlePrelandingSubmit} className="space-y-4">
+                    <div><Label className="text-gray-300">Headline *</Label><Input value={prelandingForm.headline} onChange={(e) => setPrelandingForm({ ...prelandingForm, headline: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Subtitle</Label><Input value={prelandingForm.subtitle} onChange={(e) => setPrelandingForm({ ...prelandingForm, subtitle: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Description</Label><Textarea value={prelandingForm.description} onChange={(e) => setPrelandingForm({ ...prelandingForm, description: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Logo URL</Label><Input value={prelandingForm.logo_url} onChange={(e) => setPrelandingForm({ ...prelandingForm, logo_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Main Image URL</Label><Input value={prelandingForm.main_image_url} onChange={(e) => setPrelandingForm({ ...prelandingForm, main_image_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Redirect Description</Label><Input value={prelandingForm.redirect_description} onChange={(e) => setPrelandingForm({ ...prelandingForm, redirect_description: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={prelandingForm.is_active} onCheckedChange={(checked) => setPrelandingForm({ ...prelandingForm, is_active: checked })} />
+                      <Label className="text-gray-300">Active</Label>
                     </div>
                     <div className="flex gap-2">
-                      <Badge className={pl.is_active ? "bg-cyan-500" : "bg-zinc-600"}>{pl.is_active ? "Active" : "Inactive"}</Badge>
-                      <Button size="sm" variant="outline" onClick={() => handleEditPrelanding(pl)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDeletePrelanding(pl.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <Button type="submit" className="flex-1 bg-[#00b4d8] hover:bg-[#0096b4] text-white">{editingPrelanding ? "Update" : "Create"}</Button>
+                      <Button type="button" variant="outline" onClick={resetPrelandingForm} className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]">Cancel</Button>
                     </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+            <div className="space-y-2">
+              {prelandings.map((p) => (
+                <div key={p.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
+                  <div>
+                    <h3 className="font-semibold text-white">{p.headline}</h3>
+                    <p className="text-sm text-gray-400">Key: {p.key}</p>
+                    <span className={`text-xs px-2 py-1 rounded ${p.is_active ? 'bg-[#00b4d8]/20 text-[#00b4d8]' : 'bg-red-500/20 text-red-400'}`}>
+                      {p.is_active ? 'Active' : 'Inactive'}
+                    </span>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Click Breakdown Dialog */}
-      <Dialog open={showBreakdown} onOpenChange={setShowBreakdown}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto bg-zinc-900 border-cyan-800">
-          <DialogHeader>
-            <DialogTitle className="text-cyan-400">Click Breakdown: {selectedItemName}</DialogTitle>
-          </DialogHeader>
-          <div className="flex gap-4 mb-4">
-            <p className="text-sm text-zinc-400">Total Clicks: <span className="text-white font-bold">{clickDetails.length}</span></p>
-            <p className="text-sm text-zinc-400">Unique IPs: <span className="text-white font-bold">{new Set(clickDetails.map(c => c.ip_address).filter(Boolean)).size}</span></p>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow className="border-zinc-700">
-                <TableHead className="text-zinc-400">IP Address</TableHead>
-                <TableHead className="text-zinc-400">Country</TableHead>
-                <TableHead className="text-zinc-400">Device</TableHead>
-                <TableHead className="text-zinc-400">Timestamp</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {clickDetails.map((click) => (
-                <TableRow key={click.id} className="border-zinc-700">
-                  <TableCell className="text-white">{click.ip_address || '-'}</TableCell>
-                  <TableCell className="text-white">{click.country || '-'}</TableCell>
-                  <TableCell className="text-white">{click.device_type || '-'}</TableCell>
-                  <TableCell className="text-zinc-400">{click.timestamp ? new Date(click.timestamp).toLocaleString() : '-'}</TableCell>
-                </TableRow>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]" onClick={() => {
+                      setEditingPrelanding(p);
+                      setPrelandingForm({
+                        key: p.key, logo_url: p.logo_url || "", main_image_url: p.main_image_url || "",
+                        headline: p.headline, subtitle: p.subtitle || "", description: p.description || "",
+                        redirect_description: p.redirect_description || "", is_active: p.is_active
+                      });
+                      setPrelandingDialog(true);
+                    }}><Edit className="h-4 w-4" /></Button>
+                    <Button size="sm" variant="destructive" onClick={() => handleDeletePrelanding(p.id)}><Trash2 className="h-4 w-4" /></Button>
+                  </div>
+                </div>
               ))}
-              {clickDetails.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center text-zinc-500">No clicks recorded</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </DialogContent>
-      </Dialog>
-    </div>
+              {prelandings.length === 0 && <p className="text-gray-400 text-center py-8">No prelandings found.</p>}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 };
-
-export default MingleMoodyManager;
