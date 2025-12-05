@@ -38,6 +38,7 @@ import { TejaStarinEmailCaptures } from "@/components/admin/TejaStarinEmailCaptu
 import { DataOrbitZoneManager } from "@/components/admin/DataOrbitZoneManager";
 import { FastMoneyManager } from "@/components/admin/FastMoneyManager";
 import OfferGrabZoneManager from "@/components/admin/OfferGrabZoneManager";
+import { MingleMoodyManager } from "@/components/admin/MingleMoodyManager";
 
 interface Category {
   id: number;
@@ -121,7 +122,7 @@ interface Analytics {
   unique_clicks?: number;
 }
 
-type Website = 'topicmingle' | 'tejastarin' | 'fastmoney' | 'offergrabzone';
+type Website = 'topicmingle' | 'tejastarin' | 'fastmoney' | 'offergrabzone' | 'minglemoody';
 type Section = 'blogs' | 'searches' | 'webresults' | 'prelanding' | 'emails' | 'landing';
 
 const Admin = () => {
@@ -198,6 +199,13 @@ const Admin = () => {
       description: 'Offers & Deals Platform',
       color: 'bg-cyan-500',
       icon: '🎁'
+    },
+    {
+      id: 'minglemoody' as Website,
+      name: 'MingleMoody',
+      description: 'Social Connection Platform',
+      color: 'bg-cyan-600',
+      icon: '💬'
     }
   ];
 
@@ -227,6 +235,11 @@ const Admin = () => {
       { id: 'searches', name: 'Search Buttons', description: 'Manage related search buttons' },
       { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
       { id: 'prelanding', name: 'Pre-Landings', description: 'Edit pre-landing page designs' }
+    ],
+    minglemoody: [
+      { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
+      { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
+      { id: 'prelanding', name: 'Prelandings', description: 'Edit prelanding page designs' }
     ]
   };
 
@@ -884,6 +897,9 @@ const Admin = () => {
         if (selectedWebsite === 'offergrabzone') {
           return <OfferGrabZoneManager />;
         }
+        if (selectedWebsite === 'minglemoody') {
+          return <MingleMoodyManager />;
+        }
         return <RelatedSearchManager projectClient={client} projectName={projectName} />;
 
       case 'webresults':
@@ -896,6 +912,9 @@ const Admin = () => {
         if (selectedWebsite === 'offergrabzone') {
           return <OfferGrabZoneManager />;
         }
+        if (selectedWebsite === 'minglemoody') {
+          return <MingleMoodyManager />;
+        }
         return <WebResultsManager projectClient={client} projectName={projectName} />;
 
       case 'prelanding':
@@ -907,6 +926,9 @@ const Admin = () => {
         }
         if (selectedWebsite === 'offergrabzone') {
           return <OfferGrabZoneManager />;
+        }
+        if (selectedWebsite === 'minglemoody') {
+          return <MingleMoodyManager />;
         }
         return <PreLandingEditor projectClient={client} projectName={projectName} />;
 
