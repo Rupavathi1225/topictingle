@@ -99,10 +99,17 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
   }, [projectName]);
  
   const fetchRelatedSearches = async () => {
-    const { data, error } = await projectClient
+    let query = projectClient
       .from('related_searches')
       .select('id, search_text, title, web_result_page')
       .order('display_order');
+    
+    // Filter by site_name for projects that use it
+    if (!isDataOrbitZone && !isSearchProject) {
+      query = query.eq('site_name', projectName.toLowerCase());
+    }
+    
+    const { data, error } = await query;
     
     if (error) {
       console.error('Error fetching related searches:', error);
@@ -113,11 +120,18 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
   };
 
   const fetchWebResults = async () => {
-    const { data, error } = await projectClient
+    let query = projectClient
       .from('web_results')
       .select('*')
       .order('page_number', { ascending: true })
       .order('position', { ascending: true });
+    
+    // Filter by site_name for projects that use it (not DataOrbitZone/SearchProject which have separate tables)
+    if (!isDataOrbitZone && !isSearchProject) {
+      query = query.eq('site_name', projectName.toLowerCase());
+    }
+    
+    const { data, error } = await query;
     
     if (error) {
       console.error('Error fetching web results:', error);
@@ -175,9 +189,12 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
       is_sponsored: formData.is_sponsored,
     };
 
-    // Only add related_search_id for projects that use it
-    if (!isDataOrbitZone && !isSearchProject && formData.related_search_id) {
-      payload.related_search_id = formData.related_search_id;
+    // Only add related_search_id and site_name for projects that use it
+    if (!isDataOrbitZone && !isSearchProject) {
+      payload.site_name = projectName.toLowerCase();
+      if (formData.related_search_id) {
+        payload.related_search_id = formData.related_search_id;
+      }
     }
 
     if (editingResult) {
