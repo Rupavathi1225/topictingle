@@ -3,6 +3,7 @@ import { TopicMingleAnalytics } from "@/components/admin/TopicMingleAnalytics";
 import { TejaStarinAnalytics } from "@/components/admin/TejaStarinAnalytics";
 import { FastMoneyAnalytics } from "@/components/admin/FastMoneyAnalytics";
 import { OfferGrabZoneAnalytics } from "@/components/admin/OfferGrabZoneAnalytics";
+import { MingleMoodyAnalytics } from "@/components/admin/MingleMoodyAnalytics";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AdminNew() {
@@ -15,12 +16,13 @@ export default function AdminNew() {
         </div>
         
         <Tabs defaultValue="all" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
             <TabsTrigger value="all">All Sites</TabsTrigger>
             <TabsTrigger value="topicmingle">TopicMingle</TabsTrigger>
             <TabsTrigger value="datacreditzone">DataCreditZone</TabsTrigger>
             <TabsTrigger value="fastmoney">FastMoney</TabsTrigger>
             <TabsTrigger value="offergrabzone" className="data-[state=active]:bg-zinc-800 data-[state=active]:text-white">OfferGrabZone</TabsTrigger>
+            <TabsTrigger value="minglemoody" className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white">MingleMoody</TabsTrigger>
           </TabsList>
           
           <TabsContent value="all" className="space-y-4">
@@ -57,6 +59,14 @@ export default function AdminNew() {
               <p className="text-zinc-400">Detailed analytics for OfferGrabZone website</p>
             </div>
             <OfferGrabZoneAnalytics />
+          </TabsContent>
+
+          <TabsContent value="minglemoody" className="space-y-4">
+            <div className="mb-4 p-4 rounded-lg bg-zinc-900 border border-cyan-800">
+              <h2 className="text-2xl font-bold text-cyan-400">💬 MingleMoody Analytics</h2>
+              <p className="text-zinc-400">Detailed analytics for MingleMoody website</p>
+            </div>
+            <MingleMoodyAnalytics />
           </TabsContent>
         </Tabs>
       </div>
