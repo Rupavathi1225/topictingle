@@ -1,25 +1,17 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { offerGrabZoneClient } from "@/integrations/offergrabzone/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Trash2, Edit, Save, Eye, MousePointer, Users, Globe, Search, Link } from "lucide-react";
-
-// Types based on the schema
-interface LandingContent {
-  id: string;
-  site_name: string;
-  headline: string;
-  description: string;
-}
+import { Trash2, Edit, Plus, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface RelatedSearch {
   id: string;
@@ -44,6 +36,13 @@ interface WebResult {
   is_active: boolean;
 }
 
+interface LandingContent {
+  id: string;
+  site_name: string;
+  headline: string;
+  description: string;
+}
+
 interface Prelanding {
   id: string;
   web_result_id: string | null;
@@ -58,971 +57,557 @@ interface Prelanding {
   is_active: boolean;
 }
 
-interface Session {
-  id: string;
-  session_id: string;
-  ip_address: string | null;
-  country: string;
-  country_code: string;
-  source: string;
-  device: string;
-  page_views: number;
-  first_seen: string;
-  last_active: string;
-}
-
-interface Click {
-  id: string;
-  session_id: string;
-  click_type: string;
-  item_id: string | null;
-  item_name: string | null;
-  page: string | null;
-  clicked_at: string;
-}
-
-interface Stats {
-  totalSessions: number;
-  totalPageViews: number;
-  totalClicks: number;
-  relatedSearchClicks: number;
-  webResultClicks: number;
-}
+const COUNTRIES = [
+  { code: 'worldwide', name: 'Worldwide' },
+  { code: 'US', name: 'United States' },
+  { code: 'UK', name: 'United Kingdom' },
+  { code: 'CA', name: 'Canada' },
+  { code: 'AU', name: 'Australia' },
+  { code: 'IN', name: 'India' },
+];
 
 const OfferGrabZoneManager = () => {
   const [activeTab, setActiveTab] = useState("landing");
-  
+  const [searchQuery, setSearchQuery] = useState("");
+
   // Landing Content
   const [landingContent, setLandingContent] = useState<LandingContent | null>(null);
-  
+
   // Related Searches
-  const [searches, setSearches] = useState<RelatedSearch[]>([]);
+  const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
+  const [searchDialog, setSearchDialog] = useState(false);
   const [editingSearch, setEditingSearch] = useState<RelatedSearch | null>(null);
-  const [searchDialogOpen, setSearchDialogOpen] = useState(false);
-  const [newSearch, setNewSearch] = useState({ title: '', serial_number: 1, target_wr: 1 });
-  
+  const [searchForm, setSearchForm] = useState({
+    title: "", serial_number: 1, target_wr: 1, is_active: true
+  });
+
   // Web Results
   const [webResults, setWebResults] = useState<WebResult[]>([]);
-  const [editingResult, setEditingResult] = useState<WebResult | null>(null);
-  const [resultDialogOpen, setResultDialogOpen] = useState(false);
-  const [selectedWrPage, setSelectedWrPage] = useState<number>(0);
-  const [selectedSearchForWebResult, setSelectedSearchForWebResult] = useState<string>("");
-  
+  const [selectedPage, setSelectedPage] = useState(1);
+  const [webResultDialog, setWebResultDialog] = useState(false);
+  const [editingWebResult, setEditingWebResult] = useState<WebResult | null>(null);
+  const [selectedSearchForResult, setSelectedSearchForResult] = useState<string>("");
+  const [webResultForm, setWebResultForm] = useState({
+    name: "", title: "", description: "", link: "", logo_url: "",
+    wr_page: 1, serial_number: 0, is_active: true,
+    allowed_countries: ["worldwide"] as string[], fallback_link: ""
+  });
+
   // Prelandings
   const [prelandings, setPrelandings] = useState<Prelanding[]>([]);
+  const [prelandingDialog, setPrelandingDialog] = useState(false);
   const [editingPrelanding, setEditingPrelanding] = useState<Prelanding | null>(null);
-  const [prelandingDialogOpen, setPrelandingDialogOpen] = useState(false);
-  
-  // Analytics
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [clicks, setClicks] = useState<Click[]>([]);
-  const [stats, setStats] = useState<Stats>({
-    totalSessions: 0,
-    totalPageViews: 0,
-    totalClicks: 0,
-    relatedSearchClicks: 0,
-    webResultClicks: 0
+  const [prelandingForm, setPrelandingForm] = useState({
+    web_result_id: "", logo_url: "", main_image_url: "", headline: "",
+    description: "", email_placeholder: "Enter your email", cta_button_text: "Get Started",
+    background_color: "#1a1a2e", background_image_url: "", is_active: true
   });
-  
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchAllData();
+    fetchAll();
   }, []);
 
-  const fetchAllData = async () => {
-    setLoading(true);
+  useEffect(() => {
+    if (activeTab === "webresults") fetchWebResults();
+  }, [selectedPage]);
+
+  const fetchAll = async () => {
     await Promise.all([
       fetchLandingContent(),
-      fetchSearches(),
+      fetchRelatedSearches(),
       fetchWebResults(),
-      fetchPrelandings(),
-      fetchAnalytics()
+      fetchPrelandings()
     ]);
-    setLoading(false);
   };
 
   const fetchLandingContent = async () => {
-    const { data } = await offerGrabZoneClient.from('landing_content').select('*').limit(1).maybeSingle();
+    const { data } = await offerGrabZoneClient.from("landing_content").select("*").limit(1).maybeSingle();
     if (data) setLandingContent(data);
   };
 
-  const fetchSearches = async () => {
-    const { data } = await offerGrabZoneClient.from('related_searches').select('*').order('serial_number');
-    if (data) setSearches(data);
+  const fetchRelatedSearches = async () => {
+    const { data, error } = await offerGrabZoneClient.from("related_searches").select("*").order("serial_number");
+    if (error) toast.error("Failed to fetch related searches");
+    else setRelatedSearches(data || []);
   };
 
   const fetchWebResults = async () => {
-    const { data } = await offerGrabZoneClient.from('web_results').select('*').order('wr_page').order('serial_number');
-    if (data) setWebResults(data);
+    const { data, error } = await offerGrabZoneClient
+      .from("web_results")
+      .select("*")
+      .eq("wr_page", selectedPage)
+      .order("serial_number");
+    if (error) toast.error("Failed to fetch web results");
+    else setWebResults(data || []);
   };
 
   const fetchPrelandings = async () => {
-    const { data } = await offerGrabZoneClient.from('prelandings').select('*').order('created_at', { ascending: false });
+    const { data } = await offerGrabZoneClient.from("prelandings").select("*").order("created_at", { ascending: false });
     if (data) setPrelandings(data);
   };
 
-  const fetchAnalytics = async () => {
-    const [sessionsRes, clicksRes] = await Promise.all([
-      offerGrabZoneClient.from('sessions').select('*').order('last_active', { ascending: false }),
-      offerGrabZoneClient.from('clicks').select('*').order('clicked_at', { ascending: false })
-    ]);
-    
-    if (sessionsRes.data) setSessions(sessionsRes.data);
-    if (clicksRes.data) setClicks(clicksRes.data);
-    
-    // Calculate stats
-    const totalPageViews = sessionsRes.data?.reduce((sum, s) => sum + s.page_views, 0) || 0;
-    const relatedSearchClicks = clicksRes.data?.filter(c => c.click_type === 'related_search').length || 0;
-    const webResultClicks = clicksRes.data?.filter(c => c.click_type === 'web_result').length || 0;
-    
-    setStats({
-      totalSessions: sessionsRes.data?.length || 0,
-      totalPageViews,
-      totalClicks: clicksRes.data?.length || 0,
-      relatedSearchClicks,
-      webResultClicks
-    });
-  };
-
-  // Landing Content handlers
-  const saveLandingContent = async () => {
+  // Landing Content CRUD
+  const handleSaveLanding = async () => {
     if (!landingContent) return;
-    
     const { error } = await offerGrabZoneClient
-      .from('landing_content')
-      .update({
-        site_name: landingContent.site_name,
-        headline: landingContent.headline,
-        description: landingContent.description
-      })
-      .eq('id', landingContent.id);
-    
-    if (error) {
-      toast.error("Failed to save landing content");
-    } else {
-      toast.success("Landing content saved!");
-    }
+      .from("landing_content")
+      .update({ site_name: landingContent.site_name, headline: landingContent.headline, description: landingContent.description })
+      .eq("id", landingContent.id);
+    if (error) toast.error("Failed to save landing settings");
+    else toast.success("Landing settings saved");
   };
 
-  // Related Search handlers
-  const handleAddSearch = async () => {
-    if (!newSearch.title.trim()) {
-      toast.error("Title is required");
-      return;
-    }
-    
-    const { error } = await offerGrabZoneClient.from('related_searches').insert({
-      title: newSearch.title,
-      serial_number: newSearch.serial_number,
-      target_wr: newSearch.target_wr
-    });
-    
-    if (error) {
-      toast.error("Failed to add search");
-    } else {
-      toast.success("Search added!");
-      setNewSearch({ title: '', serial_number: searches.length + 1, target_wr: 1 });
-      fetchSearches();
-    }
-  };
+  // Related Search CRUD
+  const handleSearchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const data = { ...searchForm };
 
-  const handleUpdateSearch = async (search: RelatedSearch) => {
-    const { error } = await offerGrabZoneClient
-      .from('related_searches')
-      .update({
-        title: search.title,
-        serial_number: search.serial_number,
-        target_wr: search.target_wr,
-        is_active: search.is_active
-      })
-      .eq('id', search.id);
-    
-    if (error) {
-      toast.error("Failed to update search");
+    if (editingSearch) {
+      const { error } = await offerGrabZoneClient.from("related_searches").update(data).eq("id", editingSearch.id);
+      if (error) toast.error("Failed to update");
+      else { toast.success("Updated"); fetchRelatedSearches(); resetSearchForm(); }
     } else {
-      toast.success("Search updated!");
-      setEditingSearch(null);
-      fetchSearches();
+      const { error } = await offerGrabZoneClient.from("related_searches").insert([data]);
+      if (error) toast.error("Failed to create");
+      else { toast.success("Created"); fetchRelatedSearches(); resetSearchForm(); }
     }
   };
 
   const handleDeleteSearch = async (id: string) => {
-    if (!confirm("Delete this search?")) return;
-    
-    const { error } = await offerGrabZoneClient.from('related_searches').delete().eq('id', id);
-    
-    if (error) {
-      toast.error("Failed to delete");
-    } else {
-      toast.success("Deleted!");
-      fetchSearches();
+    if (confirm("Delete this search?")) {
+      const { error } = await offerGrabZoneClient.from("related_searches").delete().eq("id", id);
+      if (error) toast.error("Failed to delete");
+      else { toast.success("Deleted"); fetchRelatedSearches(); }
     }
   };
 
-  // Web Result handlers
-  const handleSaveResult = async () => {
-    if (!editingResult) return;
-    
-    if (!editingResult.name.trim() || !editingResult.title.trim() || !editingResult.link.trim()) {
-      toast.error("Name, title and link are required");
-      return;
-    }
+  const resetSearchForm = () => {
+    setSearchForm({ title: "", serial_number: relatedSearches.length + 1, target_wr: 1, is_active: true });
+    setEditingSearch(null);
+    setSearchDialog(false);
+  };
 
-    // For new web results, get page from selected related search
-    let resultToSave = { ...editingResult };
-    if (!editingResult.id && selectedSearchForWebResult) {
-      const selectedSearch = searches.find(s => s.id === selectedSearchForWebResult);
-      if (selectedSearch) {
-        resultToSave.wr_page = selectedSearch.target_wr;
-      }
+  // Web Result CRUD
+  const handleWebResultSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    let pageNumber = webResultForm.wr_page;
+    if (selectedSearchForResult && !editingWebResult) {
+      const selectedSearch = relatedSearches.find(s => s.id === selectedSearchForResult);
+      if (selectedSearch) pageNumber = selectedSearch.target_wr;
     }
     
-    if (editingResult.id) {
-      const { error } = await offerGrabZoneClient
-        .from('web_results')
-        .update(resultToSave)
-        .eq('id', editingResult.id);
-      
-      if (error) {
-        toast.error("Failed to update");
-      } else {
-        toast.success("Updated!");
-        setResultDialogOpen(false);
-        setEditingResult(null);
-        setSelectedSearchForWebResult("");
-        fetchWebResults();
-      }
+    const data = { ...webResultForm, wr_page: pageNumber };
+
+    if (editingWebResult) {
+      const { error } = await offerGrabZoneClient.from("web_results").update(data).eq("id", editingWebResult.id);
+      if (error) toast.error("Failed to update");
+      else { toast.success("Updated"); fetchWebResults(); resetWebResultForm(); }
     } else {
-      if (!selectedSearchForWebResult) {
+      if (!selectedSearchForResult) {
         toast.error("Please select a related search first");
         return;
       }
-      const { id, ...insertData } = resultToSave;
-      const { error } = await offerGrabZoneClient.from('web_results').insert(insertData);
-      
-      if (error) {
-        toast.error("Failed to add");
-      } else {
-        toast.success("Added!");
-        setResultDialogOpen(false);
-        setEditingResult(null);
-        setSelectedSearchForWebResult("");
-        fetchWebResults();
-      }
+      const { error } = await offerGrabZoneClient.from("web_results").insert([data]);
+      if (error) toast.error("Failed to create");
+      else { toast.success("Created"); fetchWebResults(); resetWebResultForm(); }
     }
   };
 
-  const handleDeleteResult = async (id: string) => {
-    if (!confirm("Delete this web result?")) return;
-    
-    const { error } = await offerGrabZoneClient.from('web_results').delete().eq('id', id);
-    
-    if (error) {
-      toast.error("Failed to delete");
-    } else {
-      toast.success("Deleted!");
-      fetchWebResults();
+  const handleDeleteWebResult = async (id: string) => {
+    if (confirm("Delete this web result?")) {
+      const { error } = await offerGrabZoneClient.from("web_results").delete().eq("id", id);
+      if (error) toast.error("Failed to delete");
+      else { toast.success("Deleted"); fetchWebResults(); }
     }
   };
 
-  // Prelanding handlers
-  const handleSavePrelanding = async () => {
-    if (!editingPrelanding) return;
-    
-    if (!editingPrelanding.headline.trim()) {
-      toast.error("Headline is required");
-      return;
-    }
-    
-    if (editingPrelanding.id) {
-      const { error } = await offerGrabZoneClient
-        .from('prelandings')
-        .update(editingPrelanding)
-        .eq('id', editingPrelanding.id);
-      
-      if (error) {
-        toast.error("Failed to update");
-      } else {
-        toast.success("Updated!");
-        setPrelandingDialogOpen(false);
-        setEditingPrelanding(null);
-        fetchPrelandings();
-      }
+  const resetWebResultForm = () => {
+    setWebResultForm({
+      name: "", title: "", description: "", link: "", logo_url: "",
+      wr_page: selectedPage, serial_number: 0, is_active: true,
+      allowed_countries: ["worldwide"], fallback_link: ""
+    });
+    setSelectedSearchForResult("");
+    setEditingWebResult(null);
+    setWebResultDialog(false);
+  };
+
+  // Prelanding CRUD
+  const handlePrelandingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const data = { ...prelandingForm, web_result_id: prelandingForm.web_result_id || null };
+
+    if (editingPrelanding) {
+      const { error } = await offerGrabZoneClient.from("prelandings").update(data).eq("id", editingPrelanding.id);
+      if (error) toast.error("Failed to update");
+      else { toast.success("Updated"); fetchPrelandings(); resetPrelandingForm(); }
     } else {
-      const { id, ...insertData } = editingPrelanding;
-      const { error } = await offerGrabZoneClient.from('prelandings').insert(insertData);
-      
-      if (error) {
-        toast.error("Failed to add");
-      } else {
-        toast.success("Added!");
-        setPrelandingDialogOpen(false);
-        setEditingPrelanding(null);
-        fetchPrelandings();
-      }
+      const { error } = await offerGrabZoneClient.from("prelandings").insert([data]);
+      if (error) toast.error("Failed to create");
+      else { toast.success("Created"); fetchPrelandings(); resetPrelandingForm(); }
     }
   };
 
   const handleDeletePrelanding = async (id: string) => {
-    if (!confirm("Delete this prelanding?")) return;
-    
-    const { error } = await offerGrabZoneClient.from('prelandings').delete().eq('id', id);
-    
-    if (error) {
-      toast.error("Failed to delete");
-    } else {
-      toast.success("Deleted!");
-      fetchPrelandings();
+    if (confirm("Delete this prelanding?")) {
+      const { error } = await offerGrabZoneClient.from("prelandings").delete().eq("id", id);
+      if (error) toast.error("Failed to delete");
+      else { toast.success("Deleted"); fetchPrelandings(); }
     }
   };
 
-  const getWebResultName = (webResultId: string | null) => {
-    if (!webResultId) return "Not linked";
-    const result = webResults.find(r => r.id === webResultId);
-    return result?.name || "Unknown";
+  const resetPrelandingForm = () => {
+    setPrelandingForm({
+      web_result_id: "", logo_url: "", main_image_url: "", headline: "",
+      description: "", email_placeholder: "Enter your email", cta_button_text: "Get Started",
+      background_color: "#1a1a2e", background_image_url: "", is_active: true
+    });
+    setEditingPrelanding(null);
+    setPrelandingDialog(false);
   };
 
-  const emptyResult: WebResult = {
-    id: '',
-    name: '',
-    title: '',
-    description: '',
-    link: '',
-    logo_url: '',
-    wr_page: 1,
-    is_sponsored: false,
-    serial_number: 1,
-    allowed_countries: ['worldwide'],
-    fallback_link: '',
-    is_active: true
-  };
+  const filteredSearches = relatedSearches.filter(s =>
+    s.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  const emptyPrelanding: Prelanding = {
-    id: '',
-    web_result_id: null,
-    logo_url: '',
-    main_image_url: '',
-    headline: '',
-    description: '',
-    email_placeholder: 'Enter your email',
-    cta_button_text: 'Get Started',
-    background_color: '#1a1a2e',
-    background_image_url: '',
-    is_active: false
-  };
-
-  const filteredResults = selectedWrPage === 0 
-    ? webResults 
-    : webResults.filter(r => r.wr_page === selectedWrPage);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-pulse text-cyan-400">Loading OfferGrabZone...</div>
-      </div>
-    );
-  }
+  const filteredWebResults = webResults.filter(w =>
+    w.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    w.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full justify-start bg-slate-800/50 p-1 h-auto flex-wrap border border-slate-700">
-          <TabsTrigger 
-            value="landing" 
-            className="px-6 py-2.5 data-[state=active]:bg-cyan-500 data-[state=active]:text-white text-slate-300"
-          >
-            Landing Content
-          </TabsTrigger>
-          <TabsTrigger 
-            value="searches" 
-            className="px-6 py-2.5 data-[state=active]:bg-cyan-500 data-[state=active]:text-white text-slate-300"
-          >
-            Search Buttons
-          </TabsTrigger>
-          <TabsTrigger 
-            value="webresults" 
-            className="px-6 py-2.5 data-[state=active]:bg-cyan-500 data-[state=active]:text-white text-slate-300"
-          >
-            Web Results
-          </TabsTrigger>
-          <TabsTrigger 
-            value="prelandings" 
-            className="px-6 py-2.5 data-[state=active]:bg-cyan-500 data-[state=active]:text-white text-slate-300"
-          >
-            Pre-Landings
-          </TabsTrigger>
-        </TabsList>
+    <Card className="bg-[#1a2942] border-[#2a3f5f] text-white">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-white">
+          <span className="text-2xl">🎁</span> OfferGrabZone Manager
+        </CardTitle>
+        <CardDescription className="text-gray-400">Manage landing page, related searches, web results, and prelandings</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-4 bg-[#0d1520]">
+            <TabsTrigger value="landing" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">Landing</TabsTrigger>
+            <TabsTrigger value="searches" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">Searches ({relatedSearches.length})</TabsTrigger>
+            <TabsTrigger value="webresults" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">Web Results ({webResults.length})</TabsTrigger>
+            <TabsTrigger value="prelandings" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">Prelandings ({prelandings.length})</TabsTrigger>
+          </TabsList>
 
-        {/* Landing Content Tab */}
-        <TabsContent value="landing" className="mt-6">
-          <Card className="bg-slate-800/50 border-slate-700">
-            <CardHeader>
-              <CardTitle className="text-white">Edit Landing Page Content</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {landingContent ? (
-                <>
-                  <div>
-                    <Label className="text-slate-300">Site Name</Label>
-                    <Input
-                      value={landingContent.site_name}
-                      onChange={(e) => setLandingContent({ ...landingContent, site_name: e.target.value })}
-                      className="bg-slate-900 border-slate-600 text-white"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-slate-300">Headline</Label>
-                    <Input
-                      value={landingContent.headline}
-                      onChange={(e) => setLandingContent({ ...landingContent, headline: e.target.value })}
-                      className="bg-slate-900 border-slate-600 text-white"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-slate-300">Description</Label>
-                    <Textarea
-                      value={landingContent.description}
-                      onChange={(e) => setLandingContent({ ...landingContent, description: e.target.value })}
-                      className="bg-slate-900 border-slate-600 text-white"
-                      rows={4}
-                    />
-                  </div>
-                  <Button onClick={saveLandingContent} className="bg-cyan-500 hover:bg-cyan-600">
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Changes
-                  </Button>
-                </>
-              ) : (
-                <p className="text-slate-400">No landing content found.</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+          {/* Landing Tab */}
+          <TabsContent value="landing" className="space-y-4">
+            {landingContent ? (
+              <div className="space-y-4 max-w-xl">
+                <div>
+                  <Label className="text-gray-300">Site Name</Label>
+                  <Input
+                    value={landingContent.site_name}
+                    onChange={(e) => setLandingContent({ ...landingContent, site_name: e.target.value })}
+                    className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Headline</Label>
+                  <Input
+                    value={landingContent.headline}
+                    onChange={(e) => setLandingContent({ ...landingContent, headline: e.target.value })}
+                    className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Description</Label>
+                  <Textarea
+                    value={landingContent.description}
+                    onChange={(e) => setLandingContent({ ...landingContent, description: e.target.value })}
+                    className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500"
+                  />
+                </div>
+                <Button onClick={handleSaveLanding} className="bg-[#00b4d8] hover:bg-[#0096b4] text-white">Save Settings</Button>
+              </div>
+            ) : (
+              <p className="text-gray-400">No landing settings found.</p>
+            )}
+          </TabsContent>
 
-        {/* Search Buttons Tab */}
-        <TabsContent value="searches" className="mt-6">
-          <Card className="bg-slate-800/50 border-slate-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Search className="w-5 h-5" />
-                Search Buttons
-                <Badge variant="secondary" className="bg-amber-500/20 text-amber-400">(Related Search)</Badge>
-                <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-400">{searches.length}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Add new search */}
-              <div className="flex gap-2 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+          {/* Related Searches Tab */}
+          <TabsContent value="searches" className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Search title..."
-                  value={newSearch.title}
-                  onChange={(e) => setNewSearch({ ...newSearch, title: e.target.value })}
-                  className="bg-slate-800 border-slate-600 text-white"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500"
                 />
-                <Input
-                  type="number"
-                  placeholder="Serial #"
-                  value={newSearch.serial_number}
-                  onChange={(e) => setNewSearch({ ...newSearch, serial_number: parseInt(e.target.value) || 1 })}
-                  className="bg-slate-800 border-slate-600 text-white w-24"
-                />
-                <Select
-                  value={newSearch.target_wr.toString()}
-                  onValueChange={(v) => setNewSearch({ ...newSearch, target_wr: parseInt(v) })}
-                >
-                  <SelectTrigger className="w-32 bg-slate-800 border-slate-600 text-white">
-                    <SelectValue placeholder="Target WR" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5].map(n => (
-                      <SelectItem key={n} value={n.toString()}>WR {n}</SelectItem>
-                    ))}
+              </div>
+              <Dialog open={searchDialog} onOpenChange={setSearchDialog}>
+                <DialogTrigger asChild>
+                  <Button onClick={resetSearchForm} className="bg-[#00b4d8] hover:bg-[#0096b4] text-white"><Plus className="mr-2 h-4 w-4" />New Search</Button>
+                </DialogTrigger>
+                <DialogContent className="bg-[#1a2942] border-[#2a3f5f] text-white">
+                  <DialogHeader><DialogTitle className="text-white">{editingSearch ? "Edit" : "Create"} Related Search</DialogTitle></DialogHeader>
+                  <form onSubmit={handleSearchSubmit} className="space-y-4">
+                    <div><Label className="text-gray-300">Title *</Label><Input value={searchForm.title} onChange={(e) => setSearchForm({ ...searchForm, title: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><Label className="text-gray-300">Serial Number</Label><Input type="number" value={searchForm.serial_number} onChange={(e) => setSearchForm({ ...searchForm, serial_number: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                      <div><Label className="text-gray-300">Target WR Page</Label><Input type="number" value={searchForm.target_wr} onChange={(e) => setSearchForm({ ...searchForm, target_wr: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={searchForm.is_active} onCheckedChange={(checked) => setSearchForm({ ...searchForm, is_active: checked })} />
+                      <Label className="text-gray-300">Active</Label>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="submit" className="flex-1 bg-[#00b4d8] hover:bg-[#0096b4] text-white">{editingSearch ? "Update" : "Create"}</Button>
+                      <Button type="button" variant="outline" onClick={resetSearchForm} className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]">Cancel</Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+            <div className="space-y-2">
+              {filteredSearches.map((search) => (
+                <div key={search.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="outline" className="text-xs border-[#2a3f5f] text-[#00b4d8]">(Related Search)</Badge>
+                      <h3 className="font-semibold text-white">{search.title}</h3>
+                    </div>
+                    <p className="text-sm text-gray-400">Serial: {search.serial_number} • Target WR: {search.target_wr}</p>
+                    <span className={`text-xs px-2 py-1 rounded ${search.is_active ? 'bg-[#00b4d8]/20 text-[#00b4d8]' : 'bg-red-500/20 text-red-400'}`}>
+                      {search.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]" onClick={() => {
+                      setEditingSearch(search);
+                      setSearchForm({
+                        title: search.title, serial_number: search.serial_number,
+                        target_wr: search.target_wr, is_active: search.is_active
+                      });
+                      setSearchDialog(true);
+                    }}><Edit className="h-4 w-4" /></Button>
+                    <Button size="sm" variant="destructive" onClick={() => handleDeleteSearch(search.id)}><Trash2 className="h-4 w-4" /></Button>
+                  </div>
+                </div>
+              ))}
+              {filteredSearches.length === 0 && <p className="text-gray-400 text-center py-8">No related searches found.</p>}
+            </div>
+          </TabsContent>
+
+          {/* Web Results Tab */}
+          <TabsContent value="webresults" className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <Select value={selectedPage.toString()} onValueChange={(v) => setSelectedPage(parseInt(v))}>
+                  <SelectTrigger className="w-32 bg-[#0d1520] border-[#2a3f5f] text-white"><SelectValue placeholder="Page" /></SelectTrigger>
+                  <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
+                    {[1, 2, 3, 4, 5].map(p => <SelectItem key={p} value={p.toString()} className="text-white hover:bg-[#2a3f5f]">Page {p}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <Button onClick={handleAddSearch} className="bg-cyan-500 hover:bg-cyan-600">
-                  <Plus className="w-4 h-4" />
-                </Button>
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" />
+                </div>
               </div>
-
-              {/* Search list */}
-              <div className="space-y-2">
-                {searches.map((search) => (
-                  <div key={search.id} className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg border border-slate-700">
-                    {editingSearch?.id === search.id ? (
-                      <>
-                        <Input
-                          value={editingSearch.title}
-                          onChange={(e) => setEditingSearch({ ...editingSearch, title: e.target.value })}
-                          className="bg-slate-800 border-slate-600 text-white flex-1"
-                        />
-                        <Input
-                          type="number"
-                          value={editingSearch.serial_number}
-                          onChange={(e) => setEditingSearch({ ...editingSearch, serial_number: parseInt(e.target.value) || 1 })}
-                          className="bg-slate-800 border-slate-600 text-white w-20"
-                        />
-                        <Select
-                          value={editingSearch.target_wr.toString()}
-                          onValueChange={(v) => setEditingSearch({ ...editingSearch, target_wr: parseInt(v) })}
-                        >
-                          <SelectTrigger className="w-24 bg-slate-800 border-slate-600 text-white">
-                            <SelectValue />
+              <Dialog open={webResultDialog} onOpenChange={setWebResultDialog}>
+                <DialogTrigger asChild>
+                  <Button onClick={resetWebResultForm} className="bg-[#00b4d8] hover:bg-[#0096b4] text-white"><Plus className="mr-2 h-4 w-4" />Add Result</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1a2942] border-[#2a3f5f] text-white">
+                  <DialogHeader><DialogTitle className="text-white">{editingWebResult ? "Edit" : "Create"} Web Result</DialogTitle></DialogHeader>
+                  <form onSubmit={handleWebResultSubmit} className="space-y-4">
+                    {!editingWebResult && (
+                      <div>
+                        <Label className="text-gray-300">Select Related Search *</Label>
+                        <Select value={selectedSearchForResult} onValueChange={setSelectedSearchForResult}>
+                          <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white">
+                            <SelectValue placeholder="Choose a related search..." />
                           </SelectTrigger>
-                          <SelectContent>
-                            {[1, 2, 3, 4, 5].map(n => (
-                              <SelectItem key={n} value={n.toString()}>WR {n}</SelectItem>
+                          <SelectContent className="bg-[#1a2942] border-[#2a3f5f] max-h-[200px]">
+                            {relatedSearches.map(s => (
+                              <SelectItem key={s.id} value={s.id} className="text-white hover:bg-[#2a3f5f]">
+                                <span className="text-[#00b4d8] mr-2">(Related Search)</span>
+                                {s.title} → WR Page {s.target_wr}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                        <Button size="sm" onClick={() => handleUpdateSearch(editingSearch)} className="bg-green-500 hover:bg-green-600">
-                          <Save className="w-4 h-4" />
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setEditingSearch(null)}>Cancel</Button>
-                      </>
-                    ) : (
-                      <>
-                        <Badge className="bg-amber-500/20 text-amber-400">(Related Search)</Badge>
-                        <Badge className="bg-cyan-500/20 text-cyan-400">#{search.serial_number}</Badge>
-                        <span className="text-white flex-1">{search.title}</span>
-                        <Badge variant="outline" className="text-slate-400 border-slate-600">
-                          → WR {search.target_wr}
-                        </Badge>
-                        <Switch
-                          checked={search.is_active}
-                          onCheckedChange={(checked) => handleUpdateSearch({ ...search, is_active: checked })}
-                        />
-                        <Button size="sm" variant="ghost" onClick={() => setEditingSearch(search)}>
-                          <Edit className="w-4 h-4 text-slate-400" />
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleDeleteSearch(search.id)}>
-                          <Trash2 className="w-4 h-4 text-red-400" />
-                        </Button>
-                      </>
+                        {selectedSearchForResult && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Web result will be added to Page {relatedSearches.find(s => s.id === selectedSearchForResult)?.target_wr || 1}
+                          </p>
+                        )}
+                      </div>
                     )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Web Results Tab */}
-        <TabsContent value="webresults" className="mt-6">
-          <Card className="bg-slate-800/50 border-slate-700">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-white flex items-center gap-2">
-                <Link className="w-5 h-5" />
-                Web Results
-                <Badge variant="secondary" className="bg-purple-500/20 text-purple-400">(Web Result)</Badge>
-                <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-400">{webResults.length}</Badge>
-              </CardTitle>
-              <div className="flex gap-2">
-                <Select value={selectedWrPage.toString()} onValueChange={(v) => setSelectedWrPage(parseInt(v))}>
-                  <SelectTrigger className="w-32 bg-slate-800 border-slate-600 text-white">
-                    <SelectValue placeholder="Filter WR" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">All Pages</SelectItem>
-                    {[1, 2, 3, 4, 5].map(n => (
-                      <SelectItem key={n} value={n.toString()}>WR {n}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button 
-                  onClick={() => { setEditingResult({ ...emptyResult }); setSelectedSearchForWebResult(""); setResultDialogOpen(true); }}
-                  className="bg-cyan-500 hover:bg-cyan-600"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Result
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {filteredResults.map((result) => (
-                  <div key={result.id} className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg border border-slate-700">
-                    <Badge className="bg-purple-500/20 text-purple-400">(Web Result)</Badge>
-                    <Badge className="bg-cyan-500/20 text-cyan-400">WR {result.wr_page}</Badge>
-                    <Badge className="bg-slate-600/50 text-slate-300">#{result.serial_number}</Badge>
-                    {result.is_sponsored && <Badge className="bg-yellow-500/20 text-yellow-400">Sponsored</Badge>}
-                    <span className="text-white flex-1 font-medium">{result.name}</span>
-                    <span className="text-slate-400 text-sm truncate max-w-48">{result.title}</span>
-                    {prelandings.some(p => p.web_result_id === result.id) ? (
-                      <Badge className="bg-green-500/20 text-green-400">Has Pre-landing</Badge>
-                    ) : (
-                      <Badge className="bg-slate-700/50 text-slate-500">No Pre-landing</Badge>
-                    )}
-                    <Switch
-                      checked={result.is_active}
-                      onCheckedChange={async (checked) => {
-                        await offerGrabZoneClient.from('web_results').update({ is_active: checked }).eq('id', result.id);
-                        fetchWebResults();
-                      }}
-                    />
-                    <Button size="sm" variant="ghost" onClick={() => { setEditingResult(result); setResultDialogOpen(true); }}>
-                      <Edit className="w-4 h-4 text-slate-400" />
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleDeleteResult(result.id)}>
-                      <Trash2 className="w-4 h-4 text-red-400" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Pre-Landings Tab */}
-        <TabsContent value="prelandings" className="mt-6">
-          <Card className="bg-slate-800/50 border-slate-700">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-white flex items-center gap-2">
-                <Eye className="w-5 h-5" />
-                Pre-Landing Pages
-                <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-400">{prelandings.length}</Badge>
-              </CardTitle>
-              <Button 
-                onClick={() => { setEditingPrelanding({ ...emptyPrelanding }); setPrelandingDialogOpen(true); }}
-                className="bg-cyan-500 hover:bg-cyan-600"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Pre-Landing
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {prelandings.map((prelanding) => {
-                  const linkedResult = webResults.find(r => r.id === prelanding.web_result_id);
-                  return (
-                  <div key={prelanding.id} className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg border border-slate-700">
-                    <Badge className={prelanding.is_active ? "bg-green-500/20 text-green-400" : "bg-slate-600/50 text-slate-400"}>
-                      {prelanding.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                    <span className="text-white flex-1 font-medium truncate">{prelanding.headline}</span>
-                    <div className="flex items-center gap-2">
-                      <Badge className="bg-purple-500/20 text-purple-400">(Web Result)</Badge>
-                      {linkedResult ? (
-                        <>
-                          <Badge className="bg-cyan-500/20 text-cyan-400">WR{linkedResult.wr_page}</Badge>
-                          <span className="text-slate-300">{linkedResult.name}</span>
-                        </>
-                      ) : (
-                        <span className="text-slate-500">Not linked</span>
-                      )}
-                    </div>
-                    <Switch
-                      checked={prelanding.is_active}
-                      onCheckedChange={async (checked) => {
-                        await offerGrabZoneClient.from('prelandings').update({ is_active: checked }).eq('id', prelanding.id);
-                        fetchPrelandings();
-                      }}
-                    />
-                    <Button size="sm" variant="ghost" onClick={() => { setEditingPrelanding(prelanding); setPrelandingDialogOpen(true); }}>
-                      <Edit className="w-4 h-4 text-slate-400" />
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleDeletePrelanding(prelanding.id)}>
-                      <Trash2 className="w-4 h-4 text-red-400" />
-                    </Button>
-                  </div>
-                )})}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Web Result Dialog */}
-      <Dialog open={resultDialogOpen} onOpenChange={setResultDialogOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-white">{editingResult?.id ? 'Edit' : 'Add'} Web Result</DialogTitle>
-          </DialogHeader>
-          {editingResult && (
-            <div className="space-y-4">
-              {/* Related Search Selection (only for new, not editing) */}
-              {!editingResult.id && (
-                <div>
-                  <Label className="text-slate-300">Select Related Search *</Label>
-                  <Select value={selectedSearchForWebResult} onValueChange={setSelectedSearchForWebResult}>
-                    <SelectTrigger className="bg-slate-900 border-slate-600 text-white">
-                      <SelectValue placeholder="Choose a related search..." />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[200px]">
-                      {searches.map(s => (
-                        <SelectItem key={s.id} value={s.id}>
-                          <span className="text-amber-400 mr-2">(Related Search)</span>
-                          {s.title} → WR {s.target_wr}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedSearchForWebResult && (
-                    <p className="text-xs text-slate-400 mt-1">
-                      Web result will be added to WR Page {searches.find(s => s.id === selectedSearchForWebResult)?.target_wr || 1}
-                    </p>
-                  )}
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-slate-300">Name *</Label>
-                  <Input
-                    value={editingResult.name}
-                    onChange={(e) => setEditingResult({ ...editingResult, name: e.target.value })}
-                    className="bg-slate-900 border-slate-600 text-white"
-                  />
-                </div>
-                <div>
-                  <Label className="text-slate-300">Title *</Label>
-                  <Input
-                    value={editingResult.title}
-                    onChange={(e) => setEditingResult({ ...editingResult, title: e.target.value })}
-                    className="bg-slate-900 border-slate-600 text-white"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label className="text-slate-300">Description</Label>
-                <Textarea
-                  value={editingResult.description || ''}
-                  onChange={(e) => setEditingResult({ ...editingResult, description: e.target.value })}
-                  className="bg-slate-900 border-slate-600 text-white"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-slate-300">Link *</Label>
-                  <Input
-                    value={editingResult.link}
-                    onChange={(e) => setEditingResult({ ...editingResult, link: e.target.value })}
-                    className="bg-slate-900 border-slate-600 text-white"
-                  />
-                </div>
-                <div>
-                  <Label className="text-slate-300">Logo URL</Label>
-                  <Input
-                    value={editingResult.logo_url || ''}
-                    onChange={(e) => setEditingResult({ ...editingResult, logo_url: e.target.value })}
-                    className="bg-slate-900 border-slate-600 text-white"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label className="text-slate-300">WR Page {!editingResult.id && "(Auto)"}</Label>
-                  {editingResult.id ? (
-                    <Select
-                      value={editingResult.wr_page.toString()}
-                      onValueChange={(v) => setEditingResult({ ...editingResult, wr_page: parseInt(v) })}
-                    >
-                      <SelectTrigger className="bg-slate-900 border-slate-600 text-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[1, 2, 3, 4, 5].map(n => (
-                          <SelectItem key={n} value={n.toString()}>WR {n}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="p-2 rounded border bg-slate-900 border-slate-600 text-slate-400">
-                      {selectedSearchForWebResult ? `WR ${searches.find(s => s.id === selectedSearchForWebResult)?.target_wr || 1}` : "Select search first"}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <Label className="text-slate-300">Serial #</Label>
-                  <Input
-                    type="number"
-                    value={editingResult.serial_number}
-                    onChange={(e) => setEditingResult({ ...editingResult, serial_number: parseInt(e.target.value) || 1 })}
-                    className="bg-slate-900 border-slate-600 text-white"
-                  />
-                </div>
-                <div className="flex items-center gap-2 pt-6">
-                  <Switch
-                    checked={editingResult.is_sponsored}
-                    onCheckedChange={(checked) => setEditingResult({ ...editingResult, is_sponsored: checked })}
-                  />
-                  <Label className="text-slate-300">Sponsored</Label>
-                </div>
-              </div>
-              <div>
-                <Label className="text-slate-300">Fallback Link</Label>
-                <Input
-                  value={editingResult.fallback_link || ''}
-                  onChange={(e) => setEditingResult({ ...editingResult, fallback_link: e.target.value })}
-                  className="bg-slate-900 border-slate-600 text-white"
-                />
-              </div>
-              <div>
-                <Label className="text-slate-300">Country Permissions</Label>
-                <Select
-                  value={editingResult.allowed_countries?.[0] || 'worldwide'}
-                  onValueChange={(v) => setEditingResult({ ...editingResult, allowed_countries: [v] })}
-                >
-                  <SelectTrigger className="bg-slate-900 border-slate-600 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="worldwide">Worldwide</SelectItem>
-                    <SelectItem value="US">United States</SelectItem>
-                    <SelectItem value="UK">United Kingdom</SelectItem>
-                    <SelectItem value="CA">Canada</SelectItem>
-                    <SelectItem value="AU">Australia</SelectItem>
-                    <SelectItem value="IN">India</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button onClick={handleSaveResult} className="w-full bg-cyan-500 hover:bg-cyan-600">
-                <Save className="w-4 h-4 mr-2" />
-                Save Web Result
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Prelanding Dialog */}
-      <Dialog open={prelandingDialogOpen} onOpenChange={setPrelandingDialogOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-white">{editingPrelanding?.id ? 'Edit' : 'Add'} Pre-Landing</DialogTitle>
-          </DialogHeader>
-          {editingPrelanding && (
-            <div className="space-y-4">
-              <div>
-                <Label className="text-slate-300">Select Web Result</Label>
-                <Select
-                  value={editingPrelanding.web_result_id || 'none'}
-                  onValueChange={(v) => setEditingPrelanding({ ...editingPrelanding, web_result_id: v === 'none' ? null : v })}
-                >
-                  <SelectTrigger className="bg-slate-900 border-slate-600 text-white">
-                    <SelectValue placeholder="Select web result" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    <SelectItem value="none">None</SelectItem>
-                    {webResults.map((result) => {
-                      const hasPrelanding = prelandings.some(p => p.web_result_id === result.id && p.id !== editingPrelanding?.id);
-                      return (
-                        <SelectItem key={result.id} value={result.id}>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="bg-purple-500/20 text-purple-400 text-xs px-1.5 py-0.5 rounded">WR{result.wr_page}</span>
-                            <span className="text-cyan-400 text-xs">(Web Result)</span>
-                            <span>{result.name}</span>
-                            {hasPrelanding && (
-                              <span className="bg-green-500/20 text-green-400 text-xs px-1.5 py-0.5 rounded">Has Pre-landing</span>
-                            )}
+                    <div><Label className="text-gray-300">Name *</Label><Input value={webResultForm.name} onChange={(e) => setWebResultForm({ ...webResultForm, name: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Title *</Label><Input value={webResultForm.title} onChange={(e) => setWebResultForm({ ...webResultForm, title: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Description</Label><Textarea value={webResultForm.description} onChange={(e) => setWebResultForm({ ...webResultForm, description: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" /></div>
+                    <div><Label className="text-gray-300">Logo URL</Label><Input value={webResultForm.logo_url} onChange={(e) => setWebResultForm({ ...webResultForm, logo_url: e.target.value })} placeholder="https://..." className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" /></div>
+                    <div><Label className="text-gray-300">Link *</Label><Input value={webResultForm.link} onChange={(e) => setWebResultForm({ ...webResultForm, link: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Fallback Link</Label><Input value={webResultForm.fallback_link} onChange={(e) => setWebResultForm({ ...webResultForm, fallback_link: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-gray-300">Page {!editingWebResult && "(Auto)"}</Label>
+                        {editingWebResult ? (
+                          <Input type="number" value={webResultForm.wr_page} onChange={(e) => setWebResultForm({ ...webResultForm, wr_page: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" />
+                        ) : (
+                          <div className="p-2 rounded border bg-[#0d1520] border-[#2a3f5f] text-gray-400">
+                            {selectedSearchForResult ? `Page ${relatedSearches.find(s => s.id === selectedSearchForResult)?.target_wr || 1}` : "Select search first"}
                           </div>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-                {editingPrelanding.web_result_id && (
-                  <div className="mt-2 p-2 bg-slate-900/50 rounded border border-slate-700">
-                    <span className="text-xs text-slate-400">Selected: </span>
-                    <Badge className="bg-purple-500/20 text-purple-400 mr-1">Web Result</Badge>
-                    <span className="text-white">{webResults.find(r => r.id === editingPrelanding.web_result_id)?.name}</span>
-                  </div>
-                )}
-              </div>
-              <div>
-                <Label className="text-slate-300">Headline *</Label>
-                <Input
-                  value={editingPrelanding.headline}
-                  onChange={(e) => setEditingPrelanding({ ...editingPrelanding, headline: e.target.value })}
-                  className="bg-slate-900 border-slate-600 text-white"
-                />
-              </div>
-              <div>
-                <Label className="text-slate-300">Description</Label>
-                <Textarea
-                  value={editingPrelanding.description || ''}
-                  onChange={(e) => setEditingPrelanding({ ...editingPrelanding, description: e.target.value })}
-                  className="bg-slate-900 border-slate-600 text-white"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-slate-300">Logo URL</Label>
-                  <Input
-                    value={editingPrelanding.logo_url || ''}
-                    onChange={(e) => setEditingPrelanding({ ...editingPrelanding, logo_url: e.target.value })}
-                    className="bg-slate-900 border-slate-600 text-white"
-                  />
-                </div>
-                <div>
-                  <Label className="text-slate-300">Main Image URL</Label>
-                  <Input
-                    value={editingPrelanding.main_image_url || ''}
-                    onChange={(e) => setEditingPrelanding({ ...editingPrelanding, main_image_url: e.target.value })}
-                    className="bg-slate-900 border-slate-600 text-white"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-slate-300">Email Placeholder</Label>
-                  <Input
-                    value={editingPrelanding.email_placeholder}
-                    onChange={(e) => setEditingPrelanding({ ...editingPrelanding, email_placeholder: e.target.value })}
-                    className="bg-slate-900 border-slate-600 text-white"
-                  />
-                </div>
-                <div>
-                  <Label className="text-slate-300">CTA Button Text</Label>
-                  <Input
-                    value={editingPrelanding.cta_button_text}
-                    onChange={(e) => setEditingPrelanding({ ...editingPrelanding, cta_button_text: e.target.value })}
-                    className="bg-slate-900 border-slate-600 text-white"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-slate-300">Background Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={editingPrelanding.background_color}
-                      onChange={(e) => setEditingPrelanding({ ...editingPrelanding, background_color: e.target.value })}
-                      className="w-12 h-10 p-1 bg-slate-900 border-slate-600"
-                    />
-                    <Input
-                      value={editingPrelanding.background_color}
-                      onChange={(e) => setEditingPrelanding({ ...editingPrelanding, background_color: e.target.value })}
-                      className="bg-slate-900 border-slate-600 text-white flex-1"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-slate-300">Background Image URL</Label>
-                  <Input
-                    value={editingPrelanding.background_image_url || ''}
-                    onChange={(e) => setEditingPrelanding({ ...editingPrelanding, background_image_url: e.target.value })}
-                    className="bg-slate-900 border-slate-600 text-white"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={editingPrelanding.is_active}
-                  onCheckedChange={(checked) => setEditingPrelanding({ ...editingPrelanding, is_active: checked })}
-                />
-                <Label className="text-slate-300">Active</Label>
-              </div>
-              <Button onClick={handleSavePrelanding} className="w-full bg-cyan-500 hover:bg-cyan-600">
-                <Save className="w-4 h-4 mr-2" />
-                Save Pre-Landing
-              </Button>
+                        )}
+                      </div>
+                      <div><Label className="text-gray-300">Serial Number</Label><Input type="number" value={webResultForm.serial_number} onChange={(e) => setWebResultForm({ ...webResultForm, serial_number: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Country Permissions</Label>
+                      <Select value={webResultForm.allowed_countries[0]} onValueChange={(v) => setWebResultForm({ ...webResultForm, allowed_countries: [v] })}>
+                        <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white"><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
+                          {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code} className="text-white hover:bg-[#2a3f5f]">{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={webResultForm.is_active} onCheckedChange={(checked) => setWebResultForm({ ...webResultForm, is_active: checked })} />
+                      <Label className="text-gray-300">Active</Label>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="submit" className="flex-1 bg-[#00b4d8] hover:bg-[#0096b4] text-white">{editingWebResult ? "Update" : "Create"}</Button>
+                      <Button type="button" variant="outline" onClick={resetWebResultForm} className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]">Cancel</Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+            <div className="space-y-2">
+              {filteredWebResults.map((result) => {
+                const hasPrelander = prelandings.some(p => p.web_result_id === result.id);
+                return (
+                  <div key={result.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
+                    <div className="flex items-center gap-4">
+                      {result.logo_url && <img src={result.logo_url} alt="" className="w-10 h-10 rounded object-contain" />}
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className="text-xs border-[#2a3f5f] text-[#00b4d8]">(Web Result)</Badge>
+                          <h3 className="font-semibold text-white">{result.title}</h3>
+                          {hasPrelander && <Badge className="text-xs bg-green-600 text-white">Has Pre-landing</Badge>}
+                        </div>
+                        <p className="text-sm text-gray-400 truncate max-w-md">{result.description}</p>
+                        <p className="text-xs text-gray-500">Serial: {result.serial_number} • {result.allowed_countries?.join(", ")}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs px-2 py-1 rounded ${result.is_active ? 'bg-[#00b4d8]/20 text-[#00b4d8]' : 'bg-red-500/20 text-red-400'}`}>
+                        {result.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                      <Button size="sm" variant="outline" className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]" onClick={() => {
+                        setEditingWebResult(result);
+                        setWebResultForm({
+                          name: result.name, title: result.title, description: result.description || "",
+                          logo_url: result.logo_url || "", link: result.link,
+                          wr_page: result.wr_page, serial_number: result.serial_number,
+                          is_active: result.is_active, allowed_countries: result.allowed_countries || ["worldwide"],
+                          fallback_link: result.fallback_link || ""
+                        });
+                        setWebResultDialog(true);
+                      }}><Edit className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleDeleteWebResult(result.id)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </div>
+                );
+              })}
+              {filteredWebResults.length === 0 && <p className="text-gray-400 text-center py-8">No web results found for page {selectedPage}.</p>}
+            </div>
+          </TabsContent>
+
+          {/* Prelandings Tab */}
+          <TabsContent value="prelandings" className="space-y-4">
+            <div className="flex justify-end">
+              <Dialog open={prelandingDialog} onOpenChange={setPrelandingDialog}>
+                <DialogTrigger asChild>
+                  <Button onClick={resetPrelandingForm} className="bg-[#00b4d8] hover:bg-[#0096b4] text-white"><Plus className="mr-2 h-4 w-4" />New Prelanding</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1a2942] border-[#2a3f5f] text-white">
+                  <DialogHeader><DialogTitle className="text-white">{editingPrelanding ? "Edit" : "Create"} Prelanding</DialogTitle></DialogHeader>
+                  <form onSubmit={handlePrelandingSubmit} className="space-y-4">
+                    <div>
+                      <Label className="text-gray-300">Web Result</Label>
+                      <Select value={prelandingForm.web_result_id} onValueChange={(v) => setPrelandingForm({ ...prelandingForm, web_result_id: v })}>
+                        <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white"><SelectValue placeholder="Select web result" /></SelectTrigger>
+                        <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
+                          {webResults.map(wr => {
+                            const hasPrelander = prelandings.some(p => p.web_result_id === wr.id);
+                            return (
+                              <SelectItem key={wr.id} value={wr.id} className="text-white hover:bg-[#2a3f5f]">
+                                <span className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-xs">(Web Result)</Badge>
+                                  {wr.title}
+                                  {hasPrelander && <Badge className="text-xs bg-green-600">Has Pre-landing</Badge>}
+                                </span>
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div><Label className="text-gray-300">Headline *</Label><Input value={prelandingForm.headline} onChange={(e) => setPrelandingForm({ ...prelandingForm, headline: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Description</Label><Textarea value={prelandingForm.description} onChange={(e) => setPrelandingForm({ ...prelandingForm, description: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Logo URL</Label><Input value={prelandingForm.logo_url} onChange={(e) => setPrelandingForm({ ...prelandingForm, logo_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Main Image URL</Label><Input value={prelandingForm.main_image_url} onChange={(e) => setPrelandingForm({ ...prelandingForm, main_image_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Email Placeholder</Label><Input value={prelandingForm.email_placeholder} onChange={(e) => setPrelandingForm({ ...prelandingForm, email_placeholder: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">CTA Button Text</Label><Input value={prelandingForm.cta_button_text} onChange={(e) => setPrelandingForm({ ...prelandingForm, cta_button_text: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><Label className="text-gray-300">Background Color</Label><Input type="color" value={prelandingForm.background_color} onChange={(e) => setPrelandingForm({ ...prelandingForm, background_color: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] h-10" /></div>
+                    </div>
+                    <div><Label className="text-gray-300">Background Image URL</Label><Input value={prelandingForm.background_image_url} onChange={(e) => setPrelandingForm({ ...prelandingForm, background_image_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={prelandingForm.is_active} onCheckedChange={(checked) => setPrelandingForm({ ...prelandingForm, is_active: checked })} />
+                      <Label className="text-gray-300">Active</Label>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="submit" className="flex-1 bg-[#00b4d8] hover:bg-[#0096b4] text-white">{editingPrelanding ? "Update" : "Create"}</Button>
+                      <Button type="button" variant="outline" onClick={resetPrelandingForm} className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]">Cancel</Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+            <div className="space-y-2">
+              {prelandings.map((p) => {
+                const wr = webResults.find(w => w.id === p.web_result_id);
+                return (
+                  <div key={p.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
+                    <div>
+                      <h3 className="font-semibold text-white">{p.headline}</h3>
+                      <p className="text-sm text-gray-400">Web Result: {wr?.title || 'Not linked'}</p>
+                      <span className={`text-xs px-2 py-1 rounded ${p.is_active ? 'bg-[#00b4d8]/20 text-[#00b4d8]' : 'bg-red-500/20 text-red-400'}`}>
+                        {p.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]" onClick={() => {
+                        setEditingPrelanding(p);
+                        setPrelandingForm({
+                          web_result_id: p.web_result_id || "", logo_url: p.logo_url || "",
+                          main_image_url: p.main_image_url || "", headline: p.headline,
+                          description: p.description || "", email_placeholder: p.email_placeholder,
+                          cta_button_text: p.cta_button_text, background_color: p.background_color,
+                          background_image_url: p.background_image_url || "", is_active: p.is_active
+                        });
+                        setPrelandingDialog(true);
+                      }}><Edit className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleDeletePrelanding(p.id)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </div>
+                );
+              })}
+              {prelandings.length === 0 && <p className="text-gray-400 text-center py-8">No prelandings found.</p>}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 };
 
-export default OfferGrabZoneManager;
+export { OfferGrabZoneManager };

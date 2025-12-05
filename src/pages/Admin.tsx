@@ -37,7 +37,7 @@ import { TejaStarinPreLanding } from "@/components/admin/TejaStarinPreLanding";
 import { TejaStarinEmailCaptures } from "@/components/admin/TejaStarinEmailCaptures";
 import { DataOrbitZoneManager } from "@/components/admin/DataOrbitZoneManager";
 import { FastMoneyManager } from "@/components/admin/FastMoneyManager";
-import OfferGrabZoneManager from "@/components/admin/OfferGrabZoneManager";
+import { OfferGrabZoneManager } from "@/components/admin/OfferGrabZoneManager";
 import { MingleMoodyManager } from "@/components/admin/MingleMoodyManager";
 
 interface Category {
