@@ -6,12 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Trash2, Edit, Plus, Search, ChevronRight } from "lucide-react";
+import { Trash2, Edit, Plus, Search, ChevronRight, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface RelatedSearch {
   id: string;
@@ -84,10 +85,12 @@ export const FastMoneyManager = () => {
 
   // Web Results
   const [webResults, setWebResults] = useState<WebResult[]>([]);
+  const [allWebResults, setAllWebResults] = useState<WebResult[]>([]);
   const [selectedPage, setSelectedPage] = useState(1);
   const [webResultDialog, setWebResultDialog] = useState(false);
   const [editingWebResult, setEditingWebResult] = useState<WebResult | null>(null);
   const [selectedSearchForResult, setSelectedSearchForResult] = useState<string>("");
+  const [forceReplace, setForceReplace] = useState(false);
   const [webResultForm, setWebResultForm] = useState({
     title: "", description: "", logo_url: "", original_link: "",
     web_result_page: 1, display_order: 0, is_active: true,
@@ -118,6 +121,7 @@ export const FastMoneyManager = () => {
       fetchLandingSettings(),
       fetchRelatedSearches(),
       fetchWebResults(),
+      fetchAllWebResults(),
       fetchPrelanders()
     ]);
   };
@@ -132,6 +136,12 @@ export const FastMoneyManager = () => {
     const { data, error } = await fastMoneyClient.from("related_searches").select("*").order("display_order");
     if (error) toast.error("Failed to fetch related searches");
     else setRelatedSearches(data || []);
+  };
+
+  const fetchAllWebResults = async () => {
+    const { data, error } = await fastMoneyClient.from("web_results").select("*").order("display_order");
+    if (error) console.error("Failed to fetch all web results:", error);
+    else setAllWebResults(data || []);
   };
 
   const fetchWebResults = async () => {
@@ -149,6 +159,32 @@ export const FastMoneyManager = () => {
     if (error) console.error("Failed to fetch prelanders:", error);
     else setPrelanders(data || []);
   };
+
+  // Position management functions
+  const getTakenPositions = () => {
+    const pageNum = selectedSearchForResult 
+      ? relatedSearches.find(s => s.id === selectedSearchForResult)?.web_result_page || webResultForm.web_result_page
+      : webResultForm.web_result_page;
+    return allWebResults
+      .filter(wr => wr.web_result_page === pageNum)
+      .filter(wr => editingWebResult ? wr.id !== editingWebResult.id : true)
+      .map(wr => wr.display_order);
+  };
+
+  const getResultAtPosition = (position: number) => {
+    const pageNum = selectedSearchForResult 
+      ? relatedSearches.find(s => s.id === selectedSearchForResult)?.web_result_page || webResultForm.web_result_page
+      : webResultForm.web_result_page;
+    return allWebResults.find(wr => 
+      wr.web_result_page === pageNum && 
+      wr.display_order === position &&
+      (editingWebResult ? wr.id !== editingWebResult.id : true)
+    );
+  };
+
+  const takenPositions = getTakenPositions();
+  const isPositionTaken = takenPositions.includes(webResultForm.display_order);
+  const existingResultAtPosition = isPositionTaken ? getResultAtPosition(webResultForm.display_order) : null;
 
   // Landing Settings CRUD
   const handleSaveLanding = async () => {
@@ -209,6 +245,25 @@ export const FastMoneyManager = () => {
         pageNumber = selectedSearch.web_result_page;
       }
     }
+
+    // Check if position is taken and force replace is not enabled
+    if (isPositionTaken && !forceReplace && !editingWebResult) {
+      toast.error('Position is already taken. Enable "Force Replace" to override.');
+      return;
+    }
+
+    // If force replace is enabled and position is taken, delete existing first
+    if (forceReplace && isPositionTaken && existingResultAtPosition) {
+      const { error: deleteError } = await fastMoneyClient
+        .from('web_results')
+        .delete()
+        .eq('id', existingResultAtPosition.id);
+      
+      if (deleteError) {
+        toast.error('Failed to replace existing result');
+        return;
+      }
+    }
     
     const data = { ...webResultForm, web_result_page: pageNumber };
 
@@ -217,7 +272,7 @@ export const FastMoneyManager = () => {
         ...data, updated_at: new Date().toISOString()
       }).eq("id", editingWebResult.id);
       if (error) toast.error("Failed to update");
-      else { toast.success("Updated"); fetchWebResults(); resetWebResultForm(); }
+      else { toast.success("Updated"); fetchWebResults(); fetchAllWebResults(); resetWebResultForm(); }
     } else {
       if (!selectedSearchForResult) {
         toast.error("Please select a related search first");
@@ -225,7 +280,7 @@ export const FastMoneyManager = () => {
       }
       const { error } = await fastMoneyClient.from("web_results").insert([data]);
       if (error) toast.error("Failed to create");
-      else { toast.success("Created"); fetchWebResults(); resetWebResultForm(); }
+      else { toast.success(forceReplace && isPositionTaken ? "Replaced" : "Created"); fetchWebResults(); fetchAllWebResults(); resetWebResultForm(); }
     }
   };
 
@@ -233,7 +288,7 @@ export const FastMoneyManager = () => {
     if (confirm("Delete this web result?")) {
       const { error } = await fastMoneyClient.from("web_results").delete().eq("id", id);
       if (error) toast.error("Failed to delete");
-      else { toast.success("Deleted"); fetchWebResults(); }
+      else { toast.success("Deleted"); fetchWebResults(); fetchAllWebResults(); }
     }
   };
 
@@ -245,6 +300,7 @@ export const FastMoneyManager = () => {
     });
     setSelectedSearchForResult("");
     setEditingWebResult(null);
+    setForceReplace(false);
     setWebResultDialog(false);
   };
 
@@ -468,7 +524,44 @@ export const FastMoneyManager = () => {
                           </div>
                         )}
                       </div>
-                      <div><Label className="text-gray-300">Display Order</Label><Input type="number" value={webResultForm.display_order} onChange={(e) => setWebResultForm({ ...webResultForm, display_order: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                      <div>
+                        <Label className="text-gray-300">Display Order (Position)</Label>
+                        <Input type="number" value={webResultForm.display_order} onChange={(e) => setWebResultForm({ ...webResultForm, display_order: parseInt(e.target.value) || 0 })} className={`bg-[#0d1520] border-[#2a3f5f] text-white ${isPositionTaken ? 'border-yellow-500' : ''}`} />
+                        <p className="text-xs text-gray-400 mt-1">This result will appear at position #{webResultForm.display_order}</p>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          <span className="text-xs text-gray-400 mr-2">Positions:</span>
+                          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(pos => (
+                            <button
+                              key={pos}
+                              type="button"
+                              onClick={() => setWebResultForm({ ...webResultForm, display_order: pos })}
+                              className={`w-6 h-6 text-xs rounded ${
+                                takenPositions.includes(pos)
+                                  ? 'bg-red-500 text-white'
+                                  : 'bg-green-500 text-white'
+                              } ${webResultForm.display_order === pos ? 'ring-2 ring-[#00b4d8]' : ''}`}
+                            >
+                              {pos}
+                            </button>
+                          ))}
+                        </div>
+                        {isPositionTaken && existingResultAtPosition && !editingWebResult && (
+                          <div className="mt-2 p-2 bg-yellow-900/30 border border-yellow-500/50 rounded">
+                            <div className="flex items-center gap-2 text-yellow-400 text-sm">
+                              <AlertTriangle className="h-4 w-4" />
+                              <span>Position {webResultForm.display_order} is taken by: "{existingResultAtPosition.title}"</span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Checkbox
+                                id="forceReplace"
+                                checked={forceReplace}
+                                onCheckedChange={(checked) => setForceReplace(checked === true)}
+                              />
+                              <Label htmlFor="forceReplace" className="text-sm text-yellow-400">Force replace existing result</Label>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <Label className="text-gray-300">Country Permissions</Label>

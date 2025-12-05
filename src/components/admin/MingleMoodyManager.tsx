@@ -6,12 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Trash2, Edit, Plus, Search } from "lucide-react";
+import { Trash2, Edit, Plus, Search, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface RelatedSearch {
   id: string;
@@ -71,10 +72,12 @@ export const MingleMoodyManager = () => {
 
   // Web Results
   const [webResults, setWebResults] = useState<WebResult[]>([]);
+  const [allWebResults, setAllWebResults] = useState<WebResult[]>([]);
   const [selectedPage, setSelectedPage] = useState(1);
   const [webResultDialog, setWebResultDialog] = useState(false);
   const [editingWebResult, setEditingWebResult] = useState<WebResult | null>(null);
   const [selectedSearchForResult, setSelectedSearchForResult] = useState<string>("");
+  const [forceReplace, setForceReplace] = useState(false);
   const [webResultForm, setWebResultForm] = useState({
     title: "", description: "", logo_url: "", original_link: "",
     web_result_page: 1, position: 0, prelanding_key: "", is_active: true
@@ -102,6 +105,7 @@ export const MingleMoodyManager = () => {
       fetchLandingContent(),
       fetchRelatedSearches(),
       fetchWebResults(),
+      fetchAllWebResults(),
       fetchPrelandings()
     ]);
   };
@@ -115,6 +119,12 @@ export const MingleMoodyManager = () => {
     const { data, error } = await mingleMoodyClient.from("related_searches").select("*").order("display_order");
     if (error) toast.error("Failed to fetch related searches");
     else setRelatedSearches(data || []);
+  };
+
+  const fetchAllWebResults = async () => {
+    const { data, error } = await mingleMoodyClient.from("web_results").select("*").order("position");
+    if (error) console.error("Failed to fetch all web results:", error);
+    else setAllWebResults(data || []);
   };
 
   const fetchWebResults = async () => {
@@ -131,6 +141,32 @@ export const MingleMoodyManager = () => {
     const { data } = await mingleMoodyClient.from("prelandings").select("*").order("created_at", { ascending: false });
     if (data) setPrelandings(data);
   };
+
+  // Position management functions
+  const getTakenPositions = () => {
+    const pageNum = selectedSearchForResult 
+      ? relatedSearches.find(s => s.id === selectedSearchForResult)?.web_result_page || webResultForm.web_result_page
+      : webResultForm.web_result_page;
+    return allWebResults
+      .filter(wr => wr.web_result_page === pageNum)
+      .filter(wr => editingWebResult ? wr.id !== editingWebResult.id : true)
+      .map(wr => wr.position);
+  };
+
+  const getResultAtPosition = (position: number) => {
+    const pageNum = selectedSearchForResult 
+      ? relatedSearches.find(s => s.id === selectedSearchForResult)?.web_result_page || webResultForm.web_result_page
+      : webResultForm.web_result_page;
+    return allWebResults.find(wr => 
+      wr.web_result_page === pageNum && 
+      wr.position === position &&
+      (editingWebResult ? wr.id !== editingWebResult.id : true)
+    );
+  };
+
+  const takenPositions = getTakenPositions();
+  const isPositionTaken = takenPositions.includes(webResultForm.position);
+  const existingResultAtPosition = isPositionTaken ? getResultAtPosition(webResultForm.position) : null;
 
   // Landing Content CRUD
   const handleSaveLanding = async () => {
@@ -183,13 +219,34 @@ export const MingleMoodyManager = () => {
       const selectedSearch = relatedSearches.find(s => s.id === selectedSearchForResult);
       if (selectedSearch) pageNumber = selectedSearch.web_result_page;
     }
+
+    // Check if position is taken and force replace is not enabled
+    if (isPositionTaken && !forceReplace && !editingWebResult) {
+      toast.error('Position is already taken. Enable "Force Replace" to override.');
+      return;
+    }
+
+    // If force replace is enabled and position is taken, delete existing first
+    if (forceReplace && isPositionTaken && existingResultAtPosition) {
+      await mingleMoodyClient.from('click_tracking').delete().eq('link_id', existingResultAtPosition.id);
+      await mingleMoodyClient.from('link_clicks').delete().eq('web_result_id', existingResultAtPosition.id);
+      const { error: deleteError } = await mingleMoodyClient
+        .from('web_results')
+        .delete()
+        .eq('id', existingResultAtPosition.id);
+      
+      if (deleteError) {
+        toast.error('Failed to replace existing result');
+        return;
+      }
+    }
     
     const data = { ...webResultForm, web_result_page: pageNumber, prelanding_key: webResultForm.prelanding_key || null };
 
     if (editingWebResult) {
       const { error } = await mingleMoodyClient.from("web_results").update(data).eq("id", editingWebResult.id);
       if (error) toast.error("Failed to update");
-      else { toast.success("Updated"); fetchWebResults(); resetWebResultForm(); }
+      else { toast.success("Updated"); fetchWebResults(); fetchAllWebResults(); resetWebResultForm(); }
     } else {
       if (!selectedSearchForResult) {
         toast.error("Please select a related search first");
@@ -197,7 +254,7 @@ export const MingleMoodyManager = () => {
       }
       const { error } = await mingleMoodyClient.from("web_results").insert([data]);
       if (error) toast.error("Failed to create");
-      else { toast.success("Created"); fetchWebResults(); resetWebResultForm(); }
+      else { toast.success(forceReplace && isPositionTaken ? "Replaced" : "Created"); fetchWebResults(); fetchAllWebResults(); resetWebResultForm(); }
     }
   };
 
@@ -207,7 +264,7 @@ export const MingleMoodyManager = () => {
       await mingleMoodyClient.from('link_clicks').delete().eq('web_result_id', id);
       const { error } = await mingleMoodyClient.from("web_results").delete().eq("id", id);
       if (error) toast.error("Failed to delete");
-      else { toast.success("Deleted"); fetchWebResults(); }
+      else { toast.success("Deleted"); fetchWebResults(); fetchAllWebResults(); }
     }
   };
 
@@ -218,6 +275,7 @@ export const MingleMoodyManager = () => {
     });
     setSelectedSearchForResult("");
     setEditingWebResult(null);
+    setForceReplace(false);
     setWebResultDialog(false);
   };
 
@@ -438,7 +496,44 @@ export const MingleMoodyManager = () => {
                           </div>
                         )}
                       </div>
-                      <div><Label className="text-gray-300">Position</Label><Input type="number" value={webResultForm.position} onChange={(e) => setWebResultForm({ ...webResultForm, position: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                      <div>
+                        <Label className="text-gray-300">Position</Label>
+                        <Input type="number" value={webResultForm.position} onChange={(e) => setWebResultForm({ ...webResultForm, position: parseInt(e.target.value) || 0 })} className={`bg-[#0d1520] border-[#2a3f5f] text-white ${isPositionTaken ? 'border-yellow-500' : ''}`} />
+                        <p className="text-xs text-gray-400 mt-1">This result will appear at position #{webResultForm.position}</p>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          <span className="text-xs text-gray-400 mr-2">Positions:</span>
+                          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(pos => (
+                            <button
+                              key={pos}
+                              type="button"
+                              onClick={() => setWebResultForm({ ...webResultForm, position: pos })}
+                              className={`w-6 h-6 text-xs rounded ${
+                                takenPositions.includes(pos)
+                                  ? 'bg-red-500 text-white'
+                                  : 'bg-green-500 text-white'
+                              } ${webResultForm.position === pos ? 'ring-2 ring-[#00b4d8]' : ''}`}
+                            >
+                              {pos}
+                            </button>
+                          ))}
+                        </div>
+                        {isPositionTaken && existingResultAtPosition && !editingWebResult && (
+                          <div className="mt-2 p-2 bg-yellow-900/30 border border-yellow-500/50 rounded">
+                            <div className="flex items-center gap-2 text-yellow-400 text-sm">
+                              <AlertTriangle className="h-4 w-4" />
+                              <span>Position {webResultForm.position} is taken by: "{existingResultAtPosition.title}"</span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Checkbox
+                                id="forceReplace"
+                                checked={forceReplace}
+                                onCheckedChange={(checked) => setForceReplace(checked === true)}
+                              />
+                              <Label htmlFor="forceReplace" className="text-sm text-yellow-400">Force replace existing result</Label>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div><Label className="text-gray-300">Prelanding Key</Label><Input value={webResultForm.prelanding_key} onChange={(e) => setWebResultForm({ ...webResultForm, prelanding_key: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div className="flex items-center gap-2">
