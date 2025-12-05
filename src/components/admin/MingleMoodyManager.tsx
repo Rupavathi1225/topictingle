@@ -449,12 +449,12 @@ export const MingleMoodyManager = () => {
                 </div>
                 <div>
                   <label className="text-sm text-zinc-400 mb-2 block">Prelanding Key</label>
-                  <Select value={prelandingKey} onValueChange={setPrelandingKey}>
+                  <Select value={prelandingKey || "__none__"} onValueChange={(val) => setPrelandingKey(val === "__none__" ? "" : val)}>
                     <SelectTrigger className="bg-zinc-800 border-zinc-700">
                       <SelectValue placeholder="No prelanding" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No prelanding</SelectItem>
+                      <SelectItem value="__none__">No prelanding</SelectItem>
                       {prelandings.map((pl) => (
                         <SelectItem key={pl.id} value={pl.key}>{pl.headline}</SelectItem>
                       ))}
