@@ -76,6 +76,8 @@ export const MingleMoodyAnalytics = () => {
   const [showSearchBreakdown, setShowSearchBreakdown] = useState(false);
   const [clickDetails, setClickDetails] = useState<ClickTracking[]>([]);
   const [selectedSearchName, setSelectedSearchName] = useState("");
+  const [allClicksData, setAllClicksData] = useState<ClickTracking[]>([]);
+  const [showTotalClicksBreakdown, setShowTotalClicksBreakdown] = useState(false);
 
   useEffect(() => {
     fetchAnalytics();
@@ -107,8 +109,8 @@ export const MingleMoodyAnalytics = () => {
 
     setSessions(sessionsWithClicks);
 
-    // Calculate stats
-    const totalPageViews = allSessions.reduce((sum, s) => sum + 1, 0);
+    // Calculate stats - page views = total sessions (each session = 1 page view minimum)
+    const totalPageViews = allSessions.length;
     const relatedSearchClicks = allClicks.filter(c => c.click_type === 'related_search').length;
     const webResultClicks = allClicks.filter(c => c.click_type === 'web_result' || c.click_type === 'link').length;
 
@@ -119,6 +121,9 @@ export const MingleMoodyAnalytics = () => {
       relatedSearchClicks,
       webResultClicks
     });
+
+    // Store all clicks for breakdown
+    setAllClicksData(allClicks);
 
     // Calculate related search stats
     const searchStats: RelatedSearchStats[] = allRelatedSearches.map(search => {
@@ -192,13 +197,14 @@ export const MingleMoodyAnalytics = () => {
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-zinc-900 border-zinc-800">
+        <Card className="bg-zinc-900 border-zinc-800 cursor-pointer hover:bg-zinc-800/70 transition-colors" onClick={() => setShowTotalClicksBreakdown(true)}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <MousePointer className="w-8 h-8 text-cyan-300" />
               <div>
                 <p className="text-2xl font-bold text-white">{stats.totalClicks}</p>
                 <p className="text-sm text-zinc-500">Total Clicks</p>
+                <p className="text-xs text-cyan-400">View Breakdown →</p>
               </div>
             </div>
           </CardContent>
@@ -417,6 +423,50 @@ export const MingleMoodyAnalytics = () => {
               {clickDetails.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center text-zinc-500">No clicks recorded</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </DialogContent>
+      </Dialog>
+
+      {/* Total Clicks Breakdown Dialog */}
+      <Dialog open={showTotalClicksBreakdown} onOpenChange={setShowTotalClicksBreakdown}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto bg-zinc-900 border-zinc-800">
+          <DialogHeader>
+            <DialogTitle className="text-cyan-400">Total Clicks Breakdown</DialogTitle>
+          </DialogHeader>
+          <div className="flex gap-4 mb-4">
+            <p className="text-sm text-zinc-400">Total Clicks: <span className="text-white font-bold">{allClicksData.length}</span></p>
+            <p className="text-sm text-zinc-400">Unique IPs: <span className="text-white font-bold">{new Set(allClicksData.map(c => c.ip_address).filter(Boolean)).size}</span></p>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow className="border-zinc-800">
+                <TableHead className="text-zinc-400">Click Type</TableHead>
+                <TableHead className="text-zinc-400">IP Address</TableHead>
+                <TableHead className="text-zinc-400">Country</TableHead>
+                <TableHead className="text-zinc-400">Device</TableHead>
+                <TableHead className="text-zinc-400">Timestamp</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {allClicksData.map((click) => (
+                <TableRow key={click.id} className="border-zinc-800">
+                  <TableCell>
+                    <Badge className={click.click_type === 'related_search' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-cyan-700/20 text-cyan-300'}>
+                      {click.click_type === 'related_search' ? 'Search' : 'Result'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-white">{click.ip_address || '-'}</TableCell>
+                  <TableCell className="text-white">{click.country || '-'}</TableCell>
+                  <TableCell className="text-white">{click.device_type || '-'}</TableCell>
+                  <TableCell className="text-zinc-400">{click.timestamp ? new Date(click.timestamp).toLocaleString() : '-'}</TableCell>
+                </TableRow>
+              ))}
+              {allClicksData.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-zinc-500">No clicks recorded</TableCell>
                 </TableRow>
               )}
             </TableBody>
