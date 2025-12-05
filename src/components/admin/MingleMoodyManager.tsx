@@ -216,7 +216,6 @@ export const MingleMoodyManager = () => {
       web_result_page: resultWebResultPage,
       position: resultPosition,
       prelanding_key: prelandingKey || null,
-      is_sponsored: isSponsored,
       is_active: resultIsActive
     };
 
@@ -554,15 +553,9 @@ export const MingleMoodyManager = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Switch checked={isSponsored} onCheckedChange={setIsSponsored} />
-                    <label className="text-sm text-white">Sponsored</label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch checked={resultIsActive} onCheckedChange={setResultIsActive} />
-                    <label className="text-sm text-white">Active</label>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Switch checked={resultIsActive} onCheckedChange={setResultIsActive} />
+                  <label className="text-sm text-white">Active</label>
                 </div>
               </div>
               <div className="flex gap-2">
