@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RefreshCw, Search, MousePointer, Users, Globe, Mail, Monitor, Smartphone, ChevronDown, ChevronUp } from "lucide-react";
+import { RefreshCw, Search, MousePointer, Users, Globe, Mail, Monitor, Smartphone, ChevronDown, ChevronUp, Calendar } from "lucide-react";
 
 interface ClickBreakdown {
   name: string;
@@ -34,6 +34,8 @@ export const FastMoneyAnalytics = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedRelatedSearches, setExpandedRelatedSearches] = useState<Set<string>>(new Set());
   const [expandedResultClicks, setExpandedResultClicks] = useState<Set<string>>(new Set());
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const [stats, setStats] = useState({ totalClicks: 0, uniqueSessions: 0, webResults: 0, emailSubmissions: 0 });
   const [sessionAnalytics, setSessionAnalytics] = useState<SessionAnalytics[]>([]);
@@ -88,7 +90,7 @@ export const FastMoneyAnalytics = () => {
           relatedSearches: [],
           resultClicks: [],
           timeSpent: `${diffMins}m ${diffSecs}s`,
-          timestamp: createdAt.toLocaleString(),
+          timestamp: createdAt.toISOString(),
         });
       }
 
@@ -207,12 +209,23 @@ export const FastMoneyAnalytics = () => {
     });
   };
 
-  const filteredSessions = sessionAnalytics.filter(
-    (s) =>
-      s.sessionId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  const filteredSessions = sessionAnalytics.filter((s) => {
+    const matchesSearch = s.sessionId.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.ipAddress.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.country.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      s.country.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    if (!startDate && !endDate) return true;
+    const sessionDate = new Date(s.timestamp);
+    if (startDate && new Date(startDate) > sessionDate) return false;
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      if (end < sessionDate) return false;
+    }
+    return true;
+  });
 
   const getRelatedSearchTotal = (session: SessionAnalytics) => session.relatedSearches.reduce((sum, s) => sum + s.total, 0);
   const getResultClickTotal = (session: SessionAnalytics) => session.resultClicks.reduce((sum, s) => sum + s.total, 0);
@@ -267,6 +280,37 @@ export const FastMoneyAnalytics = () => {
         </Card>
       </div>
 
+      {/* Date Filter */}
+      <div className="flex flex-wrap items-center gap-4 p-4 bg-zinc-900 rounded-lg border border-zinc-800">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-zinc-400" />
+          <span className="text-sm text-zinc-400">Filter by Date:</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="bg-zinc-800 border-zinc-700 text-white w-40"
+          />
+          <span className="text-zinc-500">to</span>
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="bg-zinc-800 border-zinc-700 text-white w-40"
+          />
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => { setStartDate(""); setEndDate(""); }}
+          className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+        >
+          Clear
+        </Button>
+      </div>
+
       {/* Controls */}
       <div className="flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-sm">
@@ -286,7 +330,7 @@ export const FastMoneyAnalytics = () => {
       {/* Session Analytics Table */}
       <Card className="bg-zinc-900 border-zinc-800">
         <CardHeader>
-          <CardTitle className="text-emerald-400">Session Analytics</CardTitle>
+          <CardTitle className="text-emerald-400">Session Analytics ({filteredSessions.length} sessions)</CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
@@ -404,15 +448,20 @@ export const FastMoneyAnalytics = () => {
                       </div>
                     </TableCell>
 
-                    <TableCell className="text-sm text-zinc-300">{session.timeSpent}</TableCell>
-                    <TableCell className="text-xs text-zinc-500">{session.timestamp}</TableCell>
+                    <TableCell className="text-sm text-zinc-400">{session.timeSpent}</TableCell>
+                    <TableCell className="text-xs text-zinc-400 whitespace-nowrap">
+                      <div>
+                        <div>{new Date(session.timestamp).toLocaleDateString()}</div>
+                        <div className="text-[10px]">{new Date(session.timestamp).toLocaleTimeString()}</div>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 );
               })}
               {filteredSessions.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={12} className="text-center text-zinc-500 py-8">
-                    No sessions found
+                    No session data found
                   </TableCell>
                 </TableRow>
               )}
