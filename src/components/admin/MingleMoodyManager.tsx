@@ -38,6 +38,7 @@ interface WebResult {
 
 interface LandingContent {
   id: string;
+  site_name: string;
   title: string;
   description: string;
 }
@@ -137,7 +138,7 @@ export const MingleMoodyManager = () => {
     if (!landingContent) return;
     const { error } = await mingleMoodyClient
       .from("landing_content")
-      .update({ title: landingContent.title, description: landingContent.description, updated_at: new Date().toISOString() })
+      .update({ site_name: landingContent.site_name, title: landingContent.title, description: landingContent.description, updated_at: new Date().toISOString() })
       .eq("id", landingContent.id);
     if (error) toast.error("Failed to save landing settings");
     else toast.success("Landing settings saved");
@@ -286,6 +287,14 @@ export const MingleMoodyManager = () => {
           <TabsContent value="landing" className="space-y-4">
             {landingContent ? (
               <div className="space-y-4 max-w-xl">
+                <div>
+                  <Label className="text-gray-300">Site Name</Label>
+                  <Input
+                    value={landingContent.site_name || ""}
+                    onChange={(e) => setLandingContent({ ...landingContent, site_name: e.target.value })}
+                    className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500"
+                  />
+                </div>
                 <div>
                   <Label className="text-gray-300">Title</Label>
                   <Input
