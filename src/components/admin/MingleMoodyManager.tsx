@@ -184,7 +184,9 @@ export const MingleMoodyManager = () => {
   };
 
   const handleDeleteSearch = async (id: string) => {
-    if (!confirm("Delete this search?")) return;
+    if (!confirm("Delete this search? This will also delete related click tracking data.")) return;
+    // First delete related click_tracking records
+    await mingleMoodyClient.from('click_tracking').delete().eq('related_search_id', id);
     const { error } = await mingleMoodyClient.from('related_searches').delete().eq('id', id);
     if (error) toast.error("Error: " + error.message);
     else toast.success("Deleted!");
@@ -250,7 +252,9 @@ export const MingleMoodyManager = () => {
   };
 
   const handleDeleteResult = async (id: string) => {
-    if (!confirm("Delete this web result?")) return;
+    if (!confirm("Delete this web result? This will also delete related click tracking data.")) return;
+    // First delete related click_tracking records
+    await mingleMoodyClient.from('click_tracking').delete().eq('link_id', id);
     const { error } = await mingleMoodyClient.from('web_results').delete().eq('id', id);
     if (error) toast.error("Error: " + error.message);
     else toast.success("Deleted!");
