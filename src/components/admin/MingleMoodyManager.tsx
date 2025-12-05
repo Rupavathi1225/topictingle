@@ -252,9 +252,10 @@ export const MingleMoodyManager = () => {
   };
 
   const handleDeleteResult = async (id: string) => {
-    if (!confirm("Delete this web result? This will also delete related click tracking data.")) return;
-    // First delete related click_tracking records
+    if (!confirm("Delete this web result? This will also delete related tracking data.")) return;
+    // Delete related records from all tracking tables
     await mingleMoodyClient.from('click_tracking').delete().eq('link_id', id);
+    await mingleMoodyClient.from('link_clicks').delete().eq('web_result_id', id);
     const { error } = await mingleMoodyClient.from('web_results').delete().eq('id', id);
     if (error) toast.error("Error: " + error.message);
     else toast.success("Deleted!");
