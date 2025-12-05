@@ -82,6 +82,7 @@ export const MingleMoodyManager = () => {
   const [originalLink, setOriginalLink] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [resultWebResultPage, setResultWebResultPage] = useState(1);
+  const [selectedRelatedSearchId, setSelectedRelatedSearchId] = useState<string>("");
   const [resultPosition, setResultPosition] = useState(0);
   const [prelandingKey, setPrelandingKey] = useState("");
   const [worldwide, setWorldwide] = useState(true);
@@ -213,6 +214,7 @@ export const MingleMoodyManager = () => {
       original_link: originalLink,
       logo_url: logoUrl || null,
       web_result_page: resultWebResultPage,
+      related_search_id: selectedRelatedSearchId || null,
       position: resultPosition,
       prelanding_key: prelandingKey || null,
       worldwide,
@@ -237,9 +239,12 @@ export const MingleMoodyManager = () => {
     setEditingResultId(result.id);
     setResultTitle(result.title);
     setResultDescription(result.description || "");
-    setOriginalLink(result.original_link);
+    setOriginalLink((result as any).original_link);
     setLogoUrl(result.logo_url || "");
     setResultWebResultPage(result.web_result_page);
+    // Find matching related search by page
+    const matchingSearch = searches.find(s => s.web_result_page === result.web_result_page);
+    setSelectedRelatedSearchId(matchingSearch?.id || "");
     setResultPosition(result.position);
     setPrelandingKey(result.prelanding_key || "");
     setWorldwide(result.worldwide);
@@ -261,6 +266,7 @@ export const MingleMoodyManager = () => {
     setOriginalLink("");
     setLogoUrl("");
     setResultWebResultPage(1);
+    setSelectedRelatedSearchId("");
     setResultPosition(0);
     setPrelandingKey("");
     setWorldwide(true);
@@ -397,12 +403,12 @@ export const MingleMoodyManager = () => {
             <CardContent className="p-6 space-y-4">
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Title *</label>
-                  <Input value={lcTitle} onChange={(e) => setLcTitle(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                  <label className="text-sm text-white mb-2 block">Title *</label>
+                  <Input value={lcTitle} onChange={(e) => setLcTitle(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Description *</label>
-                  <Textarea value={lcDescription} onChange={(e) => setLcDescription(e.target.value)} rows={4} className="bg-zinc-800 border-zinc-700" />
+                  <label className="text-sm text-white mb-2 block">Description *</label>
+                  <Textarea value={lcDescription} onChange={(e) => setLcDescription(e.target.value)} rows={4} className="bg-zinc-800 border-zinc-700 text-white" />
                 </div>
               </div>
               <Button onClick={handleSaveLandingContent} className="bg-cyan-600 hover:bg-cyan-700">
@@ -421,28 +427,28 @@ export const MingleMoodyManager = () => {
             <CardContent className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Search Text *</label>
-                  <Input value={searchText} onChange={(e) => setSearchText(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                  <label className="text-sm text-white mb-2 block">Search Text *</label>
+                  <Input value={searchText} onChange={(e) => setSearchText(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Title</label>
-                  <Input value={searchTitle} onChange={(e) => setSearchTitle(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                  <label className="text-sm text-white mb-2 block">Title</label>
+                  <Input value={searchTitle} onChange={(e) => setSearchTitle(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Web Result Page</label>
-                  <Input type="number" value={webResultPage} onChange={(e) => setWebResultPage(Number(e.target.value))} className="bg-zinc-800 border-zinc-700" />
+                  <label className="text-sm text-white mb-2 block">Web Result Page (wr=)</label>
+                  <Input type="number" value={webResultPage} onChange={(e) => setWebResultPage(Number(e.target.value))} className="bg-zinc-800 border-zinc-700 text-white" />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Position</label>
-                  <Input type="number" value={searchPosition} onChange={(e) => setSearchPosition(Number(e.target.value))} className="bg-zinc-800 border-zinc-700" />
+                  <label className="text-sm text-white mb-2 block">Position</label>
+                  <Input type="number" value={searchPosition} onChange={(e) => setSearchPosition(Number(e.target.value))} className="bg-zinc-800 border-zinc-700 text-white" />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Display Order</label>
-                  <Input type="number" value={searchDisplayOrder} onChange={(e) => setSearchDisplayOrder(Number(e.target.value))} className="bg-zinc-800 border-zinc-700" />
+                  <label className="text-sm text-white mb-2 block">Display Order</label>
+                  <Input type="number" value={searchDisplayOrder} onChange={(e) => setSearchDisplayOrder(Number(e.target.value))} className="bg-zinc-800 border-zinc-700 text-white" />
                 </div>
                 <div className="flex items-center gap-2">
                   <Switch checked={searchIsActive} onCheckedChange={setSearchIsActive} />
-                  <label className="text-sm text-zinc-400">Active</label>
+                  <label className="text-sm text-white">Active</label>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -461,8 +467,8 @@ export const MingleMoodyManager = () => {
                 {searches.map((search) => (
                   <div key={search.id} className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
                     <div>
-                      <p className="font-medium text-white">{search.search_text}</p>
-                      <p className="text-sm text-zinc-400">Page {search.web_result_page} • Position {search.position}</p>
+                      <p className="font-medium text-white">{search.title || search.search_text}</p>
+                      <p className="text-sm text-zinc-400">Page {search.web_result_page} | Pos: {search.position} | Order: {search.display_order}</p>
                     </div>
                     <div className="flex gap-2">
                       <Badge className={search.is_active ? "bg-cyan-500" : "bg-zinc-600"}>{search.is_active ? "Active" : "Inactive"}</Badge>
@@ -492,37 +498,57 @@ export const MingleMoodyManager = () => {
             <CardContent className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Title *</label>
-                  <Input value={resultTitle} onChange={(e) => setResultTitle(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                  <label className="text-sm text-white mb-2 block">Title *</label>
+                  <Input value={resultTitle} onChange={(e) => setResultTitle(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Original Link *</label>
-                  <Input value={originalLink} onChange={(e) => setOriginalLink(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                  <label className="text-sm text-white mb-2 block">Original Link *</label>
+                  <Input value={originalLink} onChange={(e) => setOriginalLink(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="text-sm text-zinc-400 mb-2 block">Description</label>
-                  <Textarea value={resultDescription} onChange={(e) => setResultDescription(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                  <label className="text-sm text-white mb-2 block">Description</label>
+                  <Textarea value={resultDescription} onChange={(e) => setResultDescription(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Logo URL</label>
-                  <Input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                  <label className="text-sm text-white mb-2 block">Logo URL</label>
+                  <Input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Web Result Page</label>
-                  <Input type="number" value={resultWebResultPage} onChange={(e) => setResultWebResultPage(Number(e.target.value))} className="bg-zinc-800 border-zinc-700" />
-                </div>
-                <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Position</label>
-                  <Input type="number" value={resultPosition} onChange={(e) => setResultPosition(Number(e.target.value))} className="bg-zinc-800 border-zinc-700" />
-                </div>
-                <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Prelanding Key</label>
-                  <Select value={prelandingKey || "__none__"} onValueChange={(val) => setPrelandingKey(val === "__none__" ? "" : val)}>
-                    <SelectTrigger className="bg-zinc-800 border-zinc-700">
-                      <SelectValue placeholder="No prelanding" />
+                  <label className="text-sm text-white mb-2 block">Related Search (determines page)</label>
+                  <Select 
+                    value={selectedRelatedSearchId || "__none__"} 
+                    onValueChange={(val) => {
+                      if (val === "__none__") {
+                        setSelectedRelatedSearchId("");
+                        setResultWebResultPage(1);
+                      } else {
+                        setSelectedRelatedSearchId(val);
+                        const search = searches.find(s => s.id === val);
+                        if (search) setResultWebResultPage(search.web_result_page);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                      <SelectValue placeholder="Select related search" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">No prelanding</SelectItem>
+                      <SelectItem value="__none__">Select related search</SelectItem>
+                      {searches.map((search) => (
+                        <SelectItem key={search.id} value={search.id}>
+                          {search.title || search.search_text} (Page {search.web_result_page})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm text-white mb-2 block">Prelanding (optional)</label>
+                  <Select value={prelandingKey || "__none__"} onValueChange={(val) => setPrelandingKey(val === "__none__" ? "" : val)}>
+                    <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                      <SelectValue placeholder="No prelanding (direct link)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">No prelanding (direct link)</SelectItem>
                       {prelandings.map((pl) => (
                         <SelectItem key={pl.id} value={pl.key}>{pl.headline}</SelectItem>
                       ))}
@@ -532,11 +558,11 @@ export const MingleMoodyManager = () => {
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
                     <Switch checked={worldwide} onCheckedChange={setWorldwide} />
-                    <label className="text-sm text-zinc-400">Worldwide</label>
+                    <label className="text-sm text-white">Worldwide</label>
                   </div>
                   <div className="flex items-center gap-2">
                     <Switch checked={resultIsActive} onCheckedChange={setResultIsActive} />
-                    <label className="text-sm text-zinc-400">Active</label>
+                    <label className="text-sm text-white">Active</label>
                   </div>
                 </div>
               </div>
@@ -553,7 +579,9 @@ export const MingleMoodyManager = () => {
             </CardHeader>
             <CardContent className="p-4">
               <div className="space-y-2">
-                {results.map((result) => (
+                {results.map((result) => {
+                  const relatedSearch = searches.find(s => s.web_result_page === result.web_result_page);
+                  return (
                   <div key={result.id} className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
                     <div className="flex items-center gap-3">
                       {result.logo_url ? (
@@ -565,7 +593,10 @@ export const MingleMoodyManager = () => {
                       )}
                       <div>
                         <p className="font-medium text-white">{result.title}</p>
-                        <p className="text-sm text-zinc-400">Page {result.web_result_page} • Pos {result.position}</p>
+                        <p className="text-sm text-zinc-400">
+                          {relatedSearch ? relatedSearch.title || relatedSearch.search_text : `Page ${result.web_result_page}`}
+                          {result.prelanding_key && <span className="text-cyan-400"> • Has Prelanding</span>}
+                        </p>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -581,7 +612,8 @@ export const MingleMoodyManager = () => {
                       </Button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -596,32 +628,32 @@ export const MingleMoodyManager = () => {
             <CardContent className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Headline *</label>
-                  <Input value={plHeadline} onChange={(e) => setPlHeadline(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                  <label className="text-sm text-white mb-2 block">Headline *</label>
+                  <Input value={plHeadline} onChange={(e) => setPlHeadline(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Subtitle</label>
-                  <Input value={plSubtitle} onChange={(e) => setPlSubtitle(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                  <label className="text-sm text-white mb-2 block">Subtitle</label>
+                  <Input value={plSubtitle} onChange={(e) => setPlSubtitle(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="text-sm text-zinc-400 mb-2 block">Description</label>
-                  <Textarea value={plDescription} onChange={(e) => setPlDescription(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                  <label className="text-sm text-white mb-2 block">Description</label>
+                  <Textarea value={plDescription} onChange={(e) => setPlDescription(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Logo URL</label>
-                  <Input value={plLogoUrl} onChange={(e) => setPlLogoUrl(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                  <label className="text-sm text-white mb-2 block">Logo URL</label>
+                  <Input value={plLogoUrl} onChange={(e) => setPlLogoUrl(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Main Image URL</label>
-                  <Input value={plMainImage} onChange={(e) => setPlMainImage(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                  <label className="text-sm text-white mb-2 block">Main Image URL</label>
+                  <Input value={plMainImage} onChange={(e) => setPlMainImage(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
                 </div>
                 <div>
-                  <label className="text-sm text-zinc-400 mb-2 block">Redirect Description</label>
-                  <Input value={plRedirectDesc} onChange={(e) => setPlRedirectDesc(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                  <label className="text-sm text-white mb-2 block">Redirect Description</label>
+                  <Input value={plRedirectDesc} onChange={(e) => setPlRedirectDesc(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
                 </div>
                 <div className="flex items-center gap-2">
                   <Switch checked={plIsActive} onCheckedChange={setPlIsActive} />
-                  <label className="text-sm text-zinc-400">Active</label>
+                  <label className="text-sm text-white">Active</label>
                 </div>
               </div>
               <div className="flex gap-2">
