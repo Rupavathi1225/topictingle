@@ -48,6 +48,14 @@ interface Prelanding {
   is_active: boolean;
 }
 
+interface LandingContent {
+  id: string;
+  title: string;
+  description: string;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 interface ClickDetail {
   id: string;
   ip_address: string | null;
@@ -92,6 +100,11 @@ export const MingleMoodyManager = () => {
   const [plIsActive, setPlIsActive] = useState(true);
   const [editingPlId, setEditingPlId] = useState<string | null>(null);
 
+  // Landing Content State
+  const [landingContent, setLandingContent] = useState<LandingContent | null>(null);
+  const [lcTitle, setLcTitle] = useState("Mingle Moody");
+  const [lcDescription, setLcDescription] = useState("Discover the best platforms for connecting, sharing, and engaging with people worldwide.");
+
   // Breakdown Dialog
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [clickDetails, setClickDetails] = useState<ClickDetail[]>([]);
@@ -101,6 +114,7 @@ export const MingleMoodyManager = () => {
     fetchSearches();
     fetchResults();
     fetchPrelandings();
+    fetchLandingContent();
   }, []);
 
   // Fetch Functions
@@ -112,6 +126,15 @@ export const MingleMoodyManager = () => {
   const fetchResults = async () => {
     const { data } = await mingleMoodyClient.from('web_results').select('*').order('web_result_page').order('position');
     if (data) setResults(data);
+  };
+
+  const fetchLandingContent = async () => {
+    const { data } = await mingleMoodyClient.from('landing_content').select('*').limit(1).single();
+    if (data) {
+      setLandingContent(data);
+      setLcTitle(data.title);
+      setLcDescription(data.description);
+    }
   };
 
   const fetchPrelandings = async () => {
@@ -312,6 +335,26 @@ export const MingleMoodyManager = () => {
     setPlIsActive(true);
   };
 
+  // Landing Content Handler
+  const handleSaveLandingContent = async () => {
+    const payload = {
+      title: lcTitle,
+      description: lcDescription,
+      updated_at: new Date().toISOString()
+    };
+
+    if (landingContent?.id) {
+      const { error } = await mingleMoodyClient.from('landing_content').update(payload).eq('id', landingContent.id);
+      if (error) toast.error("Error updating: " + error.message);
+      else toast.success("Landing content updated!");
+    } else {
+      const { error } = await mingleMoodyClient.from('landing_content').insert(payload);
+      if (error) toast.error("Error creating: " + error.message);
+      else toast.success("Landing content created!");
+    }
+    fetchLandingContent();
+  };
+
   // View Breakdown
   const handleViewSearchBreakdown = async (search: RelatedSearch) => {
     const { data } = await mingleMoodyClient
@@ -337,12 +380,37 @@ export const MingleMoodyManager = () => {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="searches" className="space-y-6">
+      <Tabs defaultValue="landing" className="space-y-6">
         <TabsList className="bg-zinc-900 border border-cyan-800">
+          <TabsTrigger value="landing" className="data-[state=active]:bg-cyan-600">Landing Content</TabsTrigger>
           <TabsTrigger value="searches" className="data-[state=active]:bg-cyan-600">Related Searches</TabsTrigger>
           <TabsTrigger value="webresults" className="data-[state=active]:bg-cyan-600">Web Results</TabsTrigger>
           <TabsTrigger value="prelandings" className="data-[state=active]:bg-cyan-600">Prelandings</TabsTrigger>
         </TabsList>
+
+        {/* Landing Content Tab */}
+        <TabsContent value="landing">
+          <Card className="bg-zinc-900 border-cyan-800">
+            <CardHeader className="bg-cyan-500/10 border-b border-cyan-800">
+              <CardTitle className="text-cyan-400">Landing Page Content</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-zinc-400 mb-2 block">Title *</label>
+                  <Input value={lcTitle} onChange={(e) => setLcTitle(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                </div>
+                <div>
+                  <label className="text-sm text-zinc-400 mb-2 block">Description *</label>
+                  <Textarea value={lcDescription} onChange={(e) => setLcDescription(e.target.value)} rows={4} className="bg-zinc-800 border-zinc-700" />
+                </div>
+              </div>
+              <Button onClick={handleSaveLandingContent} className="bg-cyan-600 hover:bg-cyan-700">
+                {landingContent ? "Update" : "Save"} Landing Content
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Related Searches Tab */}
         <TabsContent value="searches">
