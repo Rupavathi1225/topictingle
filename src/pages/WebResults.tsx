@@ -15,26 +15,53 @@ interface WebResult {
   is_active: boolean;
   is_sponsored?: boolean;
   pre_landing_page_key?: string;
+  related_search_id?: string;
 }
 
 export const WebResults = () => {
   const [searchParams] = useSearchParams();
   const pageNumber = parseInt(searchParams.get('wr') || '1');
+  const relatedSearchId = searchParams.get('rs'); // Filter by related search
   const [webResults, setWebResults] = useState<WebResult[]>([]);
   const [sponsoredResults, setSponsoredResults] = useState<WebResult[]>([]);
-  const { sessionId } = useTracking();
+  const [searchTitle, setSearchTitle] = useState<string>('');
+  const { sessionId, trackClick } = useTracking();
 
   useEffect(() => {
     fetchWebResults();
-  }, [pageNumber]);
+    if (relatedSearchId) {
+      fetchSearchTitle();
+    }
+  }, [pageNumber, relatedSearchId]);
+
+  const fetchSearchTitle = async () => {
+    if (!relatedSearchId) return;
+    const { data } = await supabase
+      .from('related_searches')
+      .select('title, search_text')
+      .eq('id', relatedSearchId)
+      .single();
+    if (data) {
+      setSearchTitle(data.title || data.search_text);
+    }
+  };
 
   const fetchWebResults = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from('web_results')
       .select('*')
-      .eq('page_number', pageNumber)
       .eq('is_active', true)
       .order('position', { ascending: true });
+
+    // If related_search_id is provided, filter by it
+    if (relatedSearchId) {
+      query = query.eq('related_search_id', relatedSearchId);
+    } else {
+      // Otherwise filter by page number
+      query = query.eq('page_number', pageNumber);
+    }
+    
+    const { data } = await query;
     
     if (data) {
       const sponsored = data.filter(r => r.is_sponsored);
@@ -44,7 +71,9 @@ export const WebResults = () => {
     }
   };
 
-  const handleResultClick = (result: WebResult) => {
+  const handleResultClick = async (result: WebResult) => {
+    await trackClick(`web-result-${result.id}`, result.title);
+    
     if (result.pre_landing_page_key) {
       window.location.href = `/prelanding?page=${result.pre_landing_page_key}`;
     } else {
@@ -55,9 +84,20 @@ export const WebResults = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground text-sm mb-8">
+        <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground text-sm mb-4">
           ← Back to Home
         </Link>
+
+        {searchTitle && (
+          <div className="mb-6">
+            <h1 className="text-xl font-semibold text-foreground mb-1">
+              Results for: {searchTitle}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {webResults.length + sponsoredResults.length} results found
+            </p>
+          </div>
+        )}
 
         {/* Sponsored Results */}
         {sponsoredResults.length > 0 && (
@@ -92,7 +132,7 @@ export const WebResults = () => {
 
         {webResults.length === 0 && sponsoredResults.length === 0 && (
           <div className="text-center py-12 text-muted-foreground">
-            No results found for this page.
+            No results found for this search.
           </div>
         )}
       </div>

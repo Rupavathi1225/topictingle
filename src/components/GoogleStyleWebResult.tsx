@@ -1,4 +1,5 @@
-import { MoreVertical } from 'lucide-react';
+import { MoreVertical, ExternalLink } from 'lucide-react';
+import { useState } from 'react';
 
 interface GoogleStyleWebResultProps {
   title: string;
@@ -17,9 +18,11 @@ export const GoogleStyleWebResult = ({
   isSponsored,
   onClick,
 }: GoogleStyleWebResultProps) => {
+  const [imageError, setImageError] = useState(false);
+  
   const hostname = (() => {
     try {
-      return new URL(targetUrl).hostname;
+      return new URL(targetUrl).hostname.replace('www.', '');
     } catch {
       return targetUrl;
     }
@@ -29,30 +32,41 @@ export const GoogleStyleWebResult = ({
     return text.charAt(0).toUpperCase();
   };
 
+  const getFaviconUrl = (url: string) => {
+    try {
+      const domain = new URL(url).hostname;
+      return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+    } catch {
+      return null;
+    }
+  };
+
+  const faviconUrl = getFaviconUrl(targetUrl);
+
   return (
     <div
       onClick={onClick}
-      className="group cursor-pointer py-5 hover:bg-muted/30 rounded-lg px-2 transition-colors"
+      className="group cursor-pointer py-4 px-3 hover:bg-muted/50 rounded-xl transition-all duration-200 border border-transparent hover:border-border/50"
     >
       <div className="flex gap-3">
         {/* Favicon/Logo */}
-        <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border border-border mt-0.5">
-          {logoUrl ? (
+        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border border-border">
+          {logoUrl && !imageError ? (
             <img 
               src={logoUrl} 
               alt=""
               className="w-full h-full object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                const parent = target.parentElement;
-                if (parent) {
-                  parent.innerHTML = `<span class="text-xs font-semibold text-muted-foreground">${getInitial(title)}</span>`;
-                }
-              }}
+              onError={() => setImageError(true)}
+            />
+          ) : faviconUrl && !imageError ? (
+            <img 
+              src={faviconUrl} 
+              alt=""
+              className="w-5 h-5 object-contain"
+              onError={() => setImageError(true)}
             />
           ) : (
-            <span className="text-xs font-semibold text-muted-foreground">
+            <span className="text-sm font-bold text-primary">
               {getInitial(title)}
             </span>
           )}
@@ -61,20 +75,23 @@ export const GoogleStyleWebResult = ({
         {/* All content aligned in a column */}
         <div className="flex-1 min-w-0">
           {/* Site info row */}
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-sm text-foreground">{hostname}</span>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-sm text-foreground font-medium">{hostname}</span>
             {isSponsored && (
-              <span className="text-xs px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded font-medium">
-                Sponsored
+              <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded font-semibold uppercase tracking-wide">
+                Ad
               </span>
             )}
           </div>
           
           {/* URL */}
-          <span className="text-xs text-muted-foreground block truncate mb-1">{targetUrl}</span>
+          <div className="flex items-center gap-1 mb-1.5">
+            <span className="text-xs text-muted-foreground truncate max-w-[90%]">{targetUrl}</span>
+            <ExternalLink className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+          </div>
           
           {/* Title - Blue link style */}
-          <h3 className="text-xl text-blue-600 dark:text-blue-400 hover:underline decoration-1 underline-offset-2 cursor-pointer font-normal leading-snug mb-1">
+          <h3 className="text-lg text-blue-600 dark:text-blue-400 group-hover:underline decoration-1 underline-offset-2 font-medium leading-snug mb-1.5">
             {title}
           </h3>
 
@@ -88,7 +105,7 @@ export const GoogleStyleWebResult = ({
 
         {/* More options icon (decorative) */}
         <button 
-          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-muted rounded-full transition-opacity self-start"
+          className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-muted rounded-full transition-opacity self-start"
           onClick={(e) => e.stopPropagation()}
         >
           <MoreVertical className="w-4 h-4 text-muted-foreground" />

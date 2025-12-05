@@ -176,7 +176,10 @@ export function TopicMingleAnalytics() {
         }
       });
 
-      const sortedSessions = Array.from(sessionMap.values()).sort((a, b) => b.totalClicks - a.totalClicks);
+      // Sort by timestamp (newest first)
+      const sortedSessions = Array.from(sessionMap.values()).sort((a, b) => {
+        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      });
       setSessions(sortedSessions);
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -306,7 +309,19 @@ export function TopicMingleAnalytics() {
                   <TableRow key={session.sessionId} className="align-top">
                     <TableCell className="font-mono text-xs">{session.sessionId.slice(0, 12)}...</TableCell>
                     <TableCell className="text-sm">{session.ipAddress}</TableCell>
-                    <TableCell className="text-sm">{session.country}</TableCell>
+                    <TableCell className="text-sm">
+                      <span className="inline-flex items-center gap-1">
+                        {session.country !== 'Unknown' && session.country !== 'WW' && (
+                          <img 
+                            src={`https://flagcdn.com/16x12/${session.country.toLowerCase()}.png`}
+                            alt={session.country}
+                            className="w-4 h-3"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                        )}
+                        {session.country}
+                      </span>
+                    </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="bg-emerald-600 text-white text-xs">{session.source}</Badge>
                     </TableCell>
@@ -372,7 +387,12 @@ export function TopicMingleAnalytics() {
                     </TableCell>
 
                     <TableCell className="text-sm">{session.timeSpent}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{session.timestamp}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      <div>
+                        <div>{new Date(session.timestamp).toLocaleDateString()}</div>
+                        <div className="text-[10px]">{new Date(session.timestamp).toLocaleTimeString()}</div>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 );
               })}

@@ -824,7 +824,21 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
                         <div className="text-left">
                           <p className="font-semibold text-sm">{session.siteName}</p>
                           <p className="text-xs opacity-90">{session.device}</p>
-                          <p className="text-xs opacity-80">{session.ipAddress} • {session.country}</p>
+                          <p className="text-xs opacity-80 flex items-center gap-1">
+                            {session.ipAddress} • 
+                            {session.country !== 'Unknown' && session.country !== 'WW' && session.country.length === 2 && (
+                              <img 
+                                src={`https://flagcdn.com/16x12/${session.country.toLowerCase()}.png`}
+                                alt={session.country}
+                                className="w-4 h-3 inline-block mx-0.5"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                              />
+                            )}
+                            {session.country}
+                          </p>
+                          <p className="text-xs opacity-70 mt-1">
+                            {new Date(session.timestamp).toLocaleDateString()} {new Date(session.timestamp).toLocaleTimeString()}
+                          </p>
                         </div>
                       </div>
 
