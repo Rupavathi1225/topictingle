@@ -237,6 +237,7 @@ const Admin = () => {
       { id: 'prelanding', name: 'Pre-Landings', description: 'Edit pre-landing page designs' }
     ],
     minglemoody: [
+      { id: 'landing', name: 'Landing Content', description: 'Manage landing page content' },
       { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
       { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
       { id: 'prelanding', name: 'Prelandings', description: 'Edit prelanding page designs' }
@@ -681,6 +682,7 @@ const Admin = () => {
       case 'tejastarin': return 'DataCreditZone';
       case 'fastmoney': return 'FastMoney';
       case 'offergrabzone': return 'OfferGrabZone';
+      case 'minglemoody': return 'MingleMoody';
       default: return 'TopicMingle';
     }
   };
@@ -944,6 +946,9 @@ const Admin = () => {
         }
         if (selectedWebsite === 'offergrabzone') {
           return <OfferGrabZoneManager />;
+        }
+        if (selectedWebsite === 'minglemoody') {
+          return <MingleMoodyManager />;
         }
         return null;
 
