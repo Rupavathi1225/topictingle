@@ -38,6 +38,7 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
   const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingResult, setEditingResult] = useState<WebResult | null>(null);
+  const [forceReplace, setForceReplace] = useState(false);
   const [formData, setFormData] = useState({
     related_search_id: '',
     title: '',
@@ -53,8 +54,15 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
   const isSearchProject = projectName === 'SearchProject';
   const isDataOrbitZone = projectName === 'DataOrbitZone';
 
-  // Get taken positions for current related search
+  // Get taken positions for current related search or page
   const getTakenPositions = () => {
+    if (isDataOrbitZone || isSearchProject) {
+      // For DataOrbitZone/SearchProject, filter by page_number
+      return webResults
+        .filter(wr => wr.page_number === formData.page_number)
+        .filter(wr => editingResult ? wr.id !== editingResult.id : true)
+        .map(wr => wr.position);
+    }
     if (!formData.related_search_id) return [];
     return webResults
       .filter(wr => wr.related_search_id === formData.related_search_id)
@@ -62,7 +70,26 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
       .map(wr => wr.position);
   };
 
+  // Get the web result at a specific position
+  const getResultAtPosition = (position: number) => {
+    if (isDataOrbitZone || isSearchProject) {
+      return webResults.find(wr => 
+        wr.page_number === formData.page_number && 
+        wr.position === position &&
+        (editingResult ? wr.id !== editingResult.id : true)
+      );
+    }
+    if (!formData.related_search_id) return null;
+    return webResults.find(wr => 
+      wr.related_search_id === formData.related_search_id && 
+      wr.position === position &&
+      (editingResult ? wr.id !== editingResult.id : true)
+    );
+  };
+
   const takenPositions = getTakenPositions();
+  const isPositionTaken = takenPositions.includes(formData.position);
+  const existingResultAtPosition = isPositionTaken ? getResultAtPosition(formData.position) : null;
 
   useEffect(() => {
     fetchWebResults();
@@ -109,12 +136,31 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
       return;
     }
 
+    // Check if position is taken and force replace is not enabled
+    if (isPositionTaken && !forceReplace && !editingResult) {
+      toast.error('Position is already taken. Enable "Force Replace" to override.');
+      return;
+    }
+
     // Get page_number from the selected related search for projects that use related searches
     let pageNumber = formData.page_number;
     if (!isDataOrbitZone && !isSearchProject && formData.related_search_id) {
       const selectedSearch = relatedSearches.find(s => s.id === formData.related_search_id);
       if (selectedSearch) {
         pageNumber = selectedSearch.web_result_page || 1;
+      }
+    }
+
+    // If force replace is enabled and position is taken, delete the existing one first
+    if (forceReplace && isPositionTaken && existingResultAtPosition) {
+      const { error: deleteError } = await projectClient
+        .from('web_results')
+        .delete()
+        .eq('id', existingResultAtPosition.id);
+      
+      if (deleteError) {
+        toast.error('Failed to replace existing result');
+        return;
       }
     }
     
@@ -146,6 +192,7 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
         toast.success('Web result updated successfully');
         setDialogOpen(false);
         setEditingResult(null);
+        setForceReplace(false);
         fetchWebResults();
       }
     } else {
@@ -156,8 +203,9 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
       if (error) {
         toast.error('Failed to create web result');
       } else {
-        toast.success('Web result created successfully');
+        toast.success(forceReplace && isPositionTaken ? 'Web result replaced successfully' : 'Web result created successfully');
         setDialogOpen(false);
+        setForceReplace(false);
         fetchWebResults();
       }
     }
@@ -205,6 +253,7 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
       is_sponsored: false,
     });
     setEditingResult(null);
+    setForceReplace(false);
   };
 
   // Conditional styling for SearchProject dark theme
@@ -466,22 +515,55 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
                   min={1}
                   max={10}
                   value={formData.position}
-                  onChange={(e) => setFormData({ ...formData, position: parseInt(e.target.value) || 1 })}
-                  className={`${inputClass} ${takenPositions.includes(formData.position) ? 'border-yellow-500' : ''}`}
+                  onChange={(e) => {
+                    setFormData({ ...formData, position: parseInt(e.target.value) || 1 });
+                    setForceReplace(false);
+                  }}
+                  className={`${inputClass} ${isPositionTaken ? 'border-yellow-500' : ''}`}
                   placeholder="1"
                 />
                 <p className={isSearchProject ? "text-xs text-gray-500 mt-1" : "text-xs text-muted-foreground mt-1"}>
-                  Display order (1 = first)
+                  This result will appear at position #{formData.position}
                 </p>
                 {takenPositions.length > 0 && (
-                  <p className="text-xs text-yellow-600 mt-1">
-                    Taken positions: {takenPositions.sort((a, b) => a - b).join(', ')}
-                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    <span className="text-xs text-muted-foreground">Positions:</span>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(pos => (
+                      <span 
+                        key={pos}
+                        className={`text-xs px-1.5 py-0.5 rounded cursor-pointer ${
+                          takenPositions.includes(pos) 
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' 
+                            : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        } ${formData.position === pos ? 'ring-2 ring-primary' : ''}`}
+                        onClick={() => {
+                          setFormData({ ...formData, position: pos });
+                          setForceReplace(false);
+                        }}
+                      >
+                        {pos}
+                      </span>
+                    ))}
+                  </div>
                 )}
-                {takenPositions.includes(formData.position) && (
-                  <p className="text-xs text-orange-500 mt-0.5">
-                    ⚠️ Position {formData.position} is already taken
-                  </p>
+                {isPositionTaken && existingResultAtPosition && (
+                  <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded">
+                    <p className="text-xs text-yellow-700 dark:text-yellow-400 font-medium">
+                      ⚠️ Position {formData.position} is taken by: "{existingResultAtPosition.title}"
+                    </p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <input
+                        type="checkbox"
+                        id="force_replace"
+                        checked={forceReplace}
+                        onChange={(e) => setForceReplace(e.target.checked)}
+                        className="rounded border-yellow-400"
+                      />
+                      <Label htmlFor="force_replace" className="text-xs text-yellow-700 dark:text-yellow-400 cursor-pointer">
+                        Force replace existing result
+                      </Label>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
