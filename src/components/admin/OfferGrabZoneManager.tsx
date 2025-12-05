@@ -151,7 +151,7 @@ const OfferGrabZoneManager = () => {
     if (!landingContent) return;
     const { error } = await offerGrabZoneClient
       .from("landing_content")
-      .update({ site_name: landingContent.site_name, headline: landingContent.headline, description: landingContent.description })
+      .update({ headline: landingContent.headline, description: landingContent.description })
       .eq("id", landingContent.id);
     if (error) toast.error("Failed to save landing settings");
     else toast.success("Landing settings saved");
@@ -297,14 +297,6 @@ const OfferGrabZoneManager = () => {
           <TabsContent value="landing" className="space-y-4">
             {landingContent ? (
               <div className="space-y-4 max-w-xl">
-                <div>
-                  <Label className="text-gray-300">Site Name</Label>
-                  <Input
-                    value={landingContent.site_name}
-                    onChange={(e) => setLandingContent({ ...landingContent, site_name: e.target.value })}
-                    className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500"
-                  />
-                </div>
                 <div>
                   <Label className="text-gray-300">Headline</Label>
                   <Input
