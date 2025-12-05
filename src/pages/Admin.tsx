@@ -1078,18 +1078,58 @@ const Admin = () => {
         {/* Content Area */}
         {selectedWebsite && selectedSection && (
           <div className="space-y-6">
-            <div className="flex items-center gap-4 mb-6">
-              <Button 
-                variant="ghost" 
-                onClick={() => setSelectedSection(null)}
-                className="flex items-center gap-2"
-              >
-                <ChevronRight className="h-4 w-4 rotate-180" />
-                Back to Sections
-              </Button>
-              <h2 className="text-2xl font-bold">
-                {getProjectName(selectedWebsite)} - {sections[selectedWebsite].find(s => s.id === selectedSection)?.name}
-              </h2>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  onClick={() => setSelectedSection(null)}
+                  className="flex items-center gap-2 bg-primary hover:bg-primary/90"
+                >
+                  <ChevronRight className="h-4 w-4 rotate-180" />
+                  Back to Sections
+                </Button>
+                <h2 className="text-2xl font-bold">
+                  {getProjectName(selectedWebsite)} - {sections[selectedWebsite].find(s => s.id === selectedSection)?.name}
+                </h2>
+              </div>
+              
+              {/* Next Section Navigation */}
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const currentSections = sections[selectedWebsite];
+                  const currentIndex = currentSections.findIndex(s => s.id === selectedSection);
+                  const prevSection = currentIndex > 0 ? currentSections[currentIndex - 1] : null;
+                  const nextSection = currentIndex < currentSections.length - 1 ? currentSections[currentIndex + 1] : null;
+                  
+                  return (
+                    <>
+                      {prevSection && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setSelectedSection(prevSection.id)}
+                          className="flex items-center gap-2"
+                        >
+                          <ChevronRight className="h-4 w-4 rotate-180" />
+                          {prevSection.name}
+                        </Button>
+                      )}
+                      {nextSection && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setSelectedSection(nextSection.id)}
+                          className="flex items-center gap-2"
+                        >
+                          {nextSection.name}
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
             </div>
 
             {renderContent()}
