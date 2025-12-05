@@ -219,8 +219,8 @@ const Admin = () => {
     ],
     tejastarin: [
       { id: 'blogs', name: 'Blogs', description: 'Manage blog posts and content' },
-      { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
       { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
+      { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
       { id: 'prelanding', name: 'Pre-Landing Pages', description: 'Edit pre-landing page designs' },
       { id: 'emails', name: 'Email Captures', description: 'View captured email addresses' }
     ],
