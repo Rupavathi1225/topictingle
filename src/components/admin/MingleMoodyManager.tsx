@@ -32,7 +32,7 @@ interface WebResult {
   logo_url: string | null;
   position: number;
   prelanding_key: string | null;
-  worldwide: boolean;
+  is_sponsored: boolean;
   is_active: boolean;
 }
 
@@ -85,7 +85,7 @@ export const MingleMoodyManager = () => {
   const [selectedRelatedSearchId, setSelectedRelatedSearchId] = useState<string>("");
   const [resultPosition, setResultPosition] = useState(0);
   const [prelandingKey, setPrelandingKey] = useState("");
-  const [worldwide, setWorldwide] = useState(true);
+  const [isSponsored, setIsSponsored] = useState(false);
   const [resultIsActive, setResultIsActive] = useState(true);
   const [editingResultId, setEditingResultId] = useState<string | null>(null);
 
@@ -208,16 +208,15 @@ export const MingleMoodyManager = () => {
       return;
     }
 
-    const payload = {
+    const payload: any = {
       title: resultTitle,
       description: resultDescription || null,
       original_link: originalLink,
       logo_url: logoUrl || null,
       web_result_page: resultWebResultPage,
-      related_search_id: selectedRelatedSearchId || null,
       position: resultPosition,
       prelanding_key: prelandingKey || null,
-      worldwide,
+      is_sponsored: isSponsored,
       is_active: resultIsActive
     };
 
@@ -247,7 +246,7 @@ export const MingleMoodyManager = () => {
     setSelectedRelatedSearchId(matchingSearch?.id || "");
     setResultPosition(result.position);
     setPrelandingKey(result.prelanding_key || "");
-    setWorldwide(result.worldwide);
+    setIsSponsored(result.is_sponsored || false);
     setResultIsActive(result.is_active);
   };
 
@@ -269,7 +268,7 @@ export const MingleMoodyManager = () => {
     setSelectedRelatedSearchId("");
     setResultPosition(0);
     setPrelandingKey("");
-    setWorldwide(true);
+    setIsSponsored(false);
     setResultIsActive(true);
   };
 
@@ -557,8 +556,8 @@ export const MingleMoodyManager = () => {
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
-                    <Switch checked={worldwide} onCheckedChange={setWorldwide} />
-                    <label className="text-sm text-white">Worldwide</label>
+                    <Switch checked={isSponsored} onCheckedChange={setIsSponsored} />
+                    <label className="text-sm text-white">Sponsored</label>
                   </div>
                   <div className="flex items-center gap-2">
                     <Switch checked={resultIsActive} onCheckedChange={setResultIsActive} />
