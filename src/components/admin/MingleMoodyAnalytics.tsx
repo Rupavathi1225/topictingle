@@ -40,11 +40,19 @@ interface RelatedSearch {
   is_active: boolean;
 }
 
+interface PageView {
+  id: string;
+  session_id: string;
+  page_url: string | null;
+  timestamp: string | null;
+}
+
 interface SessionWithClicks extends Session {
   totalClicks: number;
   relatedSearchClicks: number;
   webResultClicks: number;
   clickBreakdown: ClickTracking[];
+  pageViews: number;
 }
 
 interface Stats {
@@ -85,32 +93,36 @@ export const MingleMoodyAnalytics = () => {
 
   const fetchAnalytics = async () => {
     setLoading(true);
-    const [sessionsRes, clicksRes, relatedSearchesRes] = await Promise.all([
+    const [sessionsRes, clicksRes, relatedSearchesRes, pageViewsRes] = await Promise.all([
       mingleMoodyClient.from('sessions').select('*').order('last_activity', { ascending: false }),
       mingleMoodyClient.from('click_tracking').select('*').order('timestamp', { ascending: false }),
-      mingleMoodyClient.from('related_searches').select('*')
+      mingleMoodyClient.from('related_searches').select('*'),
+      mingleMoodyClient.from('page_views').select('*')
     ]);
 
     const allClicks = clicksRes.data || [];
     const allSessions = sessionsRes.data || [];
     const allRelatedSearches = relatedSearchesRes.data || [];
+    const allPageViews = (pageViewsRes.data || []) as PageView[];
 
-    // Map sessions with their click data
+    // Map sessions with their click data and page views
     const sessionsWithClicks: SessionWithClicks[] = allSessions.map(session => {
       const sessionClicks = allClicks.filter(c => c.session_id === session.session_id);
+      const sessionPageViews = allPageViews.filter(pv => pv.session_id === session.session_id);
       return {
         ...session,
         totalClicks: sessionClicks.length,
         relatedSearchClicks: sessionClicks.filter(c => c.click_type === 'related_search').length,
         webResultClicks: sessionClicks.filter(c => c.click_type === 'web_result' || c.click_type === 'link').length,
-        clickBreakdown: sessionClicks
+        clickBreakdown: sessionClicks,
+        pageViews: sessionPageViews.length || 1
       };
     });
 
     setSessions(sessionsWithClicks);
 
-    // Calculate stats - page views = total sessions (each session = 1 page view minimum)
-    const totalPageViews = allSessions.length;
+    // Calculate stats - page views from actual page_views table
+    const totalPageViews = allPageViews.length > 0 ? allPageViews.length : allSessions.length;
     const relatedSearchClicks = allClicks.filter(c => c.click_type === 'related_search').length;
     const webResultClicks = allClicks.filter(c => c.click_type === 'web_result' || c.click_type === 'link').length;
 
@@ -319,7 +331,7 @@ export const MingleMoodyAnalytics = () => {
                           {session.device_type || 'desktop'}
                         </div>
                       </td>
-                      <td className="p-3 text-white font-medium">1</td>
+                      <td className="p-3 text-white font-medium">{session.pageViews}</td>
                       <td className="p-3 text-white font-medium">{session.totalClicks}</td>
                       <td className="p-3">
                         {session.relatedSearchClicks > 0 ? (
