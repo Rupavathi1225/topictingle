@@ -6,24 +6,29 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Edit, Trash2, Plus } from 'lucide-react';
+import { Edit, Trash2, Plus, AlertTriangle } from 'lucide-react';
 import { tejaStarinClient } from '@/integrations/tejastarin/client';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export const TejaStarinWebResults = () => {
   const [webResults, setWebResults] = useState<any[]>([]);
+  const [allWebResults, setAllWebResults] = useState<any[]>([]);
   const [relatedSearches, setRelatedSearches] = useState<any[]>([]);
   const [selectedSearchId, setSelectedSearchId] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [forceReplace, setForceReplace] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     url: '',
     description: '',
     logo_url: '',
     is_sponsored: false,
+    order_index: 0,
   });
 
   useEffect(() => {
     fetchRelatedSearches();
+    fetchAllWebResults();
   }, []);
 
   useEffect(() => {
@@ -45,6 +50,19 @@ export const TejaStarinWebResults = () => {
     if (data) setRelatedSearches(data);
   };
 
+  const fetchAllWebResults = async () => {
+    const { data, error } = await tejaStarinClient
+      .from('web_results')
+      .select('*')
+      .order('order_index', { ascending: true });
+    
+    if (error) {
+      console.error('Failed to fetch all web results:', error);
+      return;
+    }
+    if (data) setAllWebResults(data);
+  };
+
   const fetchWebResults = async () => {
     const { data, error } = await tejaStarinClient
       .from('web_results')
@@ -60,6 +78,26 @@ export const TejaStarinWebResults = () => {
     if (data) setWebResults(data);
   };
 
+  // Position management functions
+  const getTakenPositions = () => {
+    if (!selectedSearchId) return [];
+    return allWebResults
+      .filter(wr => wr.related_search_id === selectedSearchId)
+      .map(wr => wr.order_index);
+  };
+
+  const getResultAtPosition = (position: number) => {
+    if (!selectedSearchId) return null;
+    return allWebResults.find(wr => 
+      wr.related_search_id === selectedSearchId && 
+      wr.order_index === position
+    );
+  };
+
+  const takenPositions = getTakenPositions();
+  const isPositionTaken = takenPositions.includes(formData.order_index);
+  const existingResultAtPosition = isPositionTaken ? getResultAtPosition(formData.order_index) : null;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -68,10 +106,24 @@ export const TejaStarinWebResults = () => {
       return;
     }
 
-    const currentForSearch = webResults.filter(r => r.related_search_id === selectedSearchId);
-    const nextOrderIndex = currentForSearch.length > 0 
-      ? Math.max(...currentForSearch.map(r => r.order_index ?? 0)) + 1 
-      : 0;
+    // Check if position is taken and force replace is not enabled
+    if (isPositionTaken && !forceReplace) {
+      toast.error('Position is already taken. Enable "Force Replace" to override.');
+      return;
+    }
+
+    // If force replace is enabled and position is taken, delete existing first
+    if (forceReplace && isPositionTaken && existingResultAtPosition) {
+      const { error: deleteError } = await tejaStarinClient
+        .from('web_results')
+        .delete()
+        .eq('id', existingResultAtPosition.id);
+      
+      if (deleteError) {
+        toast.error('Failed to replace existing result');
+        return;
+      }
+    }
 
     const payload = {
       related_search_id: selectedSearchId,
@@ -80,7 +132,7 @@ export const TejaStarinWebResults = () => {
       description: formData.description || null,
       logo_url: formData.logo_url || null,
       is_sponsored: formData.is_sponsored,
-      order_index: nextOrderIndex,
+      order_index: formData.order_index,
     };
 
     const { error } = await tejaStarinClient
@@ -90,16 +142,19 @@ export const TejaStarinWebResults = () => {
     if (error) {
       toast.error('Failed to add web result');
     } else {
-      toast.success('Web result added successfully');
+      toast.success(forceReplace && isPositionTaken ? 'Web result replaced successfully' : 'Web result added successfully');
       setShowForm(false);
+      setForceReplace(false);
       setFormData({
         title: '',
         url: '',
         description: '',
         logo_url: '',
         is_sponsored: false,
+        order_index: 0,
       });
       fetchWebResults();
+      fetchAllWebResults();
     }
   };
 
@@ -194,6 +249,59 @@ export const TejaStarinWebResults = () => {
                       onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
                     />
                   </div>
+                  
+                  {/* Position Field with Indicator */}
+                  <div>
+                    <Label>Position *</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={formData.order_index}
+                      onChange={(e) => setFormData({ ...formData, order_index: parseInt(e.target.value) || 0 })}
+                      className={isPositionTaken ? "border-yellow-500" : ""}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      This result will appear at position #{formData.order_index}
+                    </p>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      <span className="text-xs text-muted-foreground mr-2">Positions:</span>
+                      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(pos => (
+                        <button
+                          key={pos}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, order_index: pos })}
+                          className={`w-6 h-6 text-xs rounded ${
+                            takenPositions.includes(pos)
+                              ? 'bg-red-500 text-white'
+                              : 'bg-green-500 text-white'
+                          } ${formData.order_index === pos ? 'ring-2 ring-primary' : ''}`}
+                        >
+                          {pos}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    {/* Position Warning */}
+                    {isPositionTaken && existingResultAtPosition && (
+                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                        <div className="flex items-center gap-2 text-yellow-700 text-sm">
+                          <AlertTriangle className="h-4 w-4" />
+                          <span>Position {formData.order_index} is taken by: "{existingResultAtPosition.title}"</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Checkbox
+                            id="forceReplace"
+                            checked={forceReplace}
+                            onCheckedChange={(checked) => setForceReplace(checked === true)}
+                          />
+                          <Label htmlFor="forceReplace" className="text-sm text-yellow-700">
+                            Force replace existing result
+                          </Label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
                   <div className="flex items-center space-x-2">
                     <input
                       type="checkbox"
