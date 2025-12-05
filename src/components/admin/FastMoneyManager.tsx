@@ -68,9 +68,26 @@ const COUNTRIES = [
   { code: 'IN', name: 'India' },
 ];
 
-export const FastMoneyManager = () => {
-  const [activeTab, setActiveTab] = useState("landing");
+interface FastMoneyManagerProps {
+  initialTab?: string;
+}
+
+export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerProps) => {
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Sync activeTab when initialTab prop changes
+  useEffect(() => {
+    if (initialTab) {
+      const tabMap: Record<string, string> = {
+        'landing': 'landing',
+        'searches': 'searches',
+        'webresults': 'webresults',
+        'prelanding': 'prelandings'
+      };
+      setActiveTab(tabMap[initialTab] || initialTab);
+    }
+  }, [initialTab]);
 
   // Landing Settings
   const [landingSettings, setLandingSettings] = useState<LandingSettings | null>(null);

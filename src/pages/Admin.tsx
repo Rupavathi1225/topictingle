@@ -894,13 +894,13 @@ const Admin = () => {
           return <TejaStarinRelatedSearches />;
         }
         if (selectedWebsite === 'fastmoney') {
-          return <FastMoneyManager />;
+          return <FastMoneyManager initialTab={selectedSection} />;
         }
         if (selectedWebsite === 'offergrabzone') {
-          return <OfferGrabZoneManager />;
+          return <OfferGrabZoneManager initialTab={selectedSection} />;
         }
         if (selectedWebsite === 'minglemoody') {
-          return <MingleMoodyManager />;
+          return <MingleMoodyManager initialTab={selectedSection} />;
         }
         return <RelatedSearchManager projectClient={client} projectName={projectName} />;
 
@@ -909,13 +909,13 @@ const Admin = () => {
           return <TejaStarinWebResults />;
         }
         if (selectedWebsite === 'fastmoney') {
-          return <FastMoneyManager />;
+          return <FastMoneyManager initialTab={selectedSection} />;
         }
         if (selectedWebsite === 'offergrabzone') {
-          return <OfferGrabZoneManager />;
+          return <OfferGrabZoneManager initialTab={selectedSection} />;
         }
         if (selectedWebsite === 'minglemoody') {
-          return <MingleMoodyManager />;
+          return <MingleMoodyManager initialTab={selectedSection} />;
         }
         return <WebResultsManager projectClient={client} projectName={projectName} />;
 
@@ -924,13 +924,13 @@ const Admin = () => {
           return <TejaStarinPreLanding />;
         }
         if (selectedWebsite === 'fastmoney') {
-          return <FastMoneyManager />;
+          return <FastMoneyManager initialTab={selectedSection} />;
         }
         if (selectedWebsite === 'offergrabzone') {
-          return <OfferGrabZoneManager />;
+          return <OfferGrabZoneManager initialTab={selectedSection} />;
         }
         if (selectedWebsite === 'minglemoody') {
-          return <MingleMoodyManager />;
+          return <MingleMoodyManager initialTab={selectedSection} />;
         }
         return <PreLandingEditor projectClient={client} projectName={projectName} />;
 
@@ -942,13 +942,13 @@ const Admin = () => {
 
       case 'landing':
         if (selectedWebsite === 'fastmoney') {
-          return <FastMoneyManager />;
+          return <FastMoneyManager initialTab={selectedSection} />;
         }
         if (selectedWebsite === 'offergrabzone') {
-          return <OfferGrabZoneManager />;
+          return <OfferGrabZoneManager initialTab={selectedSection} />;
         }
         if (selectedWebsite === 'minglemoody') {
-          return <MingleMoodyManager />;
+          return <MingleMoodyManager initialTab={selectedSection} />;
         }
         return null;
 
