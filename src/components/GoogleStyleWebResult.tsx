@@ -20,13 +20,16 @@ export const GoogleStyleWebResult = ({
 }: GoogleStyleWebResultProps) => {
   const [imageError, setImageError] = useState(false);
   
-  const hostname = (() => {
+  // Extract masked domain (hostname without www)
+  const getMaskedDomain = (url: string) => {
     try {
-      return new URL(targetUrl).hostname.replace('www.', '');
+      return new URL(url).hostname.replace('www.', '');
     } catch {
-      return targetUrl;
+      return url;
     }
-  })();
+  };
+
+  const maskedDomain = getMaskedDomain(targetUrl);
 
   const getInitial = (text: string) => {
     return text.charAt(0).toUpperCase();
@@ -74,9 +77,9 @@ export const GoogleStyleWebResult = ({
 
         {/* All content aligned in a column */}
         <div className="flex-1 min-w-0">
-          {/* Site info row */}
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm text-foreground font-medium">{hostname}</span>
+          {/* Masked domain row (like Google shows) */}
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-sm text-foreground font-medium">{maskedDomain}</span>
             {isSponsored && (
               <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded font-semibold uppercase tracking-wide">
                 Ad
@@ -84,7 +87,7 @@ export const GoogleStyleWebResult = ({
             )}
           </div>
           
-          {/* URL */}
+          {/* Full URL below masked domain */}
           <div className="flex items-center gap-1 mb-1.5">
             <span className="text-xs text-muted-foreground truncate max-w-[90%]">{targetUrl}</span>
             <ExternalLink className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />

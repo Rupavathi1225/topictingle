@@ -90,7 +90,6 @@ const DataOrbitZoneHome = () => {
                   featuredImage={blog.featured_image || undefined}
                   publishedAt={blog.created_at || ""}
                   excerpt={blog.content.substring(0, 150)}
-                  serialNumber={0}
                 />
               ))}
             </div>

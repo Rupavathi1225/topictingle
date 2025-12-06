@@ -98,7 +98,6 @@ const Home = () => {
                   featuredImage={blog.featured_image || undefined}
                   publishedAt={blog.published_at}
                   excerpt={blog.content.substring(0, 150)}
-                  serialNumber={blog.serial_number}
                 />
               ))}
             </div>
