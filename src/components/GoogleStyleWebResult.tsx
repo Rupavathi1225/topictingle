@@ -8,6 +8,8 @@ interface GoogleStyleWebResultProps {
   targetUrl: string;
   isSponsored?: boolean;
   onClick: () => void;
+  siteName?: string; // e.g., 'topicmingle', 'fastmoney', etc.
+  position?: number; // Position/order for masked URL
 }
 
 export const GoogleStyleWebResult = ({
@@ -17,11 +19,16 @@ export const GoogleStyleWebResult = ({
   targetUrl,
   isSponsored,
   onClick,
+  siteName,
+  position,
 }: GoogleStyleWebResultProps) => {
   const [imageError, setImageError] = useState(false);
   
-  // Extract masked domain (hostname without www)
+  // Generate masked URL like sitename/link/1 or fallback to hostname
   const getMaskedDomain = (url: string) => {
+    if (siteName && position !== undefined) {
+      return `${siteName}/link/${position}`;
+    }
     try {
       return new URL(url).hostname.replace('www.', '');
     } catch {
@@ -80,17 +87,12 @@ export const GoogleStyleWebResult = ({
           {/* Masked domain row (like Google shows) */}
           <div className="flex items-center gap-2 mb-0.5">
             <span className="text-sm text-foreground font-medium">{maskedDomain}</span>
+            <ExternalLink className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
             {isSponsored && (
               <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded font-semibold uppercase tracking-wide">
                 Ad
               </span>
             )}
-          </div>
-          
-          {/* Full URL below masked domain */}
-          <div className="flex items-center gap-1 mb-1.5">
-            <span className="text-xs text-muted-foreground truncate max-w-[90%]">{targetUrl}</span>
-            <ExternalLink className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
           </div>
           
           {/* Title - Blue link style */}
