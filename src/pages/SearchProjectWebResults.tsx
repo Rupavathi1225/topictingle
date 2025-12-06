@@ -96,7 +96,7 @@ export const SearchProjectWebResults = () => {
         {/* Sponsored Results */}
         {sponsoredResults.length > 0 && (
           <div className="mb-6">
-            {sponsoredResults.map((result) => (
+            {sponsoredResults.map((result, index) => (
               <GoogleStyleWebResult
                 key={result.id}
                 title={result.title}
@@ -105,6 +105,8 @@ export const SearchProjectWebResults = () => {
                 targetUrl={result.target_url}
                 isSponsored={true}
                 onClick={() => handleResultClick(result)}
+                siteName="searchproject"
+                position={result.position || index + 1}
               />
             ))}
           </div>
@@ -112,7 +114,7 @@ export const SearchProjectWebResults = () => {
 
         {/* Organic Web Results */}
         <div className="space-y-1">
-          {webResults.map((result) => (
+          {webResults.map((result, index) => (
             <GoogleStyleWebResult
               key={result.id}
               title={result.title}
@@ -120,6 +122,8 @@ export const SearchProjectWebResults = () => {
               logoUrl={result.logo_url}
               targetUrl={result.target_url}
               onClick={() => handleResultClick(result)}
+              siteName="searchproject"
+              position={result.position || index + 1}
             />
           ))}
         </div>

@@ -33,6 +33,7 @@ interface WebResult {
   original_link: string;
   display_order: number;
   is_active: boolean;
+  is_sponsored: boolean;
   country_permissions: string[];
   fallback_link: string | null;
 }
@@ -108,9 +109,10 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
   const [editingWebResult, setEditingWebResult] = useState<WebResult | null>(null);
   const [selectedSearchForResult, setSelectedSearchForResult] = useState<string>("");
   const [forceReplace, setForceReplace] = useState(false);
+  const [selectedWebResults, setSelectedWebResults] = useState<Set<string>>(new Set());
   const [webResultForm, setWebResultForm] = useState({
     title: "", description: "", logo_url: "", original_link: "",
-    web_result_page: 1, display_order: 0, is_active: true,
+    web_result_page: 1, display_order: 0, is_active: true, is_sponsored: false,
     country_permissions: ["worldwide"] as string[], fallback_link: ""
   });
 
@@ -312,13 +314,14 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
   const resetWebResultForm = () => {
     setWebResultForm({
       title: "", description: "", logo_url: "", original_link: "",
-      web_result_page: selectedPage, display_order: 0, is_active: true,
+      web_result_page: selectedPage, display_order: 0, is_active: true, is_sponsored: false,
       country_permissions: ["worldwide"], fallback_link: ""
     });
     setSelectedSearchForResult("");
     setEditingWebResult(null);
     setForceReplace(false);
     setWebResultDialog(false);
+    setSelectedWebResults(new Set());
   };
 
   // Prelander CRUD
@@ -364,6 +367,57 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
   const filteredWebResults = webResults.filter(w =>
     w.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Bulk actions for web results
+  const handleSelectAllWebResults = () => {
+    if (selectedWebResults.size === filteredWebResults.length) {
+      setSelectedWebResults(new Set());
+    } else {
+      setSelectedWebResults(new Set(filteredWebResults.map(wr => wr.id)));
+    }
+  };
+
+  const handleDeleteSelectedWebResults = async () => {
+    if (selectedWebResults.size === 0) return;
+    if (!confirm(`Delete ${selectedWebResults.size} selected web result(s)?`)) return;
+    
+    for (const id of selectedWebResults) {
+      await fastMoneyClient.from("web_results").delete().eq("id", id);
+    }
+    toast.success(`Deleted ${selectedWebResults.size} web result(s)`);
+    setSelectedWebResults(new Set());
+    fetchWebResults();
+    fetchAllWebResults();
+  };
+
+  const handleActivateAllWebResults = async () => {
+    if (selectedWebResults.size === 0) {
+      // Activate all on current page
+      for (const wr of filteredWebResults) {
+        await fastMoneyClient.from("web_results").update({ is_active: true }).eq("id", wr.id);
+      }
+      toast.success(`Activated all web results on page ${selectedPage}`);
+    } else {
+      // Activate selected only
+      for (const id of selectedWebResults) {
+        await fastMoneyClient.from("web_results").update({ is_active: true }).eq("id", id);
+      }
+      toast.success(`Activated ${selectedWebResults.size} web result(s)`);
+    }
+    setSelectedWebResults(new Set());
+    fetchWebResults();
+    fetchAllWebResults();
+  };
+
+  const toggleWebResultSelection = (id: string) => {
+    const newSelection = new Set(selectedWebResults);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
+    setSelectedWebResults(newSelection);
+  };
 
   return (
     <Card className="bg-[#1a2942] border-[#2a3f5f] text-white">
@@ -592,9 +646,15 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Switch checked={webResultForm.is_active} onCheckedChange={(checked) => setWebResultForm({ ...webResultForm, is_active: checked })} />
-                      <Label className="text-gray-300">Active</Label>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <Switch checked={webResultForm.is_active} onCheckedChange={(checked) => setWebResultForm({ ...webResultForm, is_active: checked })} />
+                        <Label className="text-gray-300">Active</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch checked={webResultForm.is_sponsored} onCheckedChange={(checked) => setWebResultForm({ ...webResultForm, is_sponsored: checked })} />
+                        <Label className="text-gray-300">Sponsored</Label>
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <Button type="submit" className="flex-1 bg-[#00b4d8] hover:bg-[#0096b4] text-white">{editingWebResult ? "Update" : "Create"}</Button>
@@ -604,17 +664,54 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
                 </DialogContent>
               </Dialog>
             </div>
+            
+            {/* Bulk Actions */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleSelectAllWebResults}
+                className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]"
+              >
+                {selectedWebResults.size === filteredWebResults.length && filteredWebResults.length > 0 ? 'Deselect All' : 'Select All'}
+              </Button>
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={handleDeleteSelectedWebResults}
+                disabled={selectedWebResults.size === 0}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete Selected ({selectedWebResults.size})
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleActivateAllWebResults}
+                className="border-green-600 text-green-400 hover:bg-green-900/30"
+              >
+                Make All Active
+              </Button>
+            </div>
+
             <div className="space-y-2">
               {filteredWebResults.map((result) => {
                 const hasPrelander = prelanders.some(p => p.web_result_id === result.id);
                 return (
-                <div key={result.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
+                <div key={result.id} className={`flex items-center justify-between p-4 border rounded bg-[#0d1520] ${selectedWebResults.has(result.id) ? 'border-[#00b4d8]' : 'border-[#2a3f5f]'}`}>
                   <div className="flex items-center gap-4">
+                    <Checkbox 
+                      checked={selectedWebResults.has(result.id)}
+                      onCheckedChange={() => toggleWebResultSelection(result.id)}
+                    />
                     {result.logo_url && <img src={result.logo_url} alt="" className="w-10 h-10 rounded object-contain" />}
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <Badge variant="outline" className="text-xs border-[#2a3f5f] text-[#00b4d8]">(Web Result)</Badge>
                         <h3 className="font-semibold text-white">{result.title}</h3>
+                        {result.is_sponsored && (
+                          <Badge className="text-xs bg-amber-600 text-white">Sponsored</Badge>
+                        )}
                         {hasPrelander && (
                           <Badge className="text-xs bg-green-600 text-white">Has Pre-landing</Badge>
                         )}
@@ -633,7 +730,7 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
                         title: result.title, description: result.description || "",
                         logo_url: result.logo_url || "", original_link: result.original_link,
                         web_result_page: result.web_result_page, display_order: result.display_order,
-                        is_active: result.is_active, country_permissions: result.country_permissions || ["worldwide"],
+                        is_active: result.is_active, is_sponsored: result.is_sponsored || false, country_permissions: result.country_permissions || ["worldwide"],
                         fallback_link: result.fallback_link || ""
                       });
                       setWebResultDialog(true);
