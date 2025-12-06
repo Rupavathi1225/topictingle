@@ -16,6 +16,21 @@ interface BlogCardProps {
   serialNumber?: number;
 }
 
+// Default placeholder images based on category/content
+const DEFAULT_BLOG_IMAGES = [
+  'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1432821596592-e2c18b78144f?w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=800&auto=format&fit=crop',
+];
+
+const getDefaultImage = (title: string) => {
+  // Use title hash to consistently pick the same image for the same blog
+  const hash = title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return DEFAULT_BLOG_IMAGES[hash % DEFAULT_BLOG_IMAGES.length];
+};
+
 const BlogCard = ({
   title,
   slug,
@@ -25,9 +40,9 @@ const BlogCard = ({
   featuredImage,
   publishedAt,
   excerpt,
-  serialNumber,
 }: BlogCardProps) => {
   const { trackClick } = useTracking();
+  const displayImage = featuredImage || getDefaultImage(title);
 
   const handleClick = () => {
     trackClick(`blog-card-${slug}`, title);
@@ -36,24 +51,17 @@ const BlogCard = ({
   return (
     <article className="group">
       <Link to={`/blog/${categorySlug}/${slug}`} onClick={handleClick}>
-        {featuredImage && (
-          <div className="aspect-video overflow-hidden rounded-lg mb-4">
-            <img
-              src={featuredImage}
-              alt={title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-          </div>
-        )}
+        <div className="aspect-video overflow-hidden rounded-lg mb-4">
+          <img
+            src={displayImage}
+            alt={title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        </div>
       </Link>
       
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          {serialNumber && (
-            <span className="inline-block px-2 py-1 bg-accent/10 text-accent text-xs font-bold rounded">
-              #{serialNumber}
-            </span>
-          )}
           <Link
             to={`/category/${categorySlug}`}
             className="inline-block text-xs font-semibold text-accent hover:underline"

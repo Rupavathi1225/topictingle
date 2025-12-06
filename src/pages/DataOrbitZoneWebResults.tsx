@@ -48,6 +48,7 @@ export const DataOrbitZoneWebResults = () => {
       .from('web_results')
       .select('*')
       .eq('site_name', 'dataorbitzone')
+      .eq('is_active', true)
       .order('position', { ascending: true });
 
     if (relatedSearchId) {

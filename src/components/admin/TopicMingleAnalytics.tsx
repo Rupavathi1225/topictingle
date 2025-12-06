@@ -144,9 +144,13 @@ export function TopicMingleAnalytics() {
     const matchesSearch = s.sessionId.toLowerCase().includes(searchQuery.toLowerCase()) || s.ipAddress.toLowerCase().includes(searchQuery.toLowerCase());
     if (!matchesSearch) return false;
     if (!startDate && !endDate) return true;
+    
+    // Parse session timestamp properly - use date only comparison to avoid timezone issues
     const sessionDate = new Date(s.timestamp);
-    if (startDate && new Date(startDate) > sessionDate) return false;
-    if (endDate) { const end = new Date(endDate); end.setHours(23, 59, 59, 999); if (end < sessionDate) return false; }
+    const sessionDateStr = sessionDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+    
+    if (startDate && sessionDateStr < startDate) return false;
+    if (endDate && sessionDateStr > endDate) return false;
     return true;
   });
 
