@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Trash2, Edit, Plus, Cloud, ChevronDown, ChevronRight } from "lucide-react";
+import { Trash2, Edit, Plus, Cloud, ChevronDown, ChevronRight, CheckCircle, XCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +41,8 @@ import { OfferGrabZoneManager } from "@/components/admin/OfferGrabZoneManager";
 import { MingleMoodyManager } from "@/components/admin/MingleMoodyManager";
 import { DataOrbitManager } from "@/components/admin/DataOrbitManager";
 import { BlogImageSelector } from "@/components/admin/BlogImageSelector";
+import { BulkActionToolbar } from "@/components/admin/BulkActionToolbar";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Category {
   id: number;
@@ -144,6 +146,7 @@ const Admin = () => {
   const [selectedWebsite, setSelectedWebsite] = useState<Website | null>(null);
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [expandedWebsite, setExpandedWebsite] = useState<Website | null>(null);
+  const [selectedBlogs, setSelectedBlogs] = useState<Set<string>>(new Set());
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
@@ -667,6 +670,80 @@ const Admin = () => {
     setIsSearchDialogOpen(false);
   };
 
+  // Bulk selection handlers for TopicMingle blogs
+  const toggleBlogSelection = (id: string) => {
+    const newSelected = new Set(selectedBlogs);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedBlogs(newSelected);
+  };
+
+  const handleSelectAllBlogs = () => {
+    if (selectedBlogs.size === blogs.length) {
+      setSelectedBlogs(new Set());
+    } else {
+      setSelectedBlogs(new Set(blogs.map(blog => blog.id)));
+    }
+  };
+
+  const handleBulkDeleteBlogs = async () => {
+    if (selectedBlogs.size === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedBlogs.size} blog(s)?`)) return;
+
+    const ids = Array.from(selectedBlogs);
+    const { error } = await supabase
+      .from("blogs")
+      .delete()
+      .in("id", ids);
+
+    if (error) {
+      toast.error("Failed to delete blogs");
+    } else {
+      toast.success(`${ids.length} blog(s) deleted successfully`);
+      setSelectedBlogs(new Set());
+      fetchBlogs();
+    }
+  };
+
+  const handleBulkActivateBlogs = async () => {
+    if (selectedBlogs.size === 0) return;
+
+    const ids = Array.from(selectedBlogs);
+    const { error } = await supabase
+      .from("blogs")
+      .update({ status: "published" })
+      .in("id", ids);
+
+    if (error) {
+      toast.error("Failed to activate blogs");
+    } else {
+      toast.success(`${ids.length} blog(s) activated`);
+      setSelectedBlogs(new Set());
+      fetchBlogs();
+    }
+  };
+
+  const handleBulkDeactivateBlogs = async () => {
+    if (selectedBlogs.size === 0) return;
+
+    const ids = Array.from(selectedBlogs);
+    const { error } = await supabase
+      .from("blogs")
+      .update({ status: "draft" })
+      .in("id", ids);
+
+    if (error) {
+      toast.error("Failed to deactivate blogs");
+    } else {
+      toast.success(`${ids.length} blog(s) deactivated`);
+      setSelectedBlogs(new Set());
+      fetchBlogs();
+    }
+  };
+
   const handleWebsiteSelect = (website: Website) => {
     if (selectedWebsite === website) {
       setSelectedWebsite(null);
@@ -846,10 +923,27 @@ const Admin = () => {
                 </DialogContent>
               </Dialog>
             </div>
+            <div className="p-4">
+              <BulkActionToolbar
+                selectedCount={selectedBlogs.size}
+                totalCount={blogs.length}
+                onSelectAll={handleSelectAllBlogs}
+                onDelete={handleBulkDeleteBlogs}
+                onActivate={handleBulkActivateBlogs}
+                onDeactivate={handleBulkDeactivateBlogs}
+                isAllSelected={selectedBlogs.size === blogs.length && blogs.length > 0}
+              />
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="border-b">
                   <tr>
+                    <th className="text-left p-4 font-semibold w-12">
+                      <Checkbox
+                        checked={selectedBlogs.size === blogs.length && blogs.length > 0}
+                        onCheckedChange={handleSelectAllBlogs}
+                      />
+                    </th>
                     <th className="text-left p-4 font-semibold">Serial #</th>
                     <th className="text-left p-4 font-semibold">Title</th>
                     <th className="text-left p-4 font-semibold">Author</th>
@@ -859,7 +953,13 @@ const Admin = () => {
                 </thead>
                 <tbody>
                   {blogs.map((blog) => (
-                    <tr key={blog.id} className="border-b last:border-0">
+                    <tr key={blog.id} className={`border-b last:border-0 ${selectedBlogs.has(blog.id) ? 'bg-muted/50' : ''}`}>
+                      <td className="p-4">
+                        <Checkbox
+                          checked={selectedBlogs.has(blog.id)}
+                          onCheckedChange={() => toggleBlogSelection(blog.id)}
+                        />
+                      </td>
                       <td className="p-4">
                         <span className="px-2 py-1 bg-accent/10 text-accent text-xs font-bold rounded">
                           #{blog.serial_number}
