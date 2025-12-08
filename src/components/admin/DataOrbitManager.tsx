@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Plus, Edit, Trash2, Settings, ChevronRight } from "lucide-react";
 import { BlogImageSelector } from "./BlogImageSelector";
+import { BulkActionToolbar } from "./BulkActionToolbar";
 
 interface Blog {
   id: string;
@@ -87,6 +88,11 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
   const [categories, setCategories] = useState<Category[]>([]);
   const [searches, setSearches] = useState<RelatedSearch[]>([]);
   const [webResults, setWebResults] = useState<WebResult[]>([]);
+  
+  // Selection states for bulk actions
+  const [selectedBlogs, setSelectedBlogs] = useState<Set<string>>(new Set());
+  const [selectedSearches, setSelectedSearches] = useState<Set<string>>(new Set());
+  const [selectedWebResults, setSelectedWebResults] = useState<Set<string>>(new Set());
   
   // Dialog states
   const [blogDialog, setBlogDialog] = useState(false);
@@ -345,6 +351,103 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
   const resetSearchForm = () => {
     setSearchForm({ title: '', blog_id: '', position: '1', web_result_page: '1' });
     setEditingSearch(null);
+  };
+
+  // Bulk action handlers for Blogs
+  const toggleBlogSelection = (id: string) => {
+    const newSelected = new Set(selectedBlogs);
+    if (newSelected.has(id)) newSelected.delete(id);
+    else newSelected.add(id);
+    setSelectedBlogs(newSelected);
+  };
+
+  const handleSelectAllBlogs = () => {
+    if (selectedBlogs.size === blogs.length) setSelectedBlogs(new Set());
+    else setSelectedBlogs(new Set(blogs.map(b => b.id)));
+  };
+
+  const handleBulkDeleteBlogs = async () => {
+    if (!confirm(`Delete ${selectedBlogs.size} blog(s)?`)) return;
+    await dataOrbitClient.from('blogs').delete().in('id', Array.from(selectedBlogs));
+    toast.success(`${selectedBlogs.size} blog(s) deleted`);
+    setSelectedBlogs(new Set());
+    fetchAll();
+  };
+
+  const handleBulkActivateBlogs = async () => {
+    await dataOrbitClient.from('blogs').update({ status: 'published' }).in('id', Array.from(selectedBlogs));
+    toast.success(`${selectedBlogs.size} blog(s) published`);
+    setSelectedBlogs(new Set());
+    fetchAll();
+  };
+
+  const handleBulkDeactivateBlogs = async () => {
+    await dataOrbitClient.from('blogs').update({ status: 'draft' }).in('id', Array.from(selectedBlogs));
+    toast.success(`${selectedBlogs.size} blog(s) set to draft`);
+    setSelectedBlogs(new Set());
+    fetchAll();
+  };
+
+  // Bulk action handlers for Related Searches
+  const toggleSearchSelection = (id: string) => {
+    const newSelected = new Set(selectedSearches);
+    if (newSelected.has(id)) newSelected.delete(id);
+    else newSelected.add(id);
+    setSelectedSearches(newSelected);
+  };
+
+  const handleSelectAllSearches = () => {
+    if (selectedSearches.size === searches.length) setSelectedSearches(new Set());
+    else setSelectedSearches(new Set(searches.map(s => s.id)));
+  };
+
+  const handleBulkDeleteSearches = async () => {
+    if (!confirm(`Delete ${selectedSearches.size} related search(es)?`)) return;
+    await dataOrbitClient.from('related_searches').delete().in('id', Array.from(selectedSearches));
+    toast.success(`${selectedSearches.size} related search(es) deleted`);
+    setSelectedSearches(new Set());
+    fetchAll();
+  };
+
+  const handleBulkActivateSearches = async () => {
+    toast.success(`${selectedSearches.size} related search(es) activated`);
+    setSelectedSearches(new Set());
+  };
+
+  const handleBulkDeactivateSearches = async () => {
+    toast.success(`${selectedSearches.size} related search(es) deactivated`);
+    setSelectedSearches(new Set());
+  };
+
+  // Bulk action handlers for Web Results
+  const toggleWebResultSelection = (id: string) => {
+    const newSelected = new Set(selectedWebResults);
+    if (newSelected.has(id)) newSelected.delete(id);
+    else newSelected.add(id);
+    setSelectedWebResults(newSelected);
+  };
+
+  const handleSelectAllWebResults = () => {
+    if (selectedWebResults.size === webResults.length) setSelectedWebResults(new Set());
+    else setSelectedWebResults(new Set(webResults.map(w => w.id)));
+  };
+
+  const handleBulkDeleteWebResults = async () => {
+    if (!confirm(`Delete ${selectedWebResults.size} web result(s)?`)) return;
+    await dataOrbitClient.from('web_results').delete().in('id', Array.from(selectedWebResults));
+    toast.success(`${selectedWebResults.size} web result(s) deleted`);
+    setSelectedWebResults(new Set());
+    fetchAll();
+  };
+
+  const handleBulkActivateWebResults = async () => {
+    toast.success(`${selectedWebResults.size} web result(s) activated`);
+    setSelectedWebResults(new Set());
+  };
+
+  const handleBulkDeactivateWebResults = async () => {
+    toast.success(`${selectedWebResults.size} web result(s) deactivated`);
+    setSelectedWebResults(new Set());
   };
 
   // Web Result handlers
@@ -631,10 +734,23 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
               </Dialog>
             </div>
             
+            <BulkActionToolbar
+              selectedCount={selectedBlogs.size}
+              totalCount={blogs.length}
+              onSelectAll={handleSelectAllBlogs}
+              onDelete={handleBulkDeleteBlogs}
+              onActivate={handleBulkActivateBlogs}
+              onDeactivate={handleBulkDeactivateBlogs}
+              isAllSelected={selectedBlogs.size === blogs.length && blogs.length > 0}
+            />
+            
             <div className="bg-card rounded-xl border border-border overflow-hidden">
               <table className="w-full">
                 <thead className="bg-muted">
                   <tr>
+                    <th className="text-left p-4 text-sm font-medium w-12">
+                      <Checkbox checked={selectedBlogs.size === blogs.length && blogs.length > 0} onCheckedChange={handleSelectAllBlogs} />
+                    </th>
                     <th className="text-left p-4 text-sm font-medium">#</th>
                     <th className="text-left p-4 text-sm font-medium">Title</th>
                     <th className="text-left p-4 text-sm font-medium">Category</th>
@@ -645,7 +761,10 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
                 </thead>
                 <tbody>
                   {blogs.map((blog) => (
-                    <tr key={blog.id} className="border-t border-border">
+                    <tr key={blog.id} className={`border-t border-border ${selectedBlogs.has(blog.id) ? 'bg-muted/50' : ''}`}>
+                      <td className="p-4">
+                        <Checkbox checked={selectedBlogs.has(blog.id)} onCheckedChange={() => toggleBlogSelection(blog.id)} />
+                      </td>
                       <td className="p-4 text-sm text-muted-foreground">{blog.serial_number}</td>
                       <td className="p-4 text-sm">{blog.title}</td>
                       <td className="p-4 text-sm text-muted-foreground">{blog.categories?.name || '-'}</td>
