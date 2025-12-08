@@ -128,6 +128,7 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
     is_sponsored: false,
     position: '1',
     related_search_id: '',
+    forceReplace: false,
   });
   
   const [preLandingForm, setPreLandingForm] = useState({
@@ -349,6 +350,25 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
   const handleWebResultSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    const position = parseInt(webResultForm.position);
+    
+    // Check for position conflict
+    const existingResult = webResults.find(
+      wr => wr.related_search_id === webResultForm.related_search_id && 
+            wr.position === position && 
+            wr.id !== editingWebResult?.id
+    );
+    
+    if (existingResult && !webResultForm.forceReplace) {
+      toast.error(`Position ${position} is already taken by "${existingResult.name}". Check "Force replace" to overwrite.`);
+      return;
+    }
+    
+    // If force replace, delete the existing result first
+    if (existingResult && webResultForm.forceReplace) {
+      await dataOrbitClient.from('web_results').delete().eq('id', existingResult.id);
+    }
+    
     const resultData = {
       name: webResultForm.name,
       logo: webResultForm.logo || null,
@@ -356,7 +376,7 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
       title: webResultForm.title,
       description: webResultForm.description || null,
       is_sponsored: webResultForm.is_sponsored,
-      position: parseInt(webResultForm.position),
+      position: position,
       related_search_id: webResultForm.related_search_id,
     };
     
@@ -383,6 +403,7 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
       is_sponsored: result.is_sponsored,
       position: result.position.toString(),
       related_search_id: result.related_search_id,
+      forceReplace: false,
     });
     setWebResultDialog(true);
   };
@@ -404,9 +425,22 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
       is_sponsored: false,
       position: '1',
       related_search_id: '',
+      forceReplace: false,
     });
     setEditingWebResult(null);
   };
+
+  // Get occupied positions for selected related search
+  const getOccupiedPositions = () => {
+    if (!webResultForm.related_search_id) return [];
+    return webResults
+      .filter(wr => wr.related_search_id === webResultForm.related_search_id && wr.id !== editingWebResult?.id)
+      .map(wr => ({ position: wr.position, name: wr.name }));
+  };
+
+  const occupiedPositions = getOccupiedPositions();
+  const currentPosition = parseInt(webResultForm.position) || 0;
+  const positionConflict = occupiedPositions.find(p => p.position === currentPosition);
 
   const openPreLanding = async (result: WebResult) => {
     setSelectedWebResultForPreLanding(result);
@@ -775,9 +809,58 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
                       </div>
                       <div>
                         <label className="text-sm font-medium">Position *</label>
-                        <Input type="number" value={webResultForm.position} onChange={(e) => setWebResultForm({ ...webResultForm, position: e.target.value })} min="1" required />
+                        <Input type="number" value={webResultForm.position} onChange={(e) => setWebResultForm({ ...webResultForm, position: e.target.value, forceReplace: false })} min="0" required />
                       </div>
                     </div>
+                    
+                    {/* Position indicator */}
+                    {webResultForm.related_search_id && (
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">This result will appear at position #{currentPosition}</p>
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm text-muted-foreground mr-2">Positions:</span>
+                          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((pos) => {
+                            const isOccupied = occupiedPositions.some(p => p.position === pos);
+                            const isSelected = pos === currentPosition;
+                            return (
+                              <button
+                                key={pos}
+                                type="button"
+                                onClick={() => setWebResultForm({ ...webResultForm, position: pos.toString(), forceReplace: false })}
+                                className={`w-7 h-7 rounded-full text-xs font-medium transition-all ${
+                                  isSelected 
+                                    ? 'ring-2 ring-offset-2 ring-primary' 
+                                    : ''
+                                } ${
+                                  isOccupied 
+                                    ? 'bg-red-500 text-white hover:bg-red-600' 
+                                    : 'bg-green-500 text-white hover:bg-green-600'
+                                }`}
+                              >
+                                {pos}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        
+                        {positionConflict && (
+                          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 space-y-2">
+                            <div className="flex items-center gap-2 text-yellow-600">
+                              <span className="text-sm">⚠️ Position {currentPosition} is taken by: "{positionConflict.name}"</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Checkbox 
+                                id="force_replace" 
+                                checked={webResultForm.forceReplace} 
+                                onCheckedChange={(c) => setWebResultForm({ ...webResultForm, forceReplace: c === true })} 
+                              />
+                              <label htmlFor="force_replace" className="text-sm font-medium text-red-600">Force replace existing result</label>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
                     <div className="flex items-center gap-2">
                       <Checkbox id="is_sponsored" checked={webResultForm.is_sponsored} onCheckedChange={(c) => setWebResultForm({ ...webResultForm, is_sponsored: c === true })} />
                       <label htmlFor="is_sponsored" className="text-sm font-medium">Sponsored Ad</label>
