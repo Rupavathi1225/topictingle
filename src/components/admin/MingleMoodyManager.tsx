@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionToolbar } from "./BulkActionToolbar";
 
 interface RelatedSearch {
   id: string;
@@ -83,6 +84,8 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
   const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
   const [searchDialog, setSearchDialog] = useState(false);
   const [editingSearch, setEditingSearch] = useState<RelatedSearch | null>(null);
+  const [selectedSearches, setSelectedSearches] = useState<Set<string>>(new Set());
+  const [selectedWebResults, setSelectedWebResults] = useState<Set<string>>(new Set());
   const [searchForm, setSearchForm] = useState({
     search_text: "", title: "", web_result_page: 1, position: 1, display_order: 0, is_active: true
   });
