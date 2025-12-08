@@ -7,11 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Trash2, Plus } from 'lucide-react';
 import { tejaStarinClient } from '@/integrations/tejastarin/client';
+import { Checkbox } from '@/components/ui/checkbox';
+import { BulkActionToolbar } from './BulkActionToolbar';
 
 export const TejaStarinRelatedSearches = () => {
   const [relatedSearches, setRelatedSearches] = useState<any[]>([]);
   const [blogs, setBlogs] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
     search_text: '',
     blog_id: '',
@@ -99,6 +102,75 @@ export const TejaStarinRelatedSearches = () => {
     }
   };
 
+  // Bulk action handlers
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(id)) newSelected.delete(id);
+    else newSelected.add(id);
+    setSelectedItems(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedItems.size === relatedSearches.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(relatedSearches.map(s => s.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedItems.size === 0) return;
+    if (!confirm(`Delete ${selectedItems.size} related search(es)?`)) return;
+
+    const ids = Array.from(selectedItems);
+    const { error } = await tejaStarinClient
+      .from('related_searches')
+      .delete()
+      .in('id', ids);
+
+    if (error) {
+      toast.error('Failed to delete related searches');
+    } else {
+      toast.success(`${ids.length} related search(es) deleted`);
+      setSelectedItems(new Set());
+      fetchRelatedSearches();
+    }
+  };
+
+  const handleBulkActivate = async () => {
+    if (selectedItems.size === 0) return;
+    const ids = Array.from(selectedItems);
+    const { error } = await tejaStarinClient
+      .from('related_searches')
+      .update({ is_active: true })
+      .in('id', ids);
+
+    if (error) {
+      toast.error('Failed to activate related searches');
+    } else {
+      toast.success(`${ids.length} related search(es) activated`);
+      setSelectedItems(new Set());
+      fetchRelatedSearches();
+    }
+  };
+
+  const handleBulkDeactivate = async () => {
+    if (selectedItems.size === 0) return;
+    const ids = Array.from(selectedItems);
+    const { error } = await tejaStarinClient
+      .from('related_searches')
+      .update({ is_active: false })
+      .in('id', ids);
+
+    if (error) {
+      toast.error('Failed to deactivate related searches');
+    } else {
+      toast.success(`${ids.length} related search(es) deactivated`);
+      setSelectedItems(new Set());
+      fetchRelatedSearches();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -154,11 +226,26 @@ export const TejaStarinRelatedSearches = () => {
       )}
 
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-4">
+          <BulkActionToolbar
+            selectedCount={selectedItems.size}
+            totalCount={relatedSearches.length}
+            onSelectAll={handleSelectAll}
+            onDelete={handleBulkDelete}
+            onActivate={handleBulkActivate}
+            onDeactivate={handleBulkDeactivate}
+            isAllSelected={selectedItems.size === relatedSearches.length && relatedSearches.length > 0}
+          />
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="border-b bg-muted/50">
                 <tr>
+                  <th className="text-left p-4 w-12">
+                    <Checkbox
+                      checked={selectedItems.size === relatedSearches.length && relatedSearches.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </th>
                   <th className="text-left p-4">Search Text</th>
                   <th className="text-left p-4">Blog</th>
                   <th className="text-left p-4">WR</th>
@@ -167,7 +254,13 @@ export const TejaStarinRelatedSearches = () => {
               </thead>
               <tbody>
                 {relatedSearches.map((search) => (
-                  <tr key={search.id} className="border-b">
+                  <tr key={search.id} className={`border-b ${selectedItems.has(search.id) ? 'bg-muted/50' : ''}`}>
+                    <td className="p-4">
+                      <Checkbox
+                        checked={selectedItems.has(search.id)}
+                        onCheckedChange={() => toggleSelection(search.id)}
+                      />
+                    </td>
                     <td className="p-4 font-medium">{search.search_text}</td>
                     <td className="p-4">{search.blogs?.title || '-'}</td>
                     <td className="p-4">{search.wr}</td>

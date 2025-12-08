@@ -128,6 +128,46 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
     fetchRelatedSearches();
   };
 
+  // Bulk action handlers for Web Results
+  const toggleWebResultSelection = (id: string) => {
+    const newSelected = new Set(selectedWebResults);
+    if (newSelected.has(id)) newSelected.delete(id);
+    else newSelected.add(id);
+    setSelectedWebResults(newSelected);
+  };
+
+  const handleSelectAllWebResults = () => {
+    if (selectedWebResults.size === filteredWebResults.length) setSelectedWebResults(new Set());
+    else setSelectedWebResults(new Set(filteredWebResults.map(w => w.id)));
+  };
+
+  const handleBulkDeleteWebResults = async () => {
+    if (!confirm(`Delete ${selectedWebResults.size} web result(s)?`)) return;
+    for (const id of selectedWebResults) {
+      await mingleMoodyClient.from('click_tracking').delete().eq('link_id', id);
+      await mingleMoodyClient.from('link_clicks').delete().eq('web_result_id', id);
+    }
+    await mingleMoodyClient.from("web_results").delete().in("id", Array.from(selectedWebResults));
+    toast.success(`Deleted ${selectedWebResults.size} web result(s)`);
+    setSelectedWebResults(new Set());
+    fetchWebResults();
+    fetchAllWebResults();
+  };
+
+  const handleBulkActivateWebResults = async () => {
+    await mingleMoodyClient.from("web_results").update({ is_active: true }).in("id", Array.from(selectedWebResults));
+    toast.success(`Activated ${selectedWebResults.size} web result(s)`);
+    setSelectedWebResults(new Set());
+    fetchWebResults();
+  };
+
+  const handleBulkDeactivateWebResults = async () => {
+    await mingleMoodyClient.from("web_results").update({ is_active: false }).in("id", Array.from(selectedWebResults));
+    toast.success(`Deactivated ${selectedWebResults.size} web result(s)`);
+    setSelectedWebResults(new Set());
+    fetchWebResults();
+  };
+
   // Web Results
   const [webResults, setWebResults] = useState<WebResult[]>([]);
   const [allWebResults, setAllWebResults] = useState<WebResult[]>([]);
@@ -621,12 +661,27 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
                 </DialogContent>
               </Dialog>
             </div>
+            <BulkActionToolbar
+              selectedCount={selectedWebResults.size}
+              totalCount={filteredWebResults.length}
+              onSelectAll={handleSelectAllWebResults}
+              onDelete={handleBulkDeleteWebResults}
+              onActivate={handleBulkActivateWebResults}
+              onDeactivate={handleBulkDeactivateWebResults}
+              isAllSelected={selectedWebResults.size === filteredWebResults.length && filteredWebResults.length > 0}
+              isDarkTheme={true}
+            />
             <div className="space-y-2">
               {filteredWebResults.map((result) => {
                 const hasPrelander = result.prelanding_key && prelandings.some(p => p.key === result.prelanding_key);
                 return (
-                  <div key={result.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
+                  <div key={result.id} className={`flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520] ${selectedWebResults.has(result.id) ? 'ring-2 ring-[#00b4d8]' : ''}`}>
                     <div className="flex items-center gap-4">
+                      <Checkbox
+                        checked={selectedWebResults.has(result.id)}
+                        onCheckedChange={() => toggleWebResultSelection(result.id)}
+                        className="border-gray-500"
+                      />
                       {result.logo_url && <img src={result.logo_url} alt="" className="w-10 h-10 rounded object-contain" />}
                       <div>
                         <div className="flex items-center gap-2 mb-1">
