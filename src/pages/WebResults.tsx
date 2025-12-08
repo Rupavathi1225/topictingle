@@ -83,7 +83,7 @@ export const WebResults = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground text-sm mb-4">
           ← Back to Home
         </Link>
@@ -99,40 +99,91 @@ export const WebResults = () => {
           </div>
         )}
 
-        {/* Sponsored Results */}
+        {/* Sponsored Results - Dark Background */}
         {sponsoredResults.length > 0 && (
-          <div className="mb-4">
-            {sponsoredResults.map((result, index) => (
-              <GoogleStyleWebResult
-                key={result.id}
-                title={result.title}
-                description={result.description}
-                logoUrl={result.logo_url}
-                targetUrl={result.target_url}
-                isSponsored={true}
-                onClick={() => handleResultClick(result)}
-                siteName="topicmingle"
-                position={result.position || index + 1}
-              />
-            ))}
+          <div className="bg-slate-900 rounded-xl p-6 mb-6">
+            <div className="space-y-6">
+              {sponsoredResults.map((result, index) => (
+                <div key={result.id} className="group">
+                  {/* Title */}
+                  <h3 
+                    onClick={() => handleResultClick(result)}
+                    className="text-amber-400 hover:underline cursor-pointer text-lg font-medium mb-1"
+                  >
+                    {result.title}
+                  </h3>
+                  
+                  {/* Sponsored + URL */}
+                  <div className="flex items-center gap-2 text-sm mb-2">
+                    <span className="text-gray-400">Sponsored</span>
+                    <span className="text-gray-500">·</span>
+                    <span className="text-gray-400">{result.target_url}</span>
+                    <button className="text-gray-500 hover:text-gray-300">⋮</button>
+                  </div>
+                  
+                  {/* Description */}
+                  {result.description && (
+                    <p className="text-amber-200/70 text-sm mb-3 italic">
+                      {result.description}
+                    </p>
+                  )}
+                  
+                  {/* Visit Website Button */}
+                  <button
+                    onClick={() => handleResultClick(result)}
+                    className="inline-flex items-center gap-2 bg-blue-700 hover:bg-blue-600 text-white font-semibold px-6 py-2.5 rounded transition-colors"
+                  >
+                    <span className="text-lg">▶</span> Visit Website
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Organic Web Results */}
-        <div className="space-y-1">
-          {webResults.map((result, index) => (
-            <GoogleStyleWebResult
-              key={result.id}
-              title={result.title}
-              description={result.description}
-              logoUrl={result.logo_url}
-              targetUrl={result.target_url}
-              onClick={() => handleResultClick(result)}
-              siteName="topicmingle"
-              position={result.position || index + 1}
-            />
-          ))}
-        </div>
+        {/* Organic Web Results - White Background */}
+        {webResults.length > 0 && (
+          <div className="bg-white rounded-xl p-4">
+            <p className="text-gray-500 text-sm mb-3">Web Results</p>
+            <div className="space-y-4">
+              {webResults.map((result, index) => (
+                <div 
+                  key={result.id} 
+                  onClick={() => handleResultClick(result)}
+                  className="cursor-pointer group"
+                >
+                  {/* Site info row */}
+                  <div className="flex items-center gap-2 mb-1">
+                    <img 
+                      src={result.logo_url || `https://www.google.com/s2/favicons?domain=${new URL(result.target_url).hostname}&sz=32`}
+                      alt=""
+                      className="w-5 h-5 rounded-full"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                    <div className="text-sm">
+                      <span className="text-gray-700 font-medium">{new URL(result.target_url).hostname.replace('www.', '')}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-1 truncate">{result.target_url}</p>
+                  
+                  {/* Title */}
+                  <h3 className="text-blue-700 hover:underline text-lg font-medium mb-1">
+                    {result.title}
+                  </h3>
+                  
+                  {/* Description */}
+                  {result.description && (
+                    <p className="text-gray-600 text-sm line-clamp-2">
+                      {result.description}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {webResults.length === 0 && sponsoredResults.length === 0 && (
           <div className="text-center py-12 text-muted-foreground">
