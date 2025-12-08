@@ -847,13 +847,26 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
                     </div>
                   </form>
                 </DialogContent>
-              </Dialog>
+            </Dialog>
             </div>
+            
+            <BulkActionToolbar
+              selectedCount={selectedSearches.size}
+              totalCount={searches.length}
+              onSelectAll={handleSelectAllSearches}
+              onDelete={handleBulkDeleteSearches}
+              onActivate={handleBulkActivateSearches}
+              onDeactivate={handleBulkDeactivateSearches}
+              isAllSelected={selectedSearches.size === searches.length && searches.length > 0}
+            />
             
             <div className="bg-card rounded-xl border border-border overflow-hidden">
               <table className="w-full">
                 <thead className="bg-muted">
                   <tr>
+                    <th className="text-left p-4 text-sm font-medium w-12">
+                      <Checkbox checked={selectedSearches.size === searches.length && searches.length > 0} onCheckedChange={handleSelectAllSearches} />
+                    </th>
                     <th className="text-left p-4 text-sm font-medium">Title</th>
                     <th className="text-left p-4 text-sm font-medium">Blog</th>
                     <th className="text-left p-4 text-sm font-medium">Page</th>
@@ -863,7 +876,10 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
                 </thead>
                 <tbody>
                   {searches.map((search) => (
-                    <tr key={search.id} className="border-t border-border">
+                    <tr key={search.id} className={`border-t border-border ${selectedSearches.has(search.id) ? 'bg-muted/50' : ''}`}>
+                      <td className="p-4">
+                        <Checkbox checked={selectedSearches.has(search.id)} onCheckedChange={() => toggleSearchSelection(search.id)} />
+                      </td>
                       <td className="p-4 text-sm">{search.title}</td>
                       <td className="p-4 text-sm text-muted-foreground">{search.blogs?.title || '-'}</td>
                       <td className="p-4 text-sm text-muted-foreground">Page {search.web_result_page}</td>
@@ -1023,10 +1039,23 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
               </DialogContent>
             </Dialog>
             
+            <BulkActionToolbar
+              selectedCount={selectedWebResults.size}
+              totalCount={webResults.length}
+              onSelectAll={handleSelectAllWebResults}
+              onDelete={handleBulkDeleteWebResults}
+              onActivate={handleBulkActivateWebResults}
+              onDeactivate={handleBulkDeactivateWebResults}
+              isAllSelected={selectedWebResults.size === webResults.length && webResults.length > 0}
+            />
+            
             <div className="bg-card rounded-xl border border-border overflow-hidden">
               <table className="w-full">
                 <thead className="bg-muted">
                   <tr>
+                    <th className="text-left p-4 text-sm font-medium w-12">
+                      <Checkbox checked={selectedWebResults.size === webResults.length && webResults.length > 0} onCheckedChange={handleSelectAllWebResults} />
+                    </th>
                     <th className="text-left p-4 text-sm font-medium">Title</th>
                     <th className="text-left p-4 text-sm font-medium">Domain</th>
                     <th className="text-left p-4 text-sm font-medium">Blog » Search</th>
@@ -1038,7 +1067,10 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
                 </thead>
                 <tbody>
                   {webResults.map((result) => (
-                    <tr key={result.id} className="border-t border-border">
+                    <tr key={result.id} className={`border-t border-border ${selectedWebResults.has(result.id) ? 'bg-muted/50' : ''}`}>
+                      <td className="p-4">
+                        <Checkbox checked={selectedWebResults.has(result.id)} onCheckedChange={() => toggleWebResultSelection(result.id)} />
+                      </td>
                       <td className="p-4 text-sm">{result.title}</td>
                       <td className="p-4 text-sm text-muted-foreground">{result.name}</td>
                       <td className="p-4 text-sm text-muted-foreground text-xs">
