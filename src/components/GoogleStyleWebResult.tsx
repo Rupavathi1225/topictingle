@@ -24,10 +24,31 @@ export const GoogleStyleWebResult = ({
 }: GoogleStyleWebResultProps) => {
   const [imageError, setImageError] = useState(false);
   
-  // Generate masked URL like sitename/link/1 or fallback to hostname
-  const getMaskedDomain = (url: string) => {
-    if (siteName && position !== undefined) {
-      return `${siteName}/link/${position}`;
+  // Generate masked URL with random IDs and varied parameter names
+  const getMaskedDomain = (url: string, pos?: number) => {
+    const paramNames = ['p', 'n', 'c', 'r', 'q', 'x', 'id', 'ref', 'src', 'v'];
+    const prefixes = ['go', 'link', 'rd', 'out', 'to', 'click', 'visit', 'open', 'see', 'view'];
+    
+    // Generate a pseudo-random but consistent ID based on the URL and position
+    const generateRandomId = (seed: string) => {
+      let hash = 0;
+      for (let i = 0; i < seed.length; i++) {
+        const char = seed.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      return Math.abs(hash).toString(36).substring(0, 8);
+    };
+    
+    if (siteName && pos !== undefined) {
+      const seedString = `${url}-${pos}-${siteName}`;
+      const randomId = generateRandomId(seedString);
+      const paramIndex = Math.abs(seedString.charCodeAt(0) + pos) % paramNames.length;
+      const prefixIndex = Math.abs(seedString.charCodeAt(1) + pos) % prefixes.length;
+      const param = paramNames[paramIndex];
+      const prefix = prefixes[prefixIndex];
+      
+      return `${siteName}/${prefix}?${param}=${randomId}`;
     }
     try {
       return new URL(url).hostname.replace('www.', '');
@@ -36,7 +57,7 @@ export const GoogleStyleWebResult = ({
     }
   };
 
-  const maskedDomain = getMaskedDomain(targetUrl);
+  const maskedDomain = getMaskedDomain(targetUrl, position);
 
   const getInitial = (text: string) => {
     return text.charAt(0).toUpperCase();
