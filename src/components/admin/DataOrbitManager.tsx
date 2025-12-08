@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Plus, Edit, Trash2, Settings, ChevronRight } from "lucide-react";
+import { BlogImageSelector } from "./BlogImageSelector";
 
 interface Blog {
   id: string;
@@ -595,10 +596,11 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
                       <label className="text-sm font-medium">Content</label>
                       <Textarea value={blogForm.content} onChange={(e) => setBlogForm({ ...blogForm, content: e.target.value })} rows={8} required />
                     </div>
-                    <div>
-                      <label className="text-sm font-medium">Featured Image URL</label>
-                      <Input value={blogForm.featured_image} onChange={(e) => setBlogForm({ ...blogForm, featured_image: e.target.value })} />
-                    </div>
+                    <BlogImageSelector
+                      blogTitle={blogForm.title}
+                      imageUrl={blogForm.featured_image}
+                      onImageChange={(url) => setBlogForm({ ...blogForm, featured_image: url })}
+                    />
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium">Author Name</label>
