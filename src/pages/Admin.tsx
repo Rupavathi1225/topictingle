@@ -40,6 +40,7 @@ import { FastMoneyManager } from "@/components/admin/FastMoneyManager";
 import { OfferGrabZoneManager } from "@/components/admin/OfferGrabZoneManager";
 import { MingleMoodyManager } from "@/components/admin/MingleMoodyManager";
 import { DataOrbitManager } from "@/components/admin/DataOrbitManager";
+import { BlogImageSelector } from "@/components/admin/BlogImageSelector";
 
 interface Category {
   id: number;
@@ -792,17 +793,11 @@ const Admin = () => {
                       />
                     </div>
 
-                    <div>
-                      <Label htmlFor="featured_image">Featured Image URL</Label>
-                      <Input
-                        id="featured_image"
-                        value={formData.featured_image}
-                        onChange={(e) =>
-                          setFormData({ ...formData, featured_image: e.target.value })
-                        }
-                        placeholder="https://example.com/image.jpg"
-                      />
-                    </div>
+                    <BlogImageSelector
+                      blogTitle={formData.title}
+                      imageUrl={formData.featured_image}
+                      onImageChange={(url) => setFormData({ ...formData, featured_image: url })}
+                    />
 
                     <div>
                       <Label htmlFor="content">Content *</Label>

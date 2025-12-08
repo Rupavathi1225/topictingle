@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { toast } from 'sonner';
 import { Edit, Trash2, Plus } from 'lucide-react';
 import { tejaStarinClient } from '@/integrations/tejastarin/client';
+import { BlogImageSelector } from './BlogImageSelector';
 
 export const TejaStarinBlogs = () => {
   const [blogs, setBlogs] = useState<any[]>([]);
@@ -262,13 +263,11 @@ export const TejaStarinBlogs = () => {
                 required
               />
             </div>
-            <div>
-              <Label>Featured Image URL</Label>
-              <Input
-                value={formData.featured_image}
-                onChange={(e) => setFormData({ ...formData, featured_image: e.target.value })}
-              />
-            </div>
+            <BlogImageSelector
+              blogTitle={formData.title}
+              imageUrl={formData.featured_image}
+              onImageChange={(url) => setFormData({ ...formData, featured_image: url })}
+            />
             <div>
               <Label>Status</Label>
               <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
