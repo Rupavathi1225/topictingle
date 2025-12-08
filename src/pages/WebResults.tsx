@@ -27,6 +27,17 @@ export const WebResults = () => {
   const [searchTitle, setSearchTitle] = useState<string>('');
   const { sessionId, trackClick } = useTracking();
 
+  // Generate masked URL like "sitename.link1"
+  const getMaskedUrl = (url: string, index: number) => {
+    try {
+      const hostname = new URL(url).hostname.replace('www.', '');
+      const siteName = hostname.split('.')[0];
+      return `${siteName}.link${index + 1}`;
+    } catch {
+      return `site.link${index + 1}`;
+    }
+  };
+
   useEffect(() => {
     fetchWebResults();
     if (relatedSearchId) {
@@ -117,7 +128,7 @@ export const WebResults = () => {
                   <div className="flex items-center gap-2 text-sm mb-2">
                     <span className="text-gray-400">Sponsored</span>
                     <span className="text-gray-500">·</span>
-                    <span className="text-gray-400">{result.target_url}</span>
+                    <span className="text-gray-400">{getMaskedUrl(result.target_url, index)}</span>
                     <button className="text-gray-500 hover:text-gray-300">⋮</button>
                   </div>
                   
@@ -163,10 +174,10 @@ export const WebResults = () => {
                       }}
                     />
                     <div className="text-sm">
-                      <span className="text-gray-700 font-medium">{new URL(result.target_url).hostname.replace('www.', '')}</span>
+                      <span className="text-gray-700 font-medium">{getMaskedUrl(result.target_url, index)}</span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 mb-1 truncate">{result.target_url}</p>
+                  <p className="text-xs text-gray-500 mb-1 truncate">{getMaskedUrl(result.target_url, index)}</p>
                   
                   {/* Title */}
                   <h3 className="text-blue-700 hover:underline text-lg font-medium mb-1">
