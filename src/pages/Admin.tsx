@@ -39,6 +39,7 @@ import { DataOrbitZoneManager } from "@/components/admin/DataOrbitZoneManager";
 import { FastMoneyManager } from "@/components/admin/FastMoneyManager";
 import { OfferGrabZoneManager } from "@/components/admin/OfferGrabZoneManager";
 import { MingleMoodyManager } from "@/components/admin/MingleMoodyManager";
+import { DataOrbitManager } from "@/components/admin/DataOrbitManager";
 
 interface Category {
   id: number;
@@ -122,7 +123,7 @@ interface Analytics {
   unique_clicks?: number;
 }
 
-type Website = 'topicmingle' | 'tejastarin' | 'fastmoney' | 'offergrabzone' | 'minglemoody';
+type Website = 'topicmingle' | 'tejastarin' | 'fastmoney' | 'offergrabzone' | 'minglemoody' | 'dataorbit';
 type Section = 'blogs' | 'searches' | 'webresults' | 'prelanding' | 'emails' | 'landing';
 
 const Admin = () => {
@@ -206,6 +207,13 @@ const Admin = () => {
       description: 'Social Connection Platform',
       color: 'bg-cyan-600',
       icon: '💬'
+    },
+    {
+      id: 'dataorbit' as Website,
+      name: 'DataOrbit',
+      description: 'Data Analytics Platform',
+      color: 'bg-indigo-500',
+      icon: '🌐'
     }
   ];
 
@@ -241,6 +249,12 @@ const Admin = () => {
       { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
       { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
       { id: 'prelanding', name: 'Prelandings', description: 'Edit prelanding page designs' }
+    ],
+    dataorbit: [
+      { id: 'blogs', name: 'Blogs', description: 'Manage blog posts and content' },
+      { id: 'searches', name: 'Related Searches', description: 'Manage related search terms' },
+      { id: 'webresults', name: 'Web Results', description: 'Manage web search results' },
+      { id: 'prelanding', name: 'Pre-Landing Pages', description: 'Edit pre-landing page designs' }
     ]
   };
 
