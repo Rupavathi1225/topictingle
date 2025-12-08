@@ -102,6 +102,41 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
     title: "", serial_number: 1, target_wr: 1, is_active: true
   });
 
+  // Bulk action handlers for Related Searches
+  const toggleSearchSelection = (id: string) => {
+    const newSelected = new Set(selectedSearches);
+    if (newSelected.has(id)) newSelected.delete(id);
+    else newSelected.add(id);
+    setSelectedSearches(newSelected);
+  };
+
+  const handleSelectAllSearches = () => {
+    if (selectedSearches.size === filteredSearches.length) setSelectedSearches(new Set());
+    else setSelectedSearches(new Set(filteredSearches.map(s => s.id)));
+  };
+
+  const handleBulkDeleteSearches = async () => {
+    if (!confirm(`Delete ${selectedSearches.size} search(es)?`)) return;
+    await offerGrabZoneClient.from("related_searches").delete().in("id", Array.from(selectedSearches));
+    toast.success(`Deleted ${selectedSearches.size} search(es)`);
+    setSelectedSearches(new Set());
+    fetchRelatedSearches();
+  };
+
+  const handleBulkActivateSearches = async () => {
+    await offerGrabZoneClient.from("related_searches").update({ is_active: true }).in("id", Array.from(selectedSearches));
+    toast.success(`Activated ${selectedSearches.size} search(es)`);
+    setSelectedSearches(new Set());
+    fetchRelatedSearches();
+  };
+
+  const handleBulkDeactivateSearches = async () => {
+    await offerGrabZoneClient.from("related_searches").update({ is_active: false }).in("id", Array.from(selectedSearches));
+    toast.success(`Deactivated ${selectedSearches.size} search(es)`);
+    setSelectedSearches(new Set());
+    fetchRelatedSearches();
+  };
+
   // Web Results
   const [webResults, setWebResults] = useState<WebResult[]>([]);
   const [allWebResults, setAllWebResults] = useState<WebResult[]>([]);
@@ -432,10 +467,25 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
                 </DialogContent>
               </Dialog>
             </div>
+            <BulkActionToolbar
+              selectedCount={selectedSearches.size}
+              totalCount={filteredSearches.length}
+              onSelectAll={handleSelectAllSearches}
+              onDelete={handleBulkDeleteSearches}
+              onActivate={handleBulkActivateSearches}
+              onDeactivate={handleBulkDeactivateSearches}
+              isAllSelected={selectedSearches.size === filteredSearches.length && filteredSearches.length > 0}
+              isDarkTheme={true}
+            />
             <div className="space-y-2">
               {filteredSearches.map((search) => (
-                <div key={search.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
-                  <div>
+                <div key={search.id} className="flex items-center gap-3 p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
+                  <Checkbox
+                    checked={selectedSearches.has(search.id)}
+                    onCheckedChange={() => toggleSearchSelection(search.id)}
+                    className="border-gray-500"
+                  />
+                  <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <Badge variant="outline" className="text-xs border-[#2a3f5f] text-[#00b4d8]">(Related Search)</Badge>
                       <h3 className="font-semibold text-white">{search.title}</h3>

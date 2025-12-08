@@ -5,16 +5,19 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Edit, Trash2, Plus } from 'lucide-react';
 import { tejaStarinClient } from '@/integrations/tejastarin/client';
 import { BlogImageSelector } from './BlogImageSelector';
+import { BulkActionToolbar } from './BulkActionToolbar';
 
 export const TejaStarinBlogs = () => {
   const [blogs, setBlogs] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBlog, setEditingBlog] = useState<any>(null);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
     title: '',
     slug: '',
@@ -24,6 +27,83 @@ export const TejaStarinBlogs = () => {
     featured_image: '',
     status: 'published',
   });
+
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedItems.size === blogs.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(blogs.map(b => b.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selectedItems.size} blog(s) and their related data?`)) return;
+    
+    for (const id of selectedItems) {
+      try {
+        const { data: relatedSearches } = await tejaStarinClient
+          .from('related_searches')
+          .select('id')
+          .eq('blog_id', id);
+        
+        if (relatedSearches && relatedSearches.length > 0) {
+          const relatedSearchIds = relatedSearches.map(rs => rs.id);
+          await tejaStarinClient.from('email_submissions').delete().in('related_search_id', relatedSearchIds);
+          await tejaStarinClient.from('analytics_events').delete().in('related_search_id', relatedSearchIds);
+          await tejaStarinClient.from('pre_landing_config').delete().in('related_search_id', relatedSearchIds);
+          await tejaStarinClient.from('web_results').delete().in('related_search_id', relatedSearchIds);
+          await tejaStarinClient.from('related_searches').delete().eq('blog_id', id);
+        }
+        await tejaStarinClient.from('analytics_events').delete().eq('blog_id', id);
+        await tejaStarinClient.from('blogs').delete().eq('id', id);
+      } catch (err) {
+        console.error('Error deleting blog:', err);
+      }
+    }
+    toast.success(`Deleted ${selectedItems.size} blog(s)`);
+    setSelectedItems(new Set());
+    fetchBlogs();
+  };
+
+  const handleBulkActivate = async () => {
+    const { error } = await tejaStarinClient
+      .from('blogs')
+      .update({ status: 'published' })
+      .in('id', Array.from(selectedItems));
+    
+    if (error) {
+      toast.error('Failed to activate blogs');
+    } else {
+      toast.success(`Activated ${selectedItems.size} blog(s)`);
+      setSelectedItems(new Set());
+      fetchBlogs();
+    }
+  };
+
+  const handleBulkDeactivate = async () => {
+    const { error } = await tejaStarinClient
+      .from('blogs')
+      .update({ status: 'draft' })
+      .in('id', Array.from(selectedItems));
+    
+    if (error) {
+      toast.error('Failed to deactivate blogs');
+    } else {
+      toast.success(`Deactivated ${selectedItems.size} blog(s)`);
+      setSelectedItems(new Set());
+      fetchBlogs();
+    }
+  };
 
   useEffect(() => {
     fetchBlogs();
@@ -287,11 +367,22 @@ export const TejaStarinBlogs = () => {
         </DialogContent>
       </Dialog>
 
+      <BulkActionToolbar
+        selectedCount={selectedItems.size}
+        totalCount={blogs.length}
+        onSelectAll={handleSelectAll}
+        onDelete={handleBulkDelete}
+        onActivate={handleBulkActivate}
+        onDeactivate={handleBulkDeactivate}
+        isAllSelected={selectedItems.size === blogs.length && blogs.length > 0}
+      />
+
       <div className="bg-card rounded-lg border">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="border-b bg-muted/50">
               <tr>
+                <th className="text-left p-4 w-10"></th>
                 <th className="text-left p-4">Title</th>
                 <th className="text-left p-4">Author</th>
                 <th className="text-left p-4">Category</th>
@@ -302,6 +393,12 @@ export const TejaStarinBlogs = () => {
             <tbody>
               {blogs.map((blog) => (
                 <tr key={blog.id} className="border-b">
+                  <td className="p-4">
+                    <Checkbox
+                      checked={selectedItems.has(blog.id)}
+                      onCheckedChange={() => toggleSelection(blog.id)}
+                    />
+                  </td>
                   <td className="p-4 font-medium">{blog.title}</td>
                   <td className="p-4">{blog.author}</td>
                   <td className="p-4">{blog.categories?.name || '-'}</td>
