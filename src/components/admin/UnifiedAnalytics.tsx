@@ -4,10 +4,11 @@ import { tejaStarinClient } from '@/integrations/tejastarin/client';
 import { fastMoneyClient } from '@/integrations/fastmoney/client';
 import { offerGrabZoneClient } from '@/integrations/offergrabzone/client';
 import { mingleMoodyClient } from '@/integrations/minglemoody/client';
+import { dataOrbitClient } from '@/integrations/dataorbit/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp, RefreshCw, Download, ShoppingCart, Home, Palette, Search, FileText, MousePointerClick, DollarSign, Gift, MessageCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, RefreshCw, Download, ShoppingCart, Home, Palette, Search, FileText, MousePointerClick, DollarSign, Gift, MessageCircle, Globe } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface SiteStats {
@@ -75,6 +76,7 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
     { id: 'fastmoney', name: 'FastMoney', icon: DollarSign, color: 'from-yellow-500 to-yellow-600' },
     { id: 'offergrabzone', name: 'OfferGrabZone', icon: ShoppingCart, color: 'from-pink-500 to-pink-600' },
     { id: 'minglemoody', name: 'MingleMoody', icon: MessageCircle, color: 'from-cyan-400 to-cyan-600' },
+    { id: 'dataorbit', name: 'DataOrbit', icon: Globe, color: 'from-indigo-500 to-indigo-600' },
   ];
 
   useEffect(() => {
@@ -94,12 +96,13 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const [dataCreditZone, mainProj, fastMoney, offerGrabZone, mingleMoody] = await Promise.all([
+      const [dataCreditZone, mainProj, fastMoney, offerGrabZone, mingleMoody, dataOrbit] = await Promise.all([
         fetchDataCreditZone(),
         fetchMainProject(),
         fetchFastMoney(),
         fetchOfferGrabZone(),
         fetchMingleMoody(),
+        fetchDataOrbit(),
       ]);
 
       const allStats: SiteStats[] = [
@@ -108,6 +111,7 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
         { siteName: 'FastMoney', icon: DollarSign, color: 'from-yellow-500 to-yellow-600', ...fastMoney.stats },
         { siteName: 'OfferGrabZone', icon: Gift, color: 'from-pink-500 to-pink-600', ...offerGrabZone.stats },
         { siteName: 'MingleMoody', icon: MessageCircle, color: 'from-cyan-400 to-cyan-600', ...mingleMoody.stats },
+        { siteName: 'DataOrbit', icon: Globe, color: 'from-indigo-500 to-indigo-600', ...dataOrbit.stats },
       ];
 
       setSiteStats(allStats);
@@ -118,6 +122,7 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
         ...fastMoney.sessions,
         ...offerGrabZone.sessions,
         ...mingleMoody.sessions,
+        ...dataOrbit.sessions,
       ];
 
       // Sort by timestamp (latest first)
@@ -687,6 +692,143 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
       pageViews: sessions.reduce((sum: number, s: any) => sum + s.pageViews, 0),
       uniquePages: globalUniquePages.size,
       totalClicks: sessions.reduce((sum: number, s: any) => sum + s.totalClicks, 0),
+      uniqueClicks: globalUniqueClicks.size,
+    };
+
+    return { stats, sessions };
+  };
+
+  /**
+   * Fetch & process DataOrbit data from tracking_sessions/tracking_events tables
+   */
+  const fetchDataOrbit = async () => {
+    const { data: sessionsData } = await dataOrbitClient
+      .from('tracking_sessions')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    const { data: eventsData } = await dataOrbitClient
+      .from('tracking_events')
+      .select('*, blogs(title), related_searches(title), web_results(title)');
+
+    const sessionMap = new Map<string, any>();
+    const globalUniquePages = new Set<string>();
+    const globalUniqueClicks = new Set<string>();
+
+    (sessionsData || []).forEach((s: any) => {
+      sessionMap.set(s.session_id, {
+        sessionId: s.session_id,
+        siteName: 'DataOrbit',
+        siteIcon: Globe,
+        siteColor: 'from-indigo-500 to-indigo-600',
+        device: s.device || 'Desktop',
+        ipAddress: s.ip_address || 'N/A',
+        country: s.country || 'Unknown',
+        timeSpent: '0s',
+        timestamp: s.created_at || new Date().toISOString(),
+        pageViews: 0,
+        uniquePagesSet: new Set<string>(),
+        totalClicks: 0,
+        uniqueClicksSet: new Set<string>(),
+        searchResults: [] as Array<any>,
+        blogClicks: [] as Array<any>,
+        buttonInteractions: [] as Array<any>,
+        rsBreakdownMap: new Map<string, any>(),
+        blogBreakdownMap: new Map<string, any>(),
+      });
+    });
+
+    (eventsData || []).forEach((e: any) => {
+      const session = sessionMap.get(e.session_id);
+      if (!session) return;
+
+      if (e.event_type === 'page_view') {
+        session.pageViews++;
+        const pageKey = e.page_url || `pv-${e.id}`;
+        session.uniquePagesSet.add(pageKey);
+        globalUniquePages.add(pageKey);
+      } else {
+        session.totalClicks++;
+        const clickKey = e.id;
+        session.uniqueClicksSet.add(clickKey);
+        globalUniqueClicks.add(clickKey);
+
+        if (e.event_type === 'related_search_click' && e.related_searches?.title) {
+          const term = e.related_searches.title;
+          const entry = session.rsBreakdownMap.get(term) || { term, clicks: 0, ips: new Set(), visitNowClicks: 0, visitNowIps: new Set() };
+          entry.clicks++;
+          if (e.ip_address) entry.ips.add(e.ip_address);
+          session.rsBreakdownMap.set(term, entry);
+        }
+
+        if (e.event_type === 'visit_now_click' && e.related_searches?.title) {
+          const term = e.related_searches.title;
+          const entry = session.rsBreakdownMap.get(term) || { term, clicks: 0, ips: new Set(), visitNowClicks: 0, visitNowIps: new Set() };
+          entry.visitNowClicks++;
+          if (e.ip_address) entry.visitNowIps.add(e.ip_address);
+          session.rsBreakdownMap.set(term, entry);
+        }
+
+        if (e.event_type === 'blog_click' && e.blogs?.title) {
+          const title = e.blogs.title;
+          const entry = session.blogBreakdownMap.get(title) || { title, clicks: 0, ips: new Set() };
+          entry.clicks++;
+          if (e.ip_address) entry.ips.add(e.ip_address);
+          session.blogBreakdownMap.set(title, entry);
+        }
+
+        if (e.event_type === 'web_result_click' && e.web_results?.title) {
+          const title = e.web_results.title;
+          const entry = session.blogBreakdownMap.get(title) || { title, clicks: 0, ips: new Set() };
+          entry.clicks++;
+          if (e.ip_address) entry.ips.add(e.ip_address);
+          session.blogBreakdownMap.set(title, entry);
+        }
+      }
+    });
+
+    const sessions: SessionDetail[] = [];
+    sessionMap.forEach((session) => {
+      const searchResults = Array.from(session.rsBreakdownMap.values()).map((r: any) => ({
+        term: r.term,
+        views: 0,
+        totalClicks: r.clicks,
+        uniqueClicks: r.ips.size,
+        visitNowClicks: r.visitNowClicks,
+        visitNowUnique: r.visitNowIps.size,
+      }));
+
+      const blogClicks = Array.from(session.blogBreakdownMap.values()).map((b: any) => ({
+        title: b.title,
+        totalClicks: b.clicks,
+        uniqueClicks: b.ips.size,
+      }));
+
+      sessions.push({
+        sessionId: session.sessionId,
+        siteName: session.siteName,
+        siteIcon: session.siteIcon,
+        siteColor: session.siteColor,
+        device: session.device,
+        ipAddress: session.ipAddress,
+        country: session.country,
+        timeSpent: session.timeSpent,
+        timestamp: session.timestamp,
+        pageViews: session.pageViews,
+        uniquePages: session.uniquePagesSet.size,
+        totalClicks: session.totalClicks,
+        uniqueClicks: session.uniqueClicksSet.size,
+        searchResults,
+        blogClicks,
+        buttonInteractions: [],
+      });
+    });
+
+    const stats = {
+      sessions: sessionMap.size,
+      pageViews: sessions.reduce((sum, s) => sum + s.pageViews, 0),
+      uniquePages: globalUniquePages.size,
+      totalClicks: sessions.reduce((sum, s) => sum + s.totalClicks, 0),
       uniqueClicks: globalUniqueClicks.size,
     };
 
