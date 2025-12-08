@@ -5,8 +5,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Edit, Trash2 } from 'lucide-react';
+import { BulkActionToolbar } from './BulkActionToolbar';
 
 interface WebResult {
   id: string;
@@ -39,6 +41,7 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingResult, setEditingResult] = useState<WebResult | null>(null);
   const [forceReplace, setForceReplace] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
     related_search_id: '',
     title: '',
@@ -273,6 +276,57 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
     setForceReplace(false);
   };
 
+  // Bulk selection handlers
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedItems.size === webResults.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(webResults.map(r => r.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedItems.size === 0) return;
+    if (!confirm(`Delete ${selectedItems.size} selected web result(s)?`)) return;
+    
+    for (const id of selectedItems) {
+      await projectClient.from('web_results').delete().eq('id', id);
+    }
+    toast.success(`Deleted ${selectedItems.size} web result(s)`);
+    setSelectedItems(new Set());
+    fetchWebResults();
+  };
+
+  const handleBulkActivate = async () => {
+    if (selectedItems.size === 0) return;
+    for (const id of selectedItems) {
+      await projectClient.from('web_results').update({ is_active: true }).eq('id', id);
+    }
+    toast.success(`Activated ${selectedItems.size} web result(s)`);
+    setSelectedItems(new Set());
+    fetchWebResults();
+  };
+
+  const handleBulkDeactivate = async () => {
+    if (selectedItems.size === 0) return;
+    for (const id of selectedItems) {
+      await projectClient.from('web_results').update({ is_active: false }).eq('id', id);
+    }
+    toast.success(`Deactivated ${selectedItems.size} web result(s)`);
+    setSelectedItems(new Set());
+    fetchWebResults();
+  };
+
   // Conditional styling for SearchProject dark theme
   const containerClass = isSearchProject 
     ? "space-y-4 bg-[#0a1628] min-h-screen p-6 rounded-lg" 
@@ -328,10 +382,22 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
         </Button>
       </div>
 
+      <BulkActionToolbar
+        selectedCount={selectedItems.size}
+        totalCount={webResults.length}
+        onSelectAll={handleSelectAll}
+        onDelete={handleBulkDelete}
+        onActivate={handleBulkActivate}
+        onDeactivate={handleBulkDeactivate}
+        isAllSelected={selectedItems.size === webResults.length && webResults.length > 0}
+        isDarkTheme={isSearchProject}
+      />
+
       <div className={tableContainerClass}>
         <table className="w-full">
           <thead className={isSearchProject ? "border-b border-[#2a3f5f]" : "border-b"}>
             <tr>
+              <th className={thClass} style={{ width: '40px' }}></th>
               <th className={thClass}>Title</th>
               <th className={thClass}>Page</th>
               <th className={thClass}>Position</th>
@@ -343,6 +409,13 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
           <tbody>
             {webResults.map((result) => (
               <tr key={result.id} className={isSearchProject ? "border-b border-[#2a3f5f] last:border-0" : "border-b last:border-0"}>
+                <td className={tdClass}>
+                  <Checkbox
+                    checked={selectedItems.has(result.id)}
+                    onCheckedChange={() => toggleSelection(result.id)}
+                    className={isSearchProject ? "border-gray-500" : ""}
+                  />
+                </td>
                 <td className={tdClass}>
                   <div>
                     <p className={isSearchProject ? "font-medium text-white" : "font-medium"}>{result.title}</p>

@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionToolbar } from "./BulkActionToolbar";
 
 interface RelatedSearch {
   id: string;
@@ -97,6 +98,7 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
   const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
   const [searchDialog, setSearchDialog] = useState(false);
   const [editingSearch, setEditingSearch] = useState<RelatedSearch | null>(null);
+  const [selectedSearches, setSelectedSearches] = useState<Set<string>>(new Set());
   const [searchForm, setSearchForm] = useState({
     search_text: "", title: "", web_result_page: 1, position: 1, display_order: 0, is_active: true
   });
@@ -368,6 +370,56 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
     w.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Bulk actions for searches
+  const handleSelectAllSearches = () => {
+    if (selectedSearches.size === filteredSearches.length) {
+      setSelectedSearches(new Set());
+    } else {
+      setSelectedSearches(new Set(filteredSearches.map(s => s.id)));
+    }
+  };
+
+  const handleDeleteSelectedSearches = async () => {
+    if (selectedSearches.size === 0) return;
+    if (!confirm(`Delete ${selectedSearches.size} selected search(es)?`)) return;
+    for (const id of selectedSearches) {
+      await fastMoneyClient.from("related_searches").delete().eq("id", id);
+    }
+    toast.success(`Deleted ${selectedSearches.size} search(es)`);
+    setSelectedSearches(new Set());
+    fetchRelatedSearches();
+  };
+
+  const handleActivateSearches = async () => {
+    if (selectedSearches.size === 0) return;
+    for (const id of selectedSearches) {
+      await fastMoneyClient.from("related_searches").update({ is_active: true }).eq("id", id);
+    }
+    toast.success(`Activated ${selectedSearches.size} search(es)`);
+    setSelectedSearches(new Set());
+    fetchRelatedSearches();
+  };
+
+  const handleDeactivateSearches = async () => {
+    if (selectedSearches.size === 0) return;
+    for (const id of selectedSearches) {
+      await fastMoneyClient.from("related_searches").update({ is_active: false }).eq("id", id);
+    }
+    toast.success(`Deactivated ${selectedSearches.size} search(es)`);
+    setSelectedSearches(new Set());
+    fetchRelatedSearches();
+  };
+
+  const toggleSearchSelection = (id: string) => {
+    const newSelection = new Set(selectedSearches);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
+    setSelectedSearches(newSelection);
+  };
+
   // Bulk actions for web results
   const handleSelectAllWebResults = () => {
     if (selectedWebResults.size === filteredWebResults.length) {
@@ -390,20 +442,23 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
     fetchAllWebResults();
   };
 
-  const handleActivateAllWebResults = async () => {
-    if (selectedWebResults.size === 0) {
-      // Activate all on current page
-      for (const wr of filteredWebResults) {
-        await fastMoneyClient.from("web_results").update({ is_active: true }).eq("id", wr.id);
-      }
-      toast.success(`Activated all web results on page ${selectedPage}`);
-    } else {
-      // Activate selected only
-      for (const id of selectedWebResults) {
-        await fastMoneyClient.from("web_results").update({ is_active: true }).eq("id", id);
-      }
-      toast.success(`Activated ${selectedWebResults.size} web result(s)`);
+  const handleActivateWebResults = async () => {
+    if (selectedWebResults.size === 0) return;
+    for (const id of selectedWebResults) {
+      await fastMoneyClient.from("web_results").update({ is_active: true }).eq("id", id);
     }
+    toast.success(`Activated ${selectedWebResults.size} web result(s)`);
+    setSelectedWebResults(new Set());
+    fetchWebResults();
+    fetchAllWebResults();
+  };
+
+  const handleDeactivateWebResults = async () => {
+    if (selectedWebResults.size === 0) return;
+    for (const id of selectedWebResults) {
+      await fastMoneyClient.from("web_results").update({ is_active: false }).eq("id", id);
+    }
+    toast.success(`Deactivated ${selectedWebResults.size} web result(s)`);
     setSelectedWebResults(new Set());
     fetchWebResults();
     fetchAllWebResults();
@@ -501,10 +556,27 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
                 </DialogContent>
               </Dialog>
             </div>
+
+            <BulkActionToolbar
+              selectedCount={selectedSearches.size}
+              totalCount={filteredSearches.length}
+              onSelectAll={handleSelectAllSearches}
+              onDelete={handleDeleteSelectedSearches}
+              onActivate={handleActivateSearches}
+              onDeactivate={handleDeactivateSearches}
+              isAllSelected={selectedSearches.size === filteredSearches.length && filteredSearches.length > 0}
+              isDarkTheme={true}
+            />
+
             <div className="space-y-2">
               {filteredSearches.map((search) => (
-                <div key={search.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
-                  <div>
+                <div key={search.id} className={`flex items-center gap-4 p-4 border rounded bg-[#0d1520] ${selectedSearches.has(search.id) ? 'border-[#00b4d8]' : 'border-[#2a3f5f]'}`}>
+                  <Checkbox 
+                    checked={selectedSearches.has(search.id)}
+                    onCheckedChange={() => toggleSearchSelection(search.id)}
+                    className="border-gray-500"
+                  />
+                  <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <Badge variant="outline" className="text-xs border-[#2a3f5f] text-[#00b4d8]">(Related Search)</Badge>
                       <h3 className="font-semibold text-white">{search.title}</h3>
@@ -665,34 +737,16 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
               </Dialog>
             </div>
             
-            {/* Bulk Actions */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleSelectAllWebResults}
-                className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]"
-              >
-                {selectedWebResults.size === filteredWebResults.length && filteredWebResults.length > 0 ? 'Deselect All' : 'Select All'}
-              </Button>
-              <Button 
-                variant="destructive" 
-                size="sm"
-                onClick={handleDeleteSelectedWebResults}
-                disabled={selectedWebResults.size === 0}
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                Delete Selected ({selectedWebResults.size})
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleActivateAllWebResults}
-                className="border-green-600 text-green-400 hover:bg-green-900/30"
-              >
-                Make All Active
-              </Button>
-            </div>
+            <BulkActionToolbar
+              selectedCount={selectedWebResults.size}
+              totalCount={filteredWebResults.length}
+              onSelectAll={handleSelectAllWebResults}
+              onDelete={handleDeleteSelectedWebResults}
+              onActivate={handleActivateWebResults}
+              onDeactivate={handleDeactivateWebResults}
+              isAllSelected={selectedWebResults.size === filteredWebResults.length && filteredWebResults.length > 0}
+              isDarkTheme={true}
+            />
 
             <div className="space-y-2">
               {filteredWebResults.map((result) => {

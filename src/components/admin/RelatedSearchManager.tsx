@@ -4,7 +4,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import { BulkActionToolbar } from './BulkActionToolbar';
 
 interface RelatedSearch {
   id: string;
@@ -33,6 +35,7 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSearch, setEditingSearch] = useState<RelatedSearch | null>(null);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
     blog_id: '',
     title: '',
@@ -198,6 +201,57 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
     setEditingSearch(null);
   };
 
+  // Bulk selection handlers
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedItems.size === searches.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(searches.map(s => s.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedItems.size === 0) return;
+    if (!confirm(`Delete ${selectedItems.size} selected search(es)?`)) return;
+    
+    for (const id of selectedItems) {
+      await projectClient.from('related_searches').delete().eq('id', id);
+    }
+    toast.success(`Deleted ${selectedItems.size} search(es)`);
+    setSelectedItems(new Set());
+    fetchSearches();
+  };
+
+  const handleBulkActivate = async () => {
+    if (selectedItems.size === 0) return;
+    for (const id of selectedItems) {
+      await projectClient.from('related_searches').update({ is_active: true }).eq('id', id);
+    }
+    toast.success(`Activated ${selectedItems.size} search(es)`);
+    setSelectedItems(new Set());
+    fetchSearches();
+  };
+
+  const handleBulkDeactivate = async () => {
+    if (selectedItems.size === 0) return;
+    for (const id of selectedItems) {
+      await projectClient.from('related_searches').update({ is_active: false }).eq('id', id);
+    }
+    toast.success(`Deactivated ${selectedItems.size} search(es)`);
+    setSelectedItems(new Set());
+    fetchSearches();
+  };
+
   // Apply dark theme for SearchProject
   const containerClass = isSearchProject 
     ? "space-y-4 bg-[#0a1628] min-h-screen p-6 rounded-lg" 
@@ -208,8 +262,8 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
     : "text-lg font-semibold";
   
   const cardClass = isSearchProject
-    ? "flex items-center justify-between p-4 bg-[#1a2942] rounded-lg border border-[#2a3f5f]"
-    : "flex items-center justify-between p-4 bg-card rounded-lg border";
+    ? "flex items-center gap-3 p-4 bg-[#1a2942] rounded-lg border border-[#2a3f5f]"
+    : "flex items-center gap-3 p-4 bg-card rounded-lg border";
   
   const titleClass = isSearchProject
     ? "font-medium text-white"
@@ -247,11 +301,36 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
         </Button>
       </div>
 
+      <BulkActionToolbar
+        selectedCount={selectedItems.size}
+        totalCount={searches.length}
+        onSelectAll={handleSelectAll}
+        onDelete={handleBulkDelete}
+        onActivate={handleBulkActivate}
+        onDeactivate={handleBulkDeactivate}
+        isAllSelected={selectedItems.size === searches.length && searches.length > 0}
+        isDarkTheme={isSearchProject}
+      />
+
       <div className="space-y-2">
         {searches.map((search) => (
           <div key={search.id} className={cardClass}>
-            <div>
-              <p className={titleClass}>{search.title || search.search_text}</p>
+            <Checkbox
+              checked={selectedItems.has(search.id)}
+              onCheckedChange={() => toggleSelection(search.id)}
+              className={isSearchProject ? "border-gray-500" : ""}
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <p className={titleClass}>{search.title || search.search_text}</p>
+                <span className={`px-2 py-0.5 text-xs rounded ${
+                  search.is_active 
+                    ? (isSearchProject ? 'bg-green-900/50 text-green-300' : 'bg-green-100 text-green-800') 
+                    : (isSearchProject ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-800')
+                }`}>
+                  {search.is_active ? 'Active' : 'Inactive'}
+                </span>
+              </div>
               <p className={subtitleClass}>
                 {needsBlogs && (search as any).blogs?.title && <span className="text-primary font-medium">Blog: {(search as any).blogs.title} | </span>}
                 Page: wr-{search.web_result_page} | Position: {search.position}
