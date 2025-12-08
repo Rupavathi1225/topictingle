@@ -12,6 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionToolbar } from "./BulkActionToolbar";
 
 interface Category {
   id: number;
@@ -85,6 +87,10 @@ export const DataOrbitZoneManager = () => {
   const [webResults, setWebResults] = useState<WebResult[]>([]);
   const [activeTab, setActiveTab] = useState("categories");
 
+  // Bulk selection states
+  const [selectedBlogs, setSelectedBlogs] = useState<Set<string>>(new Set());
+  const [selectedWebResults, setSelectedWebResults] = useState<Set<string>>(new Set());
+
   // Category Form
   const [categoryDialog, setCategoryDialog] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -125,6 +131,78 @@ export const DataOrbitZoneManager = () => {
     related_search_id: "", title: "", description: "", logo_url: "",
     target_url: "", page_number: 1, position: 1, is_active: true, is_sponsored: false
   });
+
+  // Bulk action handlers for Blogs
+  const toggleBlogSelection = (id: string) => {
+    const newSelected = new Set(selectedBlogs);
+    if (newSelected.has(id)) newSelected.delete(id);
+    else newSelected.add(id);
+    setSelectedBlogs(newSelected);
+  };
+
+  const handleSelectAllBlogs = () => {
+    if (selectedBlogs.size === blogs.length) setSelectedBlogs(new Set());
+    else setSelectedBlogs(new Set(blogs.map(b => b.id)));
+  };
+
+  const handleBulkDeleteBlogs = async () => {
+    if (!confirm(`Delete ${selectedBlogs.size} blog(s)?`)) return;
+    for (const id of selectedBlogs) {
+      await dataOrbitZoneClient.from("blogs").delete().eq("id", id);
+    }
+    toast.success(`Deleted ${selectedBlogs.size} blog(s)`);
+    setSelectedBlogs(new Set());
+    fetchBlogs();
+  };
+
+  const handleBulkActivateBlogs = async () => {
+    await dataOrbitZoneClient.from("blogs").update({ status: "published" }).in("id", Array.from(selectedBlogs));
+    toast.success(`Activated ${selectedBlogs.size} blog(s)`);
+    setSelectedBlogs(new Set());
+    fetchBlogs();
+  };
+
+  const handleBulkDeactivateBlogs = async () => {
+    await dataOrbitZoneClient.from("blogs").update({ status: "draft" }).in("id", Array.from(selectedBlogs));
+    toast.success(`Deactivated ${selectedBlogs.size} blog(s)`);
+    setSelectedBlogs(new Set());
+    fetchBlogs();
+  };
+
+  // Bulk action handlers for Web Results
+  const toggleWebResultSelection = (id: string) => {
+    const newSelected = new Set(selectedWebResults);
+    if (newSelected.has(id)) newSelected.delete(id);
+    else newSelected.add(id);
+    setSelectedWebResults(newSelected);
+  };
+
+  const handleSelectAllWebResults = () => {
+    if (selectedWebResults.size === webResults.length) setSelectedWebResults(new Set());
+    else setSelectedWebResults(new Set(webResults.map(w => w.id)));
+  };
+
+  const handleBulkDeleteWebResults = async () => {
+    if (!confirm(`Delete ${selectedWebResults.size} web result(s)?`)) return;
+    await dataOrbitZoneClient.from("web_results").delete().in("id", Array.from(selectedWebResults));
+    toast.success(`Deleted ${selectedWebResults.size} web result(s)`);
+    setSelectedWebResults(new Set());
+    fetchWebResults();
+  };
+
+  const handleBulkActivateWebResults = async () => {
+    await dataOrbitZoneClient.from("web_results").update({ is_active: true }).in("id", Array.from(selectedWebResults));
+    toast.success(`Activated ${selectedWebResults.size} web result(s)`);
+    setSelectedWebResults(new Set());
+    fetchWebResults();
+  };
+
+  const handleBulkDeactivateWebResults = async () => {
+    await dataOrbitZoneClient.from("web_results").update({ is_active: false }).in("id", Array.from(selectedWebResults));
+    toast.success(`Deactivated ${selectedWebResults.size} web result(s)`);
+    setSelectedWebResults(new Set());
+    fetchWebResults();
+  };
 
   useEffect(() => {
     fetchAll();
@@ -467,10 +545,23 @@ export const DataOrbitZoneManager = () => {
                 </DialogContent>
               </Dialog>
             </div>
+            <BulkActionToolbar
+              selectedCount={selectedBlogs.size}
+              totalCount={blogs.length}
+              onSelectAll={handleSelectAllBlogs}
+              onDelete={handleBulkDeleteBlogs}
+              onActivate={handleBulkActivateBlogs}
+              onDeactivate={handleBulkDeactivateBlogs}
+              isAllSelected={selectedBlogs.size === blogs.length && blogs.length > 0}
+            />
             <div className="space-y-2">
               {blogs.map((blog) => (
-                <div key={blog.id} className="flex items-center justify-between p-4 border rounded">
-                  <div>
+                <div key={blog.id} className="flex items-center gap-3 p-4 border rounded">
+                  <Checkbox
+                    checked={selectedBlogs.has(blog.id)}
+                    onCheckedChange={() => toggleBlogSelection(blog.id)}
+                  />
+                  <div className="flex-1">
                     <h3 className="font-semibold">{blog.title}</h3>
                     <p className="text-sm text-muted-foreground">{blog.slug} • {blog.status}</p>
                   </div>
@@ -575,9 +666,22 @@ export const DataOrbitZoneManager = () => {
                 </DialogContent>
               </Dialog>
             </div>
+            <BulkActionToolbar
+              selectedCount={selectedWebResults.size}
+              totalCount={webResults.length}
+              onSelectAll={handleSelectAllWebResults}
+              onDelete={handleBulkDeleteWebResults}
+              onActivate={handleBulkActivateWebResults}
+              onDeactivate={handleBulkDeactivateWebResults}
+              isAllSelected={selectedWebResults.size === webResults.length && webResults.length > 0}
+            />
             <div className="space-y-2">
               {webResults.map((result) => (
-                <div key={result.id} className="flex items-center justify-between p-4 border rounded">
+                <div key={result.id} className="flex items-center gap-3 p-4 border rounded">
+                  <Checkbox
+                    checked={selectedWebResults.has(result.id)}
+                    onCheckedChange={() => toggleWebResultSelection(result.id)}
+                  />
                   <div className="flex-1">
                     <h3 className="font-semibold">{result.title}</h3>
                     <p className="text-sm text-muted-foreground">{result.description}</p>

@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Edit, Trash2, Plus, AlertTriangle } from 'lucide-react';
 import { tejaStarinClient } from '@/integrations/tejastarin/client';
 import { Checkbox } from '@/components/ui/checkbox';
+import { BulkActionToolbar } from './BulkActionToolbar';
 
 export const TejaStarinWebResults = () => {
   const [webResults, setWebResults] = useState<any[]>([]);
@@ -17,6 +18,7 @@ export const TejaStarinWebResults = () => {
   const [selectedSearchId, setSelectedSearchId] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [forceReplace, setForceReplace] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
     title: '',
     url: '',
@@ -25,6 +27,71 @@ export const TejaStarinWebResults = () => {
     is_sponsored: false,
     order_index: 0,
   });
+
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedItems.size === webResults.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(webResults.map(r => r.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selectedItems.size} web result(s)?`)) return;
+    
+    const { error } = await tejaStarinClient
+      .from('web_results')
+      .delete()
+      .in('id', Array.from(selectedItems));
+    
+    if (error) {
+      toast.error('Failed to delete web results');
+    } else {
+      toast.success(`Deleted ${selectedItems.size} web result(s)`);
+      setSelectedItems(new Set());
+      fetchWebResults();
+    }
+  };
+
+  const handleBulkActivate = async () => {
+    const { error } = await tejaStarinClient
+      .from('web_results')
+      .update({ is_active: true })
+      .in('id', Array.from(selectedItems));
+    
+    if (error) {
+      toast.error('Failed to activate web results');
+    } else {
+      toast.success(`Activated ${selectedItems.size} web result(s)`);
+      setSelectedItems(new Set());
+      fetchWebResults();
+    }
+  };
+
+  const handleBulkDeactivate = async () => {
+    const { error } = await tejaStarinClient
+      .from('web_results')
+      .update({ is_active: false })
+      .in('id', Array.from(selectedItems));
+    
+    if (error) {
+      toast.error('Failed to deactivate web results');
+    } else {
+      toast.success(`Deactivated ${selectedItems.size} web result(s)`);
+      setSelectedItems(new Set());
+      fetchWebResults();
+    }
+  };
 
   useEffect(() => {
     fetchRelatedSearches();
@@ -317,14 +384,26 @@ export const TejaStarinWebResults = () => {
             </Card>
           )}
 
+          <BulkActionToolbar
+            selectedCount={selectedItems.size}
+            totalCount={webResults.length}
+            onSelectAll={handleSelectAll}
+            onDelete={handleBulkDelete}
+            onActivate={handleBulkActivate}
+            onDeactivate={handleBulkDeactivate}
+            isAllSelected={selectedItems.size === webResults.length && webResults.length > 0}
+          />
+
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="border-b bg-muted/50">
                     <tr>
+                      <th className="text-left p-4 w-10"></th>
                       <th className="text-left p-4">Title</th>
                       <th className="text-left p-4">URL</th>
+                      <th className="text-left p-4">Status</th>
                       <th className="text-left p-4">Sponsored</th>
                       <th className="text-right p-4">Actions</th>
                     </tr>
@@ -332,8 +411,19 @@ export const TejaStarinWebResults = () => {
                   <tbody>
                     {webResults.map((result) => (
                       <tr key={result.id} className="border-b">
+                        <td className="p-4">
+                          <Checkbox
+                            checked={selectedItems.has(result.id)}
+                            onCheckedChange={() => toggleSelection(result.id)}
+                          />
+                        </td>
                         <td className="p-4 font-medium">{result.title}</td>
                         <td className="p-4 text-sm text-muted-foreground truncate max-w-xs">{result.url}</td>
+                        <td className="p-4">
+                          <span className={`px-2 py-1 rounded text-xs ${result.is_active !== false ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                            {result.is_active !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
                         <td className="p-4">
                           {result.is_sponsored && (
                             <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">
