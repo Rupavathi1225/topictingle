@@ -27,15 +27,9 @@ export const WebResults = () => {
   const [searchTitle, setSearchTitle] = useState<string>('');
   const { sessionId, trackClick } = useTracking();
 
-  // Generate masked URL like "sitename.link1"
-  const getMaskedUrl = (url: string, index: number) => {
-    try {
-      const hostname = new URL(url).hostname.replace('www.', '');
-      const siteName = hostname.split('.')[0];
-      return `${siteName}.link${index + 1}`;
-    } catch {
-      return `site.link${index + 1}`;
-    }
+  // Generate masked URL like "topicmingle.link1"
+  const getMaskedUrl = (index: number) => {
+    return `topicmingle.link${index + 1}`;
   };
 
   useEffect(() => {
@@ -128,7 +122,7 @@ export const WebResults = () => {
                   <div className="flex items-center gap-2 text-sm mb-2">
                     <span className="text-gray-400">Sponsored</span>
                     <span className="text-gray-500">·</span>
-                    <span className="text-gray-400">{getMaskedUrl(result.target_url, index)}</span>
+                    <span className="text-gray-400">{getMaskedUrl(index)}</span>
                     <button className="text-gray-500 hover:text-gray-300">⋮</button>
                   </div>
                   
@@ -174,10 +168,10 @@ export const WebResults = () => {
                       }}
                     />
                     <div className="text-sm">
-                      <span className="text-gray-700 font-medium">{getMaskedUrl(result.target_url, index)}</span>
+                      <span className="text-gray-700 font-medium">{getMaskedUrl(sponsoredResults.length + index)}</span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 mb-1 truncate">{getMaskedUrl(result.target_url, index)}</p>
+                  <p className="text-xs text-gray-500 mb-1 truncate">{getMaskedUrl(sponsoredResults.length + index)}</p>
                   
                   {/* Title */}
                   <h3 className="text-blue-700 hover:underline text-lg font-medium mb-1">
