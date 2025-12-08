@@ -697,6 +697,7 @@ const Admin = () => {
       case 'fastmoney': return 'FastMoney';
       case 'offergrabzone': return 'OfferGrabZone';
       case 'minglemoody': return 'MingleMoody';
+      case 'dataorbit': return 'DataOrbit';
       default: return 'TopicMingle';
     }
   };
@@ -707,6 +708,11 @@ const Admin = () => {
 
     const client = getProjectClient(selectedWebsite);
     const projectName = getProjectName(selectedWebsite);
+
+    // DataOrbit uses its own manager component
+    if (selectedWebsite === 'dataorbit') {
+      return <DataOrbitManager initialTab={selectedSection} />;
+    }
 
     switch (selectedSection) {
       case 'blogs':
