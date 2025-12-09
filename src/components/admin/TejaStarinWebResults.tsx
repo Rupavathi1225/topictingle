@@ -200,7 +200,6 @@ export const TejaStarinWebResults = () => {
       logo_url: formData.logo_url || null,
       is_sponsored: formData.is_sponsored,
       order_index: formData.order_index,
-      is_active: true,
     };
 
     console.log('Inserting web result:', payload);
