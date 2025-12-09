@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Trash2, Plus, ChevronRight } from 'lucide-react';
-import { tejaStarinClient } from '@/integrations/tejastarin/client';
+import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 
 interface RelatedSearch {
@@ -87,23 +87,26 @@ export const TejaStarinPreLanding = () => {
   }, [selectedWebResultId, filteredWebResults]);
 
   const fetchPreLandingPages = async () => {
-    const { data, error } = await tejaStarinClient
-      .from('pre_landing_config')
-      .select('*, related_searches(search_text)')
+    const { data, error } = await supabase
+      .from('pre_landing_pages')
+      .select('*')
+      .eq('site_name', 'tejastarin')
       .order('created_at', { ascending: false });
     
     if (error) {
       toast.error('Failed to fetch pre-landing pages');
+      console.error(error);
       return;
     }
     if (data) setPreLandingPages(data);
   };
 
   const fetchRelatedSearches = async () => {
-    const { data, error } = await tejaStarinClient
+    const { data, error } = await supabase
       .from('related_searches')
       .select('*')
-      .order('order_index', { ascending: true });
+      .eq('site_name', 'tejastarin')
+      .order('display_order', { ascending: true });
     
     if (error) {
       toast.error('Failed to fetch related searches');
@@ -113,10 +116,11 @@ export const TejaStarinPreLanding = () => {
   };
 
   const fetchWebResults = async () => {
-    const { data, error } = await tejaStarinClient
+    const { data, error } = await supabase
       .from('web_results')
       .select('*')
-      .order('order_index', { ascending: true });
+      .eq('site_name', 'tejastarin')
+      .order('position', { ascending: true });
     
     if (error) {
       console.error('Failed to fetch web results:', error);
@@ -134,32 +138,47 @@ export const TejaStarinPreLanding = () => {
       return;
     }
 
+    // Generate a unique page_key
+    const pageKey = `tejastarin-${Date.now()}`;
+
     const payload = {
-      related_search_id: selectedSearchId,
+      page_key: pageKey,
       headline: formData.headline,
       description: formData.description || null,
       logo_url: formData.logo_url || null,
       main_image_url: formData.main_image_url || null,
       background_color: formData.background_color || '#ffffff',
       background_image_url: formData.background_image_url || null,
-      button_text: formData.button_text || 'Visit Now',
-      destination_url: formData.destination_url || null,
+      cta_text: formData.button_text || 'Visit Now',
+      target_url: formData.destination_url || 'https://example.com',
       logo_position: formData.logo_position || 'top-center',
+      site_name: 'tejastarin',
     };
 
-    const { error } = await tejaStarinClient
-      .from('pre_landing_config')
+    const { error: insertError } = await supabase
+      .from('pre_landing_pages')
       .insert([payload]);
     
-    if (error) {
+    if (insertError) {
       toast.error('Failed to save pre-landing page');
-      console.error(error);
-    } else {
-      toast.success('Pre-landing page saved!');
-      setShowForm(false);
-      resetForm();
-      fetchPreLandingPages();
+      console.error(insertError);
+      return;
     }
+
+    // Update the related search with the pre_landing_page_key
+    const { error: updateError } = await supabase
+      .from('related_searches')
+      .update({ pre_landing_page_key: pageKey })
+      .eq('id', selectedSearchId);
+
+    if (updateError) {
+      console.error('Failed to link pre-landing to related search:', updateError);
+    }
+
+    toast.success('Pre-landing page saved!');
+    setShowForm(false);
+    resetForm();
+    fetchPreLandingPages();
   };
 
   const resetForm = () => {
@@ -183,8 +202,8 @@ export const TejaStarinPreLanding = () => {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this pre-landing page?')) return;
     
-    const { error } = await tejaStarinClient
-      .from('pre_landing_config')
+    const { error } = await supabase
+      .from('pre_landing_pages')
       .delete()
       .eq('id', id);
     
@@ -400,10 +419,11 @@ export const TejaStarinPreLanding = () => {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="border-b bg-muted/50">
+                <thead className="border-b bg-muted/50">
                 <tr>
                   <th className="text-left p-4">Headline</th>
-                  <th className="text-left p-4">Related Search</th>
+                  <th className="text-left p-4">Page Key</th>
+                  <th className="text-left p-4">Target URL</th>
                   <th className="text-right p-4">Actions</th>
                 </tr>
               </thead>
@@ -411,7 +431,8 @@ export const TejaStarinPreLanding = () => {
                 {preLandingPages.map((page) => (
                   <tr key={page.id} className="border-b">
                     <td className="p-4 font-medium">{page.headline}</td>
-                    <td className="p-4">{page.related_searches?.search_text || '-'}</td>
+                    <td className="p-4 text-sm text-muted-foreground">{page.page_key}</td>
+                    <td className="p-4 text-sm text-muted-foreground truncate max-w-[200px]">{page.target_url}</td>
                     <td className="p-4 text-right">
                       <Button size="sm" variant="destructive" onClick={() => handleDelete(page.id)}>
                         <Trash2 className="w-4 h-4" />
