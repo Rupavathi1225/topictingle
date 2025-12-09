@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkActionToolbar } from "./BulkActionToolbar";
+import { MingleMoodyBlogs } from "./MingleMoodyBlogs";
 
 interface RelatedSearch {
   id: string;
@@ -71,7 +72,8 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
         'landing': 'landing',
         'searches': 'searches',
         'webresults': 'webresults',
-        'prelanding': 'prelandings'
+        'prelanding': 'prelandings',
+        'blogs': 'blogs'
       };
       setActiveTab(tabMap[initialTab] || initialTab);
     }
@@ -431,11 +433,12 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 bg-[#0d1520]">
+          <TabsList className="grid w-full grid-cols-5 bg-[#0d1520]">
             <TabsTrigger value="landing" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">Landing</TabsTrigger>
             <TabsTrigger value="searches" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">Searches ({relatedSearches.length})</TabsTrigger>
             <TabsTrigger value="webresults" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">Web Results ({webResults.length})</TabsTrigger>
             <TabsTrigger value="prelandings" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">Prelandings ({prelandings.length})</TabsTrigger>
+            <TabsTrigger value="blogs" className="data-[state=active]:bg-[#00b4d8] data-[state=active]:text-white text-gray-300">Blogs</TabsTrigger>
           </TabsList>
 
           {/* Landing Tab */}
@@ -770,6 +773,11 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
               ))}
               {prelandings.length === 0 && <p className="text-gray-400 text-center py-8">No prelandings found.</p>}
             </div>
+          </TabsContent>
+
+          {/* Blogs Tab */}
+          <TabsContent value="blogs" className="space-y-4">
+            <MingleMoodyBlogs />
           </TabsContent>
         </Tabs>
       </CardContent>
