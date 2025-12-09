@@ -196,6 +196,7 @@ export const TejaStarinWebResults = () => {
       related_search_id: selectedSearchId,
       title: formData.title,
       url: formData.url,
+      target_url: formData.url,
       description: formData.description || null,
       logo_url: formData.logo_url || null,
       is_sponsored: formData.is_sponsored,
