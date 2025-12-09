@@ -48,7 +48,6 @@ interface LandingContent {
 interface Prelanding {
   id: string;
   key: string;
-  web_result_id: string | null;
   logo_url: string | null;
   main_image_url: string | null;
   headline: string;
@@ -190,7 +189,7 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
   const [editingPrelanding, setEditingPrelanding] = useState<Prelanding | null>(null);
   const [selectedWebResultForPrelanding, setSelectedWebResultForPrelanding] = useState<string>("");
   const [prelandingForm, setPrelandingForm] = useState({
-    key: "", web_result_id: "", logo_url: "", main_image_url: "", headline: "", subtitle: "",
+    key: "", logo_url: "", main_image_url: "", headline: "", subtitle: "",
     description: "", redirect_description: "You will be redirected to...", is_active: true
   });
 
@@ -395,8 +394,7 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
     const generatedKey = generateKey(prelandingForm.headline);
     const data = { 
       ...prelandingForm, 
-      key: editingPrelanding ? prelandingForm.key : generatedKey,
-      web_result_id: selectedWebResultForPrelanding || prelandingForm.web_result_id || null
+      key: editingPrelanding ? prelandingForm.key : generatedKey
     };
 
     if (editingPrelanding) {
@@ -438,7 +436,7 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
 
   const resetPrelandingForm = () => {
     setPrelandingForm({
-      key: "", web_result_id: "", logo_url: "", main_image_url: "", headline: "", subtitle: "",
+      key: "", logo_url: "", main_image_url: "", headline: "", subtitle: "",
       description: "", redirect_description: "You will be redirected to...", is_active: true
     });
     setSelectedWebResultForPrelanding("");
@@ -801,7 +799,7 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
             </div>
             <div className="space-y-2">
               {prelandings.map((p) => {
-                const linkedWebResult = allWebResults.find(wr => wr.id === p.web_result_id);
+                const linkedWebResult = allWebResults.find(wr => wr.prelanding_key === p.key);
                 return (
                   <div key={p.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
                     <div>
@@ -817,9 +815,11 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]" onClick={() => {
                         setEditingPrelanding(p);
-                        setSelectedWebResultForPrelanding(p.web_result_id || "");
+                        // Find the web result linked via prelanding_key
+                        const linkedWr = allWebResults.find(wr => wr.prelanding_key === p.key);
+                        setSelectedWebResultForPrelanding(linkedWr?.id || "");
                         setPrelandingForm({
-                          key: p.key, web_result_id: p.web_result_id || "", logo_url: p.logo_url || "", main_image_url: p.main_image_url || "",
+                          key: p.key, logo_url: p.logo_url || "", main_image_url: p.main_image_url || "",
                           headline: p.headline, subtitle: p.subtitle || "", description: p.description || "",
                           redirect_description: p.redirect_description || "", is_active: p.is_active
                         });
