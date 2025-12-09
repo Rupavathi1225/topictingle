@@ -80,7 +80,8 @@ export const WebResults = () => {
     await trackClick(`web-result-${result.id}`, result.title);
     
     if (result.pre_landing_page_key) {
-      window.location.href = `/prelanding?page=${result.pre_landing_page_key}`;
+      // Pass redirect URL so after email capture it goes to the actual target
+      window.location.href = `/prelanding?page=${result.pre_landing_page_key}&redirect=${encodeURIComponent(result.target_url)}`;
     } else {
       window.location.href = result.target_url;
     }

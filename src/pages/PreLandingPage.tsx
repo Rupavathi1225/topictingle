@@ -31,6 +31,7 @@ interface PreLandingPageData {
 export default function PreLandingPage() {
   const [searchParams] = useSearchParams();
   const pageKey = searchParams.get('page');
+  const redirectUrl = searchParams.get('redirect');
   const [pageData, setPageData] = useState<PreLandingPageData | null>(null);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(true);
@@ -96,9 +97,13 @@ export default function PreLandingPage() {
 
       toast.success('Email captured successfully!');
       
-      // Redirect to target URL
+      // Redirect: prioritize redirect param, fallback to page's target_url
       setTimeout(() => {
-        window.location.href = pageData.target_url;
+        if (redirectUrl) {
+          window.location.href = decodeURIComponent(redirectUrl);
+        } else {
+          window.location.href = pageData.target_url;
+        }
       }, 1000);
     } catch (err) {
       toast.error('Something went wrong');
