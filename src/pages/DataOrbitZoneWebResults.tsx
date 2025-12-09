@@ -14,6 +14,7 @@ interface WebResult {
   is_active: boolean;
   is_sponsored?: boolean;
   related_search_id?: string | null;
+  has_prelanding?: boolean;
 }
 
 export const DataOrbitZoneWebResults = () => {
@@ -64,15 +65,41 @@ export const DataOrbitZoneWebResults = () => {
     }
 
     if (data) {
-      const sponsored = data.filter((r: any) => r.is_sponsored);
-      const organic = data.filter((r: any) => !r.is_sponsored);
+      // Fetch pre-landing pages to check which results have them
+      const relatedSearchIds = [...new Set(data.map((r: any) => r.related_search_id).filter(Boolean))];
+      
+      let prelandingSearchIds: string[] = [];
+      if (relatedSearchIds.length > 0) {
+        const { data: prelandings } = await dataOrbitZoneClient
+          .from('dz_prelanding_pages')
+          .select('related_search_id')
+          .in('related_search_id', relatedSearchIds);
+        
+        if (prelandings) {
+          prelandingSearchIds = prelandings.map((p: any) => p.related_search_id);
+        }
+      }
+
+      // Mark results that have pre-landing pages
+      const resultsWithPrelanding = data.map((r: any) => ({
+        ...r,
+        has_prelanding: prelandingSearchIds.includes(r.related_search_id)
+      }));
+
+      const sponsored = resultsWithPrelanding.filter((r: any) => r.is_sponsored);
+      const organic = resultsWithPrelanding.filter((r: any) => !r.is_sponsored);
       setSponsoredResults(sponsored as WebResult[]);
       setWebResults(organic as WebResult[]);
     }
   };
 
   const handleResultClick = (result: WebResult) => {
-    window.location.href = result.target_url;
+    // If has pre-landing page, redirect to prelanding first
+    if (result.has_prelanding && result.related_search_id) {
+      window.location.href = `/dataorbit/prelanding?search=${result.related_search_id}&redirect=${encodeURIComponent(result.target_url)}`;
+    } else {
+      window.location.href = result.target_url;
+    }
   };
 
   return (
