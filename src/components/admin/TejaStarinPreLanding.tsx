@@ -6,108 +6,87 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Trash2, Plus, ChevronRight } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Trash2, Plus, Pencil, ChevronRight } from 'lucide-react';
 import { tejaStarinClient } from '@/integrations/tejastarin/client';
 import { Badge } from '@/components/ui/badge';
 
 interface RelatedSearch {
   id: string;
   search_text: string;
-  web_result_page?: number;
+  wr?: number;
+  blog_id?: string;
+  blogs?: {
+    title: string;
+  } | { title: string }[];
 }
 
 interface WebResult {
   id: string;
   title: string;
-  target_url: string;
+  url: string;
   related_search_id: string;
-  page_number: number;
+  order_index: number;
+}
+
+interface PreLandingConfig {
+  id: string;
+  related_search_id: string;
+  logo_url: string | null;
+  logo_position: string;
+  main_image_url: string | null;
+  headline: string | null;
+  description: string | null;
+  background_color: string;
+  background_image_url: string | null;
+  button_text: string;
+  destination_url: string | null;
 }
 
 export const TejaStarinPreLanding = () => {
-  const [preLandingPages, setPreLandingPages] = useState<any[]>([]);
+  const [preLandingConfigs, setPreLandingConfigs] = useState<PreLandingConfig[]>([]);
   const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
   const [webResults, setWebResults] = useState<WebResult[]>([]);
-  const [filteredWebResults, setFilteredWebResults] = useState<WebResult[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingConfig, setEditingConfig] = useState<PreLandingConfig | null>(null);
   
-  // Selection state
-  const [selectedSearchId, setSelectedSearchId] = useState<string>('');
-  const [selectedWebResultId, setSelectedWebResultId] = useState<string>('');
-  const [selectedSearch, setSelectedSearch] = useState<RelatedSearch | null>(null);
-  const [selectedWebResult, setSelectedWebResult] = useState<WebResult | null>(null);
-
   const [formData, setFormData] = useState({
+    related_search_id: '',
+    logo_url: '',
+    logo_position: 'top-center',
+    main_image_url: '',
     headline: '',
     description: '',
-    logo_url: '',
-    main_image_url: '',
     background_color: '#ffffff',
     background_image_url: '',
     button_text: 'Visit Now',
     destination_url: '',
-    logo_position: 'top-center',
   });
 
   useEffect(() => {
-    fetchPreLandingPages();
+    fetchPreLandingConfigs();
     fetchRelatedSearches();
     fetchWebResults();
   }, []);
 
-  // Filter web results when search selection changes
-  useEffect(() => {
-    if (selectedSearchId) {
-      const search = relatedSearches.find(s => s.id === selectedSearchId);
-      setSelectedSearch(search || null);
-      
-      // Filter web results by related_search_id
-      const filtered = webResults.filter(wr => wr.related_search_id === selectedSearchId);
-      setFilteredWebResults(filtered);
-      
-      // Reset web result selection
-      setSelectedWebResultId('');
-      setSelectedWebResult(null);
-    } else {
-      setSelectedSearch(null);
-      setFilteredWebResults([]);
-      setSelectedWebResultId('');
-      setSelectedWebResult(null);
-    }
-  }, [selectedSearchId, relatedSearches, webResults]);
-
-  // Update selected web result when selection changes
-  useEffect(() => {
-    if (selectedWebResultId) {
-      const wr = filteredWebResults.find(w => w.id === selectedWebResultId);
-      setSelectedWebResult(wr || null);
-    } else {
-      setSelectedWebResult(null);
-    }
-  }, [selectedWebResultId, filteredWebResults]);
-
-  const fetchPreLandingPages = async () => {
-    const { data, error } = await supabase
-      .from('pre_landing_pages')
+  const fetchPreLandingConfigs = async () => {
+    const { data, error } = await tejaStarinClient
+      .from('pre_landing_config')
       .select('*')
-      .eq('site_name', 'tejastarin')
       .order('created_at', { ascending: false });
     
     if (error) {
-      toast.error('Failed to fetch pre-landing pages');
+      toast.error('Failed to fetch pre-landing configs');
       console.error(error);
       return;
     }
-    if (data) setPreLandingPages(data);
+    if (data) setPreLandingConfigs(data);
   };
 
   const fetchRelatedSearches = async () => {
-    // Fetch from external TejaStarin database
     const { data, error } = await tejaStarinClient
       .from('related_searches')
-      .select('*')
-      .order('order_index', { ascending: true });
+      .select('id, search_text, wr, blog_id, blogs(title)')
+      .order('blog_id, wr');
     
     if (error) {
       toast.error('Failed to fetch related searches');
@@ -118,236 +97,193 @@ export const TejaStarinPreLanding = () => {
   };
 
   const fetchWebResults = async () => {
-    // Fetch from external TejaStarin database
     const { data, error } = await tejaStarinClient
       .from('web_results')
-      .select('*')
-      .order('order_index', { ascending: true });
+      .select('id, title, url, related_search_id, order_index')
+      .order('related_search_id, order_index');
     
     if (error) {
       console.error('Failed to fetch web results:', error);
-      toast.error('Failed to fetch web results');
       return;
     }
     if (data) setWebResults(data);
   };
 
+  const getSearchDisplayText = (searchId: string) => {
+    const search = relatedSearches.find(s => s.id === searchId);
+    if (!search) return searchId;
+    
+    const blogTitle = Array.isArray(search.blogs) 
+      ? search.blogs[0]?.title || 'Unknown Blog'
+      : search.blogs?.title || 'Unknown Blog';
+    const searchResults = webResults.filter(wr => wr.related_search_id === searchId);
+    
+    let display = `${blogTitle} >> [Related Search: ${search.search_text}]`;
+    if (searchResults.length > 0) {
+      const resultTitles = searchResults.map(r => r.title).join(', ');
+      display += ` >> [Web Results: ${resultTitles}]`;
+    }
+    return display;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedSearchId || !formData.headline) {
-      toast.error('Please fill in required fields');
+    if (!formData.related_search_id) {
+      toast.error('Please select a related search');
       return;
     }
-
-    // Generate a unique page_key
-    const pageKey = `tejastarin-${Date.now()}`;
 
     const payload = {
-      page_key: pageKey,
-      headline: formData.headline,
-      description: formData.description || null,
+      related_search_id: formData.related_search_id,
       logo_url: formData.logo_url || null,
+      logo_position: formData.logo_position,
       main_image_url: formData.main_image_url || null,
-      background_color: formData.background_color || '#ffffff',
+      headline: formData.headline || null,
+      description: formData.description || null,
+      background_color: formData.background_color,
       background_image_url: formData.background_image_url || null,
-      cta_text: formData.button_text || 'Visit Now',
-      target_url: formData.destination_url || 'https://example.com',
-      logo_position: formData.logo_position || 'top-center',
-      site_name: 'tejastarin',
+      button_text: formData.button_text || 'Visit Now',
+      destination_url: formData.destination_url || null,
     };
 
-    const { error: insertError } = await supabase
-      .from('pre_landing_pages')
-      .insert([payload]);
-    
-    if (insertError) {
-      toast.error('Failed to save pre-landing page');
-      console.error(insertError);
-      return;
+    if (editingConfig) {
+      const { error } = await tejaStarinClient
+        .from('pre_landing_config')
+        .update(payload)
+        .eq('id', editingConfig.id);
+      
+      if (error) {
+        toast.error('Error updating config');
+        console.error(error);
+      } else {
+        toast.success('Config updated successfully');
+        resetForm();
+        fetchPreLandingConfigs();
+      }
+    } else {
+      const { error } = await tejaStarinClient
+        .from('pre_landing_config')
+        .insert([payload]);
+      
+      if (error) {
+        toast.error('Error creating config');
+        console.error(error);
+      } else {
+        toast.success('Config created successfully');
+        resetForm();
+        fetchPreLandingConfigs();
+      }
     }
-
-    // Update the related search with the pre_landing_page_key
-    const { error: updateError } = await supabase
-      .from('related_searches')
-      .update({ pre_landing_page_key: pageKey })
-      .eq('id', selectedSearchId);
-
-    if (updateError) {
-      console.error('Failed to link pre-landing to related search:', updateError);
-    }
-
-    toast.success('Pre-landing page saved!');
-    setShowForm(false);
-    resetForm();
-    fetchPreLandingPages();
   };
 
-  const resetForm = () => {
-    setSelectedSearchId('');
-    setSelectedWebResultId('');
-    setSelectedSearch(null);
-    setSelectedWebResult(null);
+  const handleEdit = (config: PreLandingConfig) => {
+    setEditingConfig(config);
     setFormData({
-      headline: '',
-      description: '',
-      logo_url: '',
-      main_image_url: '',
-      background_color: '#ffffff',
-      background_image_url: '',
-      button_text: 'Visit Now',
-      destination_url: '',
-      logo_position: 'top-center',
+      related_search_id: config.related_search_id,
+      logo_url: config.logo_url || '',
+      logo_position: config.logo_position,
+      main_image_url: config.main_image_url || '',
+      headline: config.headline || '',
+      description: config.description || '',
+      background_color: config.background_color,
+      background_image_url: config.background_image_url || '',
+      button_text: config.button_text,
+      destination_url: config.destination_url || '',
     });
+    setShowForm(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this pre-landing page?')) return;
+    if (!confirm('Are you sure you want to delete this pre-landing config?')) return;
     
-    const { error } = await supabase
-      .from('pre_landing_pages')
+    const { error } = await tejaStarinClient
+      .from('pre_landing_config')
       .delete()
       .eq('id', id);
     
     if (error) {
-      toast.error('Failed to delete pre-landing page');
+      toast.error('Failed to delete pre-landing config');
+      console.error(error);
     } else {
-      toast.success('Pre-landing page deleted');
-      fetchPreLandingPages();
+      toast.success('Pre-landing config deleted');
+      fetchPreLandingConfigs();
     }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      related_search_id: '',
+      logo_url: '',
+      logo_position: 'top-center',
+      main_image_url: '',
+      headline: '',
+      description: '',
+      background_color: '#ffffff',
+      background_image_url: '',
+      button_text: 'Visit Now',
+      destination_url: '',
+    });
+    setEditingConfig(null);
+    setShowForm(false);
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-xl font-semibold">Pre-Landing Pages</h3>
-        <Button onClick={() => setShowForm(!showForm)}>
+        <Button onClick={() => {
+          if (showForm) {
+            resetForm();
+          } else {
+            setShowForm(true);
+          }
+        }}>
           <Plus className="w-4 h-4 mr-2" />
-          {showForm ? 'Cancel' : 'Add Pre-Landing Page'}
+          {showForm ? 'Cancel' : 'New Config'}
         </Button>
       </div>
 
       {showForm && (
         <Card>
           <CardHeader>
-            <CardTitle>Add Pre-Landing Page</CardTitle>
+            <CardTitle>{editingConfig ? 'Edit Config' : 'Create New Config'}</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Step 1: Select Related Search */}
-              <div className="space-y-2">
-                <Label className="text-base font-medium">Step 1: Select Related Search *</Label>
-                <Select value={selectedSearchId} onValueChange={setSelectedSearchId}>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="md:col-span-2">
+                <Label>Related Search *</Label>
+                <Select 
+                  value={formData.related_search_id} 
+                  onValueChange={(value) => setFormData({ ...formData, related_search_id: value })}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a related search..." />
+                    <SelectValue placeholder="Select search" />
                   </SelectTrigger>
-                <SelectContent>
-                    {relatedSearches.map((search) => (
-                      <SelectItem key={search.id} value={search.id}>
-                        <span className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">(Related Search)</Badge>
-                          {search.search_text}
-                        </span>
-                      </SelectItem>
-                    ))}
+                  <SelectContent>
+                    {relatedSearches.map((search) => {
+                      const searchResults = webResults.filter(wr => wr.related_search_id === search.id);
+                      const blogTitle = Array.isArray(search.blogs) 
+                        ? search.blogs[0]?.title || 'Unknown Blog'
+                        : search.blogs?.title || 'Unknown Blog';
+                      
+                      let displayText = `${blogTitle} >> [Related Search: ${search.search_text}]`;
+                      if (searchResults.length > 0) {
+                        const resultTitles = searchResults.map(r => r.title).join(', ');
+                        displayText += ` >> [Web Results: ${resultTitles}]`;
+                      }
+                      
+                      return (
+                        <SelectItem key={search.id} value={search.id}>
+                          {displayText}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Step 2: Select Web Result (only show if search is selected) */}
-              {selectedSearchId && (
-                <div className="space-y-2">
-                  <Label className="text-base font-medium">Step 2: Select Web Result (Optional)</Label>
-                  <Select value={selectedWebResultId} onValueChange={setSelectedWebResultId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a web result..." />
-                    </SelectTrigger>
-                  <SelectContent>
-                      {filteredWebResults.length > 0 ? (
-                        filteredWebResults.map((wr) => {
-                          // Check if this web result has a pre-landing page
-                          const hasPreLanding = preLandingPages.some(
-                            p => p.related_search_id === wr.related_search_id
-                          );
-                          return (
-                            <SelectItem key={wr.id} value={wr.id}>
-                              <span className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-xs">(Web Result)</Badge>
-                                {wr.title}
-                                {hasPreLanding && (
-                                  <Badge variant="default" className="text-xs bg-green-600">
-                                    Has Pre-landing
-                                  </Badge>
-                                )}
-                              </span>
-                            </SelectItem>
-                          );
-                        })
-                      ) : (
-                        <SelectItem value="no-results" disabled>
-                          No web results for this search
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {/* Hierarchy Display */}
-              {selectedSearch && (
-                <div className="p-4 bg-muted/50 rounded-lg border">
-                  <Label className="text-sm text-muted-foreground mb-2 block">Selected Path:</Label>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="secondary">(Related Search)</Badge>
-                    <span className="text-sm">{selectedSearch.search_text}</span>
-                    {selectedWebResult && (
-                      <>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                        <Badge variant="outline">(Web Result)</Badge>
-                        <span className="text-sm">{selectedWebResult.title}</span>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                        <Badge variant="default">Pre-Landing Page</Badge>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Form Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Headline *</Label>
-                  <Input
-                    value={formData.headline}
-                    onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label>Logo Position</Label>
-                  <Select value={formData.logo_position} onValueChange={(value) => setFormData({ ...formData, logo_position: value })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="top-center">Top Center</SelectItem>
-                      <SelectItem value="top-left">Top Left</SelectItem>
-                      <SelectItem value="top-right">Top Right</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <Label>Description</Label>
-                <Textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label>Logo URL</Label>
                   <Input
@@ -356,6 +292,23 @@ export const TejaStarinPreLanding = () => {
                     placeholder="https://..."
                   />
                 </div>
+
+                <div>
+                  <Label>Logo Position</Label>
+                  <Select 
+                    value={formData.logo_position} 
+                    onValueChange={(value) => setFormData({ ...formData, logo_position: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="top-center">Top Center</SelectItem>
+                      <SelectItem value="top-left">Top Left</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div>
                   <Label>Main Image URL</Label>
                   <Input
@@ -364,43 +317,55 @@ export const TejaStarinPreLanding = () => {
                     placeholder="https://..."
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label>Background Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={formData.background_color}
-                      onChange={(e) => setFormData({ ...formData, background_color: e.target.value })}
-                      className="w-12 h-10 p-1"
-                    />
-                    <Input
-                      value={formData.background_color}
-                      onChange={(e) => setFormData({ ...formData, background_color: e.target.value })}
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label>Background Image URL</Label>
                   <Input
-                    value={formData.background_image_url}
-                    onChange={(e) => setFormData({ ...formData, background_image_url: e.target.value })}
-                    placeholder="https://..."
+                    type="color"
+                    value={formData.background_color}
+                    onChange={(e) => setFormData({ ...formData, background_color: e.target.value })}
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Background Image URL</Label>
+                <Input
+                  value={formData.background_image_url}
+                  onChange={(e) => setFormData({ ...formData, background_image_url: e.target.value })}
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div>
+                <Label>Headline</Label>
+                <Input
+                  value={formData.headline}
+                  onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
+                  placeholder="Enter headline"
+                />
+              </div>
+
+              <div>
+                <Label>Description</Label>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                  placeholder="Enter description"
+                />
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label>Button Text</Label>
                   <Input
                     value={formData.button_text}
                     onChange={(e) => setFormData({ ...formData, button_text: e.target.value })}
+                    placeholder="Visit Now"
                   />
                 </div>
+
                 <div>
                   <Label>Destination URL</Label>
                   <Input
@@ -411,7 +376,10 @@ export const TejaStarinPreLanding = () => {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full">Save Pre-Landing Page</Button>
+              <div className="flex gap-4">
+                <Button type="submit">{editingConfig ? 'Update' : 'Create'} Config</Button>
+                <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
+              </div>
             </form>
           </CardContent>
         </Card>
@@ -421,22 +389,25 @@ export const TejaStarinPreLanding = () => {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full">
-                <thead className="border-b bg-muted/50">
+              <thead className="border-b bg-muted/50">
                 <tr>
+                  <th className="text-left p-4">Blog › Related Search</th>
                   <th className="text-left p-4">Headline</th>
-                  <th className="text-left p-4">Page Key</th>
-                  <th className="text-left p-4">Target URL</th>
+                  <th className="text-left p-4">Button Text</th>
                   <th className="text-right p-4">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {preLandingPages.map((page) => (
-                  <tr key={page.id} className="border-b">
-                    <td className="p-4 font-medium">{page.headline}</td>
-                    <td className="p-4 text-sm text-muted-foreground">{page.page_key}</td>
-                    <td className="p-4 text-sm text-muted-foreground truncate max-w-[200px]">{page.target_url}</td>
-                    <td className="p-4 text-right">
-                      <Button size="sm" variant="destructive" onClick={() => handleDelete(page.id)}>
+                {preLandingConfigs.map((config) => (
+                  <tr key={config.id} className="border-b">
+                    <td className="p-4">{getSearchDisplayText(config.related_search_id)}</td>
+                    <td className="p-4">{config.headline}</td>
+                    <td className="p-4">{config.button_text}</td>
+                    <td className="p-4 text-right space-x-2">
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(config)}>
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => handleDelete(config.id)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </td>
@@ -444,8 +415,8 @@ export const TejaStarinPreLanding = () => {
                 ))}
               </tbody>
             </table>
-            {preLandingPages.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">No pre-landing pages found</div>
+            {preLandingConfigs.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">No pre-landing configs found</div>
             )}
           </div>
         </CardContent>
