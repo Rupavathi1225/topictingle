@@ -34,21 +34,11 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image-preview",
+        model: "google/gemini-3-pro-image-preview",
         messages: [
           {
             role: "user",
-            content: `Generate a professional, high-quality featured image for a blog post titled: "${blogTitle}". 
-            
-            The image should be:
-            - Clean and modern design
-            - Suitable as a blog header/featured image
-            - 16:9 aspect ratio style
-            - Visually appealing with relevant imagery
-            - Professional looking, not cluttered
-            - No text or words in the image
-            
-            Create an eye-catching visual that represents the topic well.`
+            content: `Create a beautiful, professional blog featured image for: "${blogTitle}". Make it visually stunning, modern, 16:9 aspect ratio, no text. Generate the image now.`
           }
         ],
         modalities: ["image", "text"]
