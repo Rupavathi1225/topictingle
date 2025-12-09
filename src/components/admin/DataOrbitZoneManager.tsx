@@ -131,6 +131,7 @@ export const DataOrbitZoneManager = () => {
     related_search_id: "", title: "", description: "", logo_url: "",
     target_url: "", page_number: 1, position: 1, is_active: true, is_sponsored: false
   });
+  const [selectedRelatedSearchId, setSelectedRelatedSearchId] = useState<string>("");
 
   // Bulk action handlers for Blogs
   const toggleBlogSelection = (id: string) => {
@@ -405,22 +406,49 @@ export const DataOrbitZoneManager = () => {
   const handleWebResultSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!webResultForm.title.trim()) {
+      toast.error('Please enter a title');
+      return;
+    }
+    
+    if (!webResultForm.target_url.trim()) {
+      toast.error('Please enter a URL');
+      return;
+    }
+    
     const data = {
-      ...webResultForm,
-      related_search_id: webResultForm.related_search_id || null,
-      page_number: parseInt(webResultForm.page_number.toString()),
-      position: parseInt(webResultForm.position.toString()),
+      title: webResultForm.title,
+      description: webResultForm.description || null,
+      logo_url: webResultForm.logo_url || null,
+      target_url: webResultForm.target_url,
+      related_search_id: selectedRelatedSearchId || null,
+      page_number: Math.max(1, parseInt(webResultForm.page_number.toString()) || 1),
+      position: Math.max(0, parseInt(webResultForm.position.toString()) || 0),
+      is_active: webResultForm.is_active,
+      is_sponsored: webResultForm.is_sponsored,
       site_name: 'dataorbitzone'
     };
     
     if (editingWebResult) {
       const { error } = await dataOrbitZoneClient.from("web_results").update(data).eq("id", editingWebResult.id);
-      if (error) toast.error("Failed to update web result");
-      else { toast.success("Web result updated"); fetchWebResults(); resetWebResultForm(); }
+      if (error) {
+        console.error('Update error:', error);
+        toast.error("Failed to update web result: " + error.message);
+      } else { 
+        toast.success("Web result updated"); 
+        fetchWebResults(); 
+        resetWebResultForm(); 
+      }
     } else {
       const { error } = await dataOrbitZoneClient.from("web_results").insert([data]);
-      if (error) toast.error("Failed to create web result");
-      else { toast.success("Web result created"); fetchWebResults(); resetWebResultForm(); }
+      if (error) {
+        console.error('Insert error:', error);
+        toast.error("Failed to add web result: " + error.message);
+      } else { 
+        toast.success("Web result created"); 
+        fetchWebResults(); 
+        resetWebResultForm(); 
+      }
     }
   };
 
@@ -451,6 +479,7 @@ export const DataOrbitZoneManager = () => {
       related_search_id: "", title: "", description: "", logo_url: "",
       target_url: "", page_number: 1, position: 1, is_active: true, is_sponsored: false
     });
+    setSelectedRelatedSearchId("");
     setEditingWebResult(null);
     setWebResultDialog(false);
   };
