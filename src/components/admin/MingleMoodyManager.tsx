@@ -48,6 +48,7 @@ interface LandingContent {
 interface Prelanding {
   id: string;
   key: string;
+  web_result_id: string | null;
   logo_url: string | null;
   main_image_url: string | null;
   headline: string;
@@ -187,8 +188,9 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
   const [prelandings, setPrelandings] = useState<Prelanding[]>([]);
   const [prelandingDialog, setPrelandingDialog] = useState(false);
   const [editingPrelanding, setEditingPrelanding] = useState<Prelanding | null>(null);
+  const [selectedWebResultForPrelanding, setSelectedWebResultForPrelanding] = useState<string>("");
   const [prelandingForm, setPrelandingForm] = useState({
-    key: "", logo_url: "", main_image_url: "", headline: "", subtitle: "",
+    key: "", web_result_id: "", logo_url: "", main_image_url: "", headline: "", subtitle: "",
     description: "", redirect_description: "You will be redirected to...", is_active: true
   });
 
@@ -384,16 +386,45 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
 
   const handlePrelandingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = { ...prelandingForm, key: editingPrelanding ? prelandingForm.key : generateKey(prelandingForm.headline) };
+    
+    if (!selectedWebResultForPrelanding && !editingPrelanding) {
+      toast.error("Please select a web result");
+      return;
+    }
+    
+    const generatedKey = generateKey(prelandingForm.headline);
+    const data = { 
+      ...prelandingForm, 
+      key: editingPrelanding ? prelandingForm.key : generatedKey,
+      web_result_id: selectedWebResultForPrelanding || prelandingForm.web_result_id || null
+    };
 
     if (editingPrelanding) {
       const { error } = await mingleMoodyClient.from("prelandings").update(data).eq("id", editingPrelanding.id);
       if (error) toast.error("Failed to update");
-      else { toast.success("Updated"); fetchPrelandings(); resetPrelandingForm(); }
+      else { 
+        // Update web result with prelanding key
+        if (selectedWebResultForPrelanding) {
+          await mingleMoodyClient.from("web_results").update({ prelanding_key: data.key }).eq("id", selectedWebResultForPrelanding);
+        }
+        toast.success("Updated"); 
+        fetchPrelandings(); 
+        fetchAllWebResults();
+        resetPrelandingForm(); 
+      }
     } else {
       const { error } = await mingleMoodyClient.from("prelandings").insert([data]);
       if (error) toast.error("Failed to create");
-      else { toast.success("Created"); fetchPrelandings(); resetPrelandingForm(); }
+      else { 
+        // Update web result with prelanding key
+        if (selectedWebResultForPrelanding) {
+          await mingleMoodyClient.from("web_results").update({ prelanding_key: generatedKey }).eq("id", selectedWebResultForPrelanding);
+        }
+        toast.success("Created"); 
+        fetchPrelandings(); 
+        fetchAllWebResults();
+        resetPrelandingForm(); 
+      }
     }
   };
 
@@ -407,9 +438,10 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
 
   const resetPrelandingForm = () => {
     setPrelandingForm({
-      key: "", logo_url: "", main_image_url: "", headline: "", subtitle: "",
+      key: "", web_result_id: "", logo_url: "", main_image_url: "", headline: "", subtitle: "",
       description: "", redirect_description: "You will be redirected to...", is_active: true
     });
+    setSelectedWebResultForPrelanding("");
     setEditingPrelanding(null);
     setPrelandingDialog(false);
   };
@@ -729,6 +761,26 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1a2942] border-[#2a3f5f] text-white">
                   <DialogHeader><DialogTitle className="text-white">{editingPrelanding ? "Edit" : "Create"} Prelanding</DialogTitle></DialogHeader>
                   <form onSubmit={handlePrelandingSubmit} className="space-y-4">
+                    <div>
+                      <Label className="text-gray-300">Select Web Result *</Label>
+                      <Select value={selectedWebResultForPrelanding} onValueChange={setSelectedWebResultForPrelanding}>
+                        <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white">
+                          <SelectValue placeholder="Select a web result" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
+                          {allWebResults.map((wr) => (
+                            <SelectItem key={wr.id} value={wr.id} className="text-white hover:bg-[#2a3f5f]">
+                              {wr.title} (Page {wr.web_result_page}, Pos {wr.position})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedWebResultForPrelanding && (
+                        <p className="text-xs text-[#00b4d8] mt-1">
+                          Selected: {allWebResults.find(w => w.id === selectedWebResultForPrelanding)?.title}
+                        </p>
+                      )}
+                    </div>
                     <div><Label className="text-gray-300">Headline *</Label><Input value={prelandingForm.headline} onChange={(e) => setPrelandingForm({ ...prelandingForm, headline: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div><Label className="text-gray-300">Subtitle</Label><Input value={prelandingForm.subtitle} onChange={(e) => setPrelandingForm({ ...prelandingForm, subtitle: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div><Label className="text-gray-300">Description</Label><Textarea value={prelandingForm.description} onChange={(e) => setPrelandingForm({ ...prelandingForm, description: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
@@ -748,29 +800,36 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
               </Dialog>
             </div>
             <div className="space-y-2">
-              {prelandings.map((p) => (
-                <div key={p.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
-                  <div>
-                    <h3 className="font-semibold text-white">{p.headline}</h3>
-                    <p className="text-sm text-gray-400">Key: {p.key}</p>
-                    <span className={`text-xs px-2 py-1 rounded ${p.is_active ? 'bg-[#00b4d8]/20 text-[#00b4d8]' : 'bg-red-500/20 text-red-400'}`}>
-                      {p.is_active ? 'Active' : 'Inactive'}
-                    </span>
+              {prelandings.map((p) => {
+                const linkedWebResult = allWebResults.find(wr => wr.id === p.web_result_id);
+                return (
+                  <div key={p.id} className="flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520]">
+                    <div>
+                      <h3 className="font-semibold text-white">{p.headline}</h3>
+                      <p className="text-sm text-gray-400">Key: {p.key}</p>
+                      {linkedWebResult && (
+                        <p className="text-xs text-[#00b4d8]">Linked to: {linkedWebResult.title}</p>
+                      )}
+                      <span className={`text-xs px-2 py-1 rounded ${p.is_active ? 'bg-[#00b4d8]/20 text-[#00b4d8]' : 'bg-red-500/20 text-red-400'}`}>
+                        {p.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]" onClick={() => {
+                        setEditingPrelanding(p);
+                        setSelectedWebResultForPrelanding(p.web_result_id || "");
+                        setPrelandingForm({
+                          key: p.key, web_result_id: p.web_result_id || "", logo_url: p.logo_url || "", main_image_url: p.main_image_url || "",
+                          headline: p.headline, subtitle: p.subtitle || "", description: p.description || "",
+                          redirect_description: p.redirect_description || "", is_active: p.is_active
+                        });
+                        setPrelandingDialog(true);
+                      }}><Edit className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleDeletePrelanding(p.id)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]" onClick={() => {
-                      setEditingPrelanding(p);
-                      setPrelandingForm({
-                        key: p.key, logo_url: p.logo_url || "", main_image_url: p.main_image_url || "",
-                        headline: p.headline, subtitle: p.subtitle || "", description: p.description || "",
-                        redirect_description: p.redirect_description || "", is_active: p.is_active
-                      });
-                      setPrelandingDialog(true);
-                    }}><Edit className="h-4 w-4" /></Button>
-                    <Button size="sm" variant="destructive" onClick={() => handleDeletePrelanding(p.id)}><Trash2 className="h-4 w-4" /></Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               {prelandings.length === 0 && <p className="text-gray-400 text-center py-8">No prelandings found.</p>}
             </div>
           </TabsContent>
