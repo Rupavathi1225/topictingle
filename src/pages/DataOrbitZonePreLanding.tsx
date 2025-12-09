@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { dataOrbitZoneClient } from '@/integrations/dataorbitzone/client';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +40,7 @@ interface RelatedSearchData {
 export default function DataOrbitZonePreLanding() {
   const [searchParams] = useSearchParams();
   const searchId = searchParams.get('search');
+  const redirectUrl = searchParams.get('redirect');
   const [pageData, setPageData] = useState<PreLandingPageData | null>(null);
   const [searchData, setSearchData] = useState<RelatedSearchData | null>(null);
   const [email, setEmail] = useState('');
@@ -54,12 +56,11 @@ export default function DataOrbitZonePreLanding() {
   }, [searchId]);
 
   const fetchPageData = async (id: string) => {
-    // Fetch the related search first
-    const { data: related, error: relatedError } = await supabase
-      .from('related_searches')
+    // Fetch the related search first from dz_related_searches
+    const { data: related, error: relatedError } = await dataOrbitZoneClient
+      .from('dz_related_searches')
       .select('*')
       .eq('id', id)
-      .eq('session_id', 'dataorbitzone')
       .maybeSingle();
 
     if (relatedError || !related) {
@@ -71,30 +72,45 @@ export default function DataOrbitZonePreLanding() {
 
     setSearchData(related as RelatedSearchData);
 
-    // Then fetch the prelanding configuration using pre_landing_page_key
-    const preLandingKey = related.pre_landing_page_key;
-    if (!preLandingKey) {
-      console.error('No pre-landing page key found');
+    // Then fetch the prelanding configuration from dz_prelanding_pages
+    const { data, error } = await dataOrbitZoneClient
+      .from('dz_prelanding_pages')
+      .select('*')
+      .eq('related_search_id', id)
+      .maybeSingle();
+
+    if (error || !data) {
+      console.error('Error fetching prelanding page', error);
       toast.error('Page configuration not found');
       setLoading(false);
       return;
     }
 
-    const { data, error } = await supabase
-      .from('pre_landing_pages')
-      .select('*')
-      .eq('page_key', preLandingKey)
-      .eq('is_active', true)
-      .maybeSingle();
+    // Map dz_prelanding_pages fields to match PreLandingPageData interface
+    const mappedData: PreLandingPageData = {
+      id: data.id,
+      page_key: data.id, // Use id as page_key
+      logo_url: data.logo_url,
+      logo_position: data.logo_position,
+      logo_width: data.logo_size,
+      main_image_url: data.main_image_url,
+      image_ratio: data.image_ratio,
+      headline: data.headline,
+      description: data.description,
+      headline_font_size: data.headline_font_size,
+      headline_color: data.headline_color,
+      headline_align: data.text_alignment,
+      description_font_size: data.description_font_size,
+      description_color: data.description_color,
+      description_align: data.text_alignment,
+      cta_text: data.button_text,
+      cta_color: data.button_color,
+      background_color: data.background_color,
+      background_image_url: data.background_image_url,
+      target_url: related.target_url || '',
+    };
 
-    if (error || !data) {
-      console.error('Error fetching prelanding page', error);
-      toast.error('Page not found');
-      setLoading(false);
-      return;
-    }
-
-    setPageData(data as PreLandingPageData);
+    setPageData(mappedData);
     setLoading(false);
   };
 
@@ -133,7 +149,10 @@ export default function DataOrbitZonePreLanding() {
       toast.success('Email captured successfully!');
 
       setTimeout(() => {
-        if (searchData.target_url) {
+        // Priority: 1. redirect URL param, 2. search target_url, 3. page target_url
+        if (redirectUrl) {
+          window.location.href = decodeURIComponent(redirectUrl);
+        } else if (searchData.target_url) {
           window.location.href = searchData.target_url;
         } else if (pageData.target_url) {
           window.location.href = pageData.target_url;
