@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase as dataOrbitZoneClient } from "@/integrations/supabase/client";
+import { dataOrbitZoneClient } from "@/integrations/dataorbitzone/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -149,7 +149,7 @@ export const DataOrbitZoneManager = () => {
   const handleBulkDeleteBlogs = async () => {
     if (!confirm(`Delete ${selectedBlogs.size} blog(s)?`)) return;
     for (const id of selectedBlogs) {
-      await dataOrbitZoneClient.from("blogs").delete().eq("id", id);
+      await dataOrbitZoneClient.from("dz_blogs").delete().eq("id", id);
     }
     toast.success(`Deleted ${selectedBlogs.size} blog(s)`);
     setSelectedBlogs(new Set());
@@ -157,14 +157,14 @@ export const DataOrbitZoneManager = () => {
   };
 
   const handleBulkActivateBlogs = async () => {
-    await dataOrbitZoneClient.from("blogs").update({ status: "published" }).in("id", Array.from(selectedBlogs));
+    await dataOrbitZoneClient.from("dz_blogs").update({ status: "published" }).in("id", Array.from(selectedBlogs));
     toast.success(`Activated ${selectedBlogs.size} blog(s)`);
     setSelectedBlogs(new Set());
     fetchBlogs();
   };
 
   const handleBulkDeactivateBlogs = async () => {
-    await dataOrbitZoneClient.from("blogs").update({ status: "draft" }).in("id", Array.from(selectedBlogs));
+    await dataOrbitZoneClient.from("dz_blogs").update({ status: "draft" }).in("id", Array.from(selectedBlogs));
     toast.success(`Deactivated ${selectedBlogs.size} blog(s)`);
     setSelectedBlogs(new Set());
     fetchBlogs();
@@ -185,21 +185,21 @@ export const DataOrbitZoneManager = () => {
 
   const handleBulkDeleteWebResults = async () => {
     if (!confirm(`Delete ${selectedWebResults.size} web result(s)?`)) return;
-    await dataOrbitZoneClient.from("web_results").delete().in("id", Array.from(selectedWebResults));
+    await dataOrbitZoneClient.from("dz_web_results").delete().in("id", Array.from(selectedWebResults));
     toast.success(`Deleted ${selectedWebResults.size} web result(s)`);
     setSelectedWebResults(new Set());
     fetchWebResults();
   };
 
   const handleBulkActivateWebResults = async () => {
-    await dataOrbitZoneClient.from("web_results").update({ is_active: true }).in("id", Array.from(selectedWebResults));
+    await dataOrbitZoneClient.from("dz_web_results").update({ is_active: true }).in("id", Array.from(selectedWebResults));
     toast.success(`Activated ${selectedWebResults.size} web result(s)`);
     setSelectedWebResults(new Set());
     fetchWebResults();
   };
 
   const handleBulkDeactivateWebResults = async () => {
-    await dataOrbitZoneClient.from("web_results").update({ is_active: false }).in("id", Array.from(selectedWebResults));
+    await dataOrbitZoneClient.from("dz_web_results").update({ is_active: false }).in("id", Array.from(selectedWebResults));
     toast.success(`Deactivated ${selectedWebResults.size} web result(s)`);
     setSelectedWebResults(new Set());
     fetchWebResults();
@@ -220,22 +220,21 @@ export const DataOrbitZoneManager = () => {
   };
 
   const fetchCategories = async () => {
-    const { data, error } = await dataOrbitZoneClient.from("categories").select("*").eq("site_name", "dataorbitzone").order("id");
+    const { data, error } = await dataOrbitZoneClient.from("dz_categories").select("*").order("id");
     if (error) toast.error("Failed to fetch categories: " + error.message);
     else setCategories((data as any) || []);
   };
 
   const fetchBlogs = async () => {
-    const { data, error } = await dataOrbitZoneClient.from("blogs").select("*").eq("site_name", "dataorbitzone").order("created_at", { ascending: false });
+    const { data, error } = await dataOrbitZoneClient.from("dz_blogs").select("*").order("created_at", { ascending: false });
     if (error) toast.error("Failed to fetch blogs: " + error.message);
     else setBlogs((data as any) || []);
   };
 
   const fetchRelatedSearches = async () => {
     const { data, error } = await dataOrbitZoneClient
-      .from("related_searches")
+      .from("dz_related_searches")
       .select("*")
-      .eq("site_name", "dataorbitzone")
       .order("display_order");
     if (error) {
       console.error('Error fetching related searches:', error);
@@ -246,13 +245,13 @@ export const DataOrbitZoneManager = () => {
   };
 
   const fetchPrelandingPages = async () => {
-    const { data, error } = await dataOrbitZoneClient.from("pre_landing_pages").select("*").eq("site_name", "dataorbitzone").eq("is_active", true).order("created_at", { ascending: false });
+    const { data, error } = await dataOrbitZoneClient.from("dz_prelanding_pages").select("*").order("created_at", { ascending: false });
     if (error) toast.error("Failed to fetch prelanding pages: " + error.message);
     else setPrelandingPages((data as any) || []);
   };
 
   const fetchWebResults = async () => {
-    const { data, error } = await dataOrbitZoneClient.from("web_results").select("*").eq("site_name", "dataorbitzone").order("page_number", { ascending: true });
+    const { data, error } = await dataOrbitZoneClient.from("dz_web_results").select("*").order("page_number", { ascending: true });
     if (error) toast.error("Failed to fetch web results: " + error.message);
     else setWebResults((data as any) || []);
   };
@@ -260,14 +259,14 @@ export const DataOrbitZoneManager = () => {
   // Category CRUD
   const handleCategorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = { ...categoryForm, site_name: 'dataorbitzone' };
+    const data = { ...categoryForm };
     
     if (editingCategory) {
-      const { error } = await dataOrbitZoneClient.from("categories").update(data).eq("id", editingCategory.id);
+      const { error } = await dataOrbitZoneClient.from("dz_categories").update(data).eq("id", editingCategory.id);
       if (error) toast.error("Failed to update category");
       else { toast.success("Category updated"); fetchCategories(); resetCategoryForm(); }
     } else {
-      const { error } = await dataOrbitZoneClient.from("categories").insert([data]);
+      const { error } = await dataOrbitZoneClient.from("dz_categories").insert([data]);
       if (error) toast.error("Failed to create category");
       else { toast.success("Category created"); fetchCategories(); resetCategoryForm(); }
     }
@@ -275,7 +274,7 @@ export const DataOrbitZoneManager = () => {
 
   const handleDeleteCategory = async (id: number) => {
     if (confirm("Delete this category?")) {
-      const { error } = await dataOrbitZoneClient.from("categories").delete().eq("id", id);
+      const { error } = await dataOrbitZoneClient.from("dz_categories").delete().eq("id", id);
       if (error) toast.error("Failed to delete");
       else { toast.success("Deleted"); fetchCategories(); }
     }
@@ -290,14 +289,14 @@ export const DataOrbitZoneManager = () => {
   // Blog CRUD
   const handleBlogSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = { ...blogForm, category_id: blogForm.category_id ? parseInt(blogForm.category_id) : null, site_name: 'dataorbitzone' };
+    const data = { ...blogForm, category_id: blogForm.category_id ? parseInt(blogForm.category_id) : null };
     
     if (editingBlog) {
-      const { error } = await dataOrbitZoneClient.from("blogs").update(data).eq("id", editingBlog.id);
+      const { error } = await dataOrbitZoneClient.from("dz_blogs").update(data).eq("id", editingBlog.id);
       if (error) toast.error("Failed to update blog");
       else { toast.success("Blog updated"); fetchBlogs(); resetBlogForm(); }
     } else {
-      const { error } = await dataOrbitZoneClient.from("blogs").insert([data]);
+      const { error } = await dataOrbitZoneClient.from("dz_blogs").insert([data]);
       if (error) toast.error("Failed to create blog");
       else { toast.success("Blog created"); fetchBlogs(); resetBlogForm(); }
     }
@@ -305,7 +304,7 @@ export const DataOrbitZoneManager = () => {
 
   const handleDeleteBlog = async (id: string) => {
     if (confirm("Delete this blog?")) {
-      const { error } = await dataOrbitZoneClient.from("blogs").delete().eq("id", id);
+      const { error } = await dataOrbitZoneClient.from("dz_blogs").delete().eq("id", id);
       if (error) toast.error("Failed to delete");
       else { toast.success("Deleted"); fetchBlogs(); }
     }
@@ -337,13 +336,13 @@ export const DataOrbitZoneManager = () => {
     const data = {
       blog_id: searchForm.blog_id || null,
       search_text: searchForm.search_text,
+      target_url: '/web-results',
       display_order: searchForm.display_order,
-      site_name: 'dataorbitzone',
       is_active: true,
     };
     
     if (editingSearch) {
-      const { error } = await dataOrbitZoneClient.from("related_searches").update(data).eq("id", editingSearch.id);
+      const { error } = await dataOrbitZoneClient.from("dz_related_searches").update(data).eq("id", editingSearch.id);
       if (error) {
         console.error('Update error:', error);
         toast.error("Failed to update search: " + error.message);
@@ -353,7 +352,7 @@ export const DataOrbitZoneManager = () => {
         resetSearchForm();
       }
     } else {
-      const { error } = await dataOrbitZoneClient.from("related_searches").insert([data]);
+      const { error } = await dataOrbitZoneClient.from("dz_related_searches").insert([data]);
       if (error) {
         console.error('Insert error:', error);
         toast.error("Failed to create search: " + error.message);
@@ -366,7 +365,7 @@ export const DataOrbitZoneManager = () => {
   };
   const handleDeleteSearch = async (id: string) => {
     if (confirm("Delete this search?")) {
-      const { error } = await dataOrbitZoneClient.from("related_searches").delete().eq("id", id);
+      const { error } = await dataOrbitZoneClient.from("dz_related_searches").delete().eq("id", id);
       if (error) toast.error("Failed to delete");
       else { toast.success("Deleted"); fetchRelatedSearches(); }
     }
@@ -381,14 +380,31 @@ export const DataOrbitZoneManager = () => {
   // Prelanding CRUD
   const handlePrelandingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = { ...prelandingForm, site_name: 'dataorbitzone' };
+    const data = {
+      headline: prelandingForm.headline,
+      description: prelandingForm.description,
+      logo_url: prelandingForm.logo_url || null,
+      logo_position: prelandingForm.logo_position,
+      logo_size: prelandingForm.logo_width,
+      main_image_url: prelandingForm.main_image_url || null,
+      image_ratio: prelandingForm.image_ratio,
+      headline_font_size: prelandingForm.headline_font_size,
+      headline_color: prelandingForm.headline_color,
+      description_font_size: prelandingForm.description_font_size,
+      description_color: prelandingForm.description_color,
+      text_alignment: prelandingForm.headline_align,
+      button_text: prelandingForm.cta_text,
+      button_color: prelandingForm.cta_color,
+      background_color: prelandingForm.background_color,
+      background_image_url: prelandingForm.background_image_url || null,
+    };
     
     if (editingPrelanding) {
-      const { error} = await dataOrbitZoneClient.from("pre_landing_pages").update(data).eq("id", editingPrelanding.id);
+      const { error} = await dataOrbitZoneClient.from("dz_prelanding_pages").update(data).eq("id", editingPrelanding.id);
       if (error) toast.error("Failed to update prelanding page");
       else { toast.success("Prelanding page updated"); fetchPrelandingPages(); resetPrelandingForm(); }
     } else {
-      const { error } = await dataOrbitZoneClient.from("pre_landing_pages").insert([data]);
+      const { error } = await dataOrbitZoneClient.from("dz_prelanding_pages").insert([data]);
       if (error) toast.error("Failed to create prelanding page");
       else { toast.success("Prelanding page created"); fetchPrelandingPages(); resetPrelandingForm(); }
     }
@@ -396,7 +412,7 @@ export const DataOrbitZoneManager = () => {
 
   const handleDeletePrelanding = async (id: string) => {
     if (confirm("Delete this prelanding page?")) {
-      const { error } = await dataOrbitZoneClient.from("pre_landing_pages").delete().eq("id", id);
+      const { error } = await dataOrbitZoneClient.from("dz_prelanding_pages").delete().eq("id", id);
       if (error) toast.error("Failed to delete");
       else { toast.success("Deleted"); fetchPrelandingPages(); }
     }
@@ -423,14 +439,13 @@ export const DataOrbitZoneManager = () => {
       target_url: webResultForm.target_url,
       related_search_id: selectedRelatedSearchId || null,
       page_number: Math.max(1, parseInt(webResultForm.page_number.toString()) || 1),
-      position: Math.max(0, parseInt(webResultForm.position.toString()) || 0),
+      position: Math.max(1, parseInt(webResultForm.position.toString()) || 1),
       is_active: webResultForm.is_active,
       is_sponsored: webResultForm.is_sponsored,
-      site_name: 'dataorbitzone'
     };
     
     if (editingWebResult) {
-      const { error } = await dataOrbitZoneClient.from("web_results").update(data).eq("id", editingWebResult.id);
+      const { error } = await dataOrbitZoneClient.from("dz_web_results").update(data).eq("id", editingWebResult.id);
       if (error) {
         console.error('Update error:', error);
         toast.error("Failed to update web result: " + error.message);
@@ -440,7 +455,7 @@ export const DataOrbitZoneManager = () => {
         resetWebResultForm(); 
       }
     } else {
-      const { error } = await dataOrbitZoneClient.from("web_results").insert([data]);
+      const { error } = await dataOrbitZoneClient.from("dz_web_results").insert([data]);
       if (error) {
         console.error('Insert error:', error);
         toast.error("Failed to add web result: " + error.message);
@@ -454,7 +469,7 @@ export const DataOrbitZoneManager = () => {
 
   const handleDeleteWebResult = async (id: string) => {
     if (confirm("Delete this web result?")) {
-      const { error } = await dataOrbitZoneClient.from("web_results").delete().eq("id", id);
+      const { error } = await dataOrbitZoneClient.from("dz_web_results").delete().eq("id", id);
       if (error) toast.error("Failed to delete");
       else { toast.success("Deleted"); fetchWebResults(); }
     }
