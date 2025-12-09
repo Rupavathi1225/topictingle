@@ -195,20 +195,24 @@ export const TejaStarinWebResults = () => {
     const payload = {
       related_search_id: selectedSearchId,
       title: formData.title,
-      url: formData.url,
       target_url: formData.url,
       description: formData.description || null,
       logo_url: formData.logo_url || null,
       is_sponsored: formData.is_sponsored,
       order_index: formData.order_index,
+      is_active: true,
     };
 
-    const { error } = await tejaStarinClient
+    console.log('Inserting web result:', payload);
+
+    const { data, error } = await tejaStarinClient
       .from('web_results')
-      .insert([payload]);
+      .insert([payload])
+      .select();
     
     if (error) {
-      toast.error('Failed to add web result');
+      console.error('Failed to add web result:', error);
+      toast.error(`Failed to add web result: ${error.message}`);
     } else {
       toast.success(forceReplace && isPositionTaken ? 'Web result replaced successfully' : 'Web result added successfully');
       setShowForm(false);
