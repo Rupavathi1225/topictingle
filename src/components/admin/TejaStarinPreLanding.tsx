@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Trash2, Plus, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { tejaStarinClient } from '@/integrations/tejastarin/client';
 import { Badge } from '@/components/ui/badge';
 
 interface RelatedSearch {
@@ -102,25 +103,26 @@ export const TejaStarinPreLanding = () => {
   };
 
   const fetchRelatedSearches = async () => {
-    const { data, error } = await supabase
+    // Fetch from external TejaStarin database
+    const { data, error } = await tejaStarinClient
       .from('related_searches')
       .select('*')
-      .eq('site_name', 'tejastarin')
-      .order('display_order', { ascending: true });
+      .order('order_index', { ascending: true });
     
     if (error) {
       toast.error('Failed to fetch related searches');
+      console.error(error);
       return;
     }
     if (data) setRelatedSearches(data);
   };
 
   const fetchWebResults = async () => {
-    const { data, error } = await supabase
+    // Fetch from external TejaStarin database
+    const { data, error } = await tejaStarinClient
       .from('web_results')
       .select('*')
-      .eq('site_name', 'tejastarin')
-      .order('position', { ascending: true });
+      .order('order_index', { ascending: true });
     
     if (error) {
       console.error('Failed to fetch web results:', error);
