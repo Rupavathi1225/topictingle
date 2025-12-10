@@ -19,7 +19,7 @@ export default function AdminNew() {
         <Tabs defaultValue="all" className="space-y-6">
           <TabsList className="grid w-full grid-cols-8 lg:w-auto lg:inline-grid">
             <TabsTrigger value="all">All Sites</TabsTrigger>
-            <TabsTrigger value="topicmingle">TopicMingle</TabsTrigger>
+            <TabsTrigger value="topicmingle">Topic Tingle</TabsTrigger>
             <TabsTrigger value="datacreditzone">DataCreditZone</TabsTrigger>
             <TabsTrigger value="fastmoney">FastMoney</TabsTrigger>
             <TabsTrigger value="offergrabzone">OfferGrabZone</TabsTrigger>
@@ -33,8 +33,8 @@ export default function AdminNew() {
           
           <TabsContent value="topicmingle" className="space-y-4">
             <div className="mb-4">
-              <h2 className="text-2xl font-bold">TopicMingle Analytics</h2>
-              <p className="text-muted-foreground">Detailed analytics for TopicMingle website</p>
+              <h2 className="text-2xl font-bold">Topic Tingle Analytics</h2>
+              <p className="text-muted-foreground">Detailed analytics for Topic Tingle website</p>
             </div>
             <TopicMingleAnalytics />
           </TabsContent>

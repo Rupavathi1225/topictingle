@@ -74,9 +74,9 @@ const Home = () => {
       <main className="min-h-screen">
         <div className="container mx-auto px-4 py-12">
           <div className="mb-12 text-center">
-            <h1 className="text-5xl font-bold mb-4">Welcome to Topicmingle</h1>
+            <h1 className="text-5xl font-bold mb-4">Welcome to Topic Tingle</h1>
             <p className="text-xl text-blog-meta max-w-2xl mx-auto">
-              Thank you for visiting Topicmingle, your digital hub for embracing a vibrant and wholesome lifestyle. At Topicmingle, we're dedicated to inspiring and guiding you on the path to optimal well-being, offering a treasure trove of content that covers a spectrum of healthy lifestyle topics.
+              Thank you for visiting Topic Tingle, your digital hub for embracing a vibrant and wholesome lifestyle. At Topic Tingle, we're dedicated to inspiring and guiding you on the path to optimal well-being, offering a treasure trove of content that covers a spectrum of healthy lifestyle topics.
             </p>
           </div>
 

@@ -72,7 +72,7 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
 
   const sites = [
     { id: 'datacreditzone', name: 'DataCreditZone', icon: FileText, color: 'from-purple-500 to-purple-600' },
-    { id: 'main', name: 'TopicMingle', icon: Palette, color: 'from-cyan-500 to-cyan-600' },
+    { id: 'main', name: 'Topic Tingle', icon: Palette, color: 'from-cyan-500 to-cyan-600' },
     { id: 'fastmoney', name: 'FastMoney', icon: DollarSign, color: 'from-yellow-500 to-yellow-600' },
     { id: 'offergrabzone', name: 'OfferGrabZone', icon: ShoppingCart, color: 'from-pink-500 to-pink-600' },
     { id: 'minglemoody', name: 'MingleMoody', icon: MessageCircle, color: 'from-cyan-400 to-cyan-600' },
@@ -107,7 +107,7 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
 
       const allStats: SiteStats[] = [
         { siteName: 'DataCreditZone', icon: FileText, color: 'from-purple-500 to-purple-600', ...dataCreditZone.stats },
-        { siteName: 'TopicMingle', icon: Palette, color: 'from-cyan-500 to-cyan-600', ...mainProj.stats },
+        { siteName: 'Topic Tingle', icon: Palette, color: 'from-cyan-500 to-cyan-600', ...mainProj.stats },
         { siteName: 'FastMoney', icon: DollarSign, color: 'from-yellow-500 to-yellow-600', ...fastMoney.stats },
         { siteName: 'OfferGrabZone', icon: Gift, color: 'from-pink-500 to-pink-600', ...offerGrabZone.stats },
         { siteName: 'MingleMoody', icon: MessageCircle, color: 'from-cyan-400 to-cyan-600', ...mingleMoody.stats },
@@ -321,7 +321,7 @@ export function UnifiedAnalytics({ defaultSite = 'all', hideControls = false }: 
     // Convert maps to final arrays for the session object
     const sessions = Array.from(sessionMap.values()).map((s: any) => ({
       sessionId: s.sessionId,
-      siteName: 'TopicMingle',
+      siteName: 'Topic Tingle',
       siteIcon: Palette,
       siteColor: 'from-cyan-500 to-cyan-600',
       device: s.device,
