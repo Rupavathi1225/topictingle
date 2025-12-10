@@ -770,13 +770,13 @@ const Admin = () => {
 
   const getProjectName = (website: Website) => {
     switch (website) {
-      case 'topicmingle': return 'TopicMingle';
+      case 'topicmingle': return 'Topic Tingle';
       case 'tejastarin': return 'DataCreditZone';
       case 'fastmoney': return 'FastMoney';
       case 'offergrabzone': return 'OfferGrabZone';
       case 'minglemoody': return 'MingleMoody';
       case 'dataorbit': return 'DataOrbit';
-      default: return 'TopicMingle';
+      default: return 'Topic Tingle';
     }
   };
 

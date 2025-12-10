@@ -30,9 +30,9 @@ const Navbar = () => {
             onClick={() => handleNavClick('logo')}
           >
             <div className="w-10 h-10 bg-gradient-to-br from-accent to-primary rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">TM</span>
+              <span className="text-white font-bold text-xl">TT</span>
             </div>
-            <span className="text-xl font-bold text-primary">Topicmingle</span>
+            <span className="text-xl font-bold text-primary">Topic Tingle</span>
           </Link>
 
           <div className="hidden md:flex items-center space-x-6">
