@@ -310,6 +310,10 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
         onDeactivate={handleBulkDeactivate}
         isAllSelected={selectedItems.size === searches.length && searches.length > 0}
         isDarkTheme={isSearchProject}
+        selectedData={searches.filter(s => selectedItems.has(s.id))}
+        allData={searches}
+        csvColumns={['id', 'title', 'search_text', 'web_result_page', 'position', 'is_active', 'display_order']}
+        csvFilename={`${projectName || 'related'}_searches`}
       />
 
       <div className="space-y-2">

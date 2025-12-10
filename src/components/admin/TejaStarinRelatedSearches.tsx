@@ -235,6 +235,10 @@ export const TejaStarinRelatedSearches = () => {
             onActivate={handleBulkActivate}
             onDeactivate={handleBulkDeactivate}
             isAllSelected={selectedItems.size === relatedSearches.length && relatedSearches.length > 0}
+            selectedData={relatedSearches.filter(s => selectedItems.has(s.id))}
+            allData={relatedSearches}
+            csvColumns={['id', 'search_text', 'blog_id', 'wr', 'order_index']}
+            csvFilename="tejastarin_related_searches"
           />
           <div className="overflow-x-auto">
             <table className="w-full">

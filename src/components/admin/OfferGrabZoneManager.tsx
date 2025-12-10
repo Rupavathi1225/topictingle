@@ -515,6 +515,10 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
               onDeactivate={handleBulkDeactivateSearches}
               isAllSelected={selectedSearches.size === filteredSearches.length && filteredSearches.length > 0}
               isDarkTheme={true}
+              selectedData={filteredSearches.filter(s => selectedSearches.has(s.id))}
+              allData={relatedSearches}
+              csvColumns={['id', 'title', 'serial_number', 'target_wr', 'is_active']}
+              csvFilename="offergrabzone_searches"
             />
             <div className="space-y-2">
               {filteredSearches.map((search) => (
@@ -682,6 +686,10 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
               onDeactivate={handleBulkDeactivateWebResults}
               isAllSelected={selectedWebResults.size === filteredWebResults.length && filteredWebResults.length > 0}
               isDarkTheme={true}
+              selectedData={filteredWebResults.filter(w => selectedWebResults.has(w.id))}
+              allData={webResults}
+              csvColumns={['id', 'name', 'title', 'description', 'link', 'wr_page', 'serial_number', 'is_active', 'is_sponsored']}
+              csvFilename="offergrabzone_web_results"
             />
             <div className="space-y-2">
               {filteredWebResults.map((result) => {

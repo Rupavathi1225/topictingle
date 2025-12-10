@@ -396,6 +396,10 @@ export const TejaStarinWebResults = () => {
             onActivate={handleBulkActivate}
             onDeactivate={handleBulkDeactivate}
             isAllSelected={selectedItems.size === webResults.length && webResults.length > 0}
+            selectedData={webResults.filter(r => selectedItems.has(r.id))}
+            allData={webResults}
+            csvColumns={['id', 'title', 'url', 'description', 'is_sponsored', 'order_index']}
+            csvFilename="tejastarin_web_results"
           />
 
           <Card>

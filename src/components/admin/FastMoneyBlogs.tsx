@@ -421,6 +421,10 @@ export const FastMoneyBlogs = () => {
         onDeactivate={handleDeactivateBlogs}
         isAllSelected={selectedBlogs.size === filteredBlogs.length && filteredBlogs.length > 0}
         isDarkTheme={true}
+        selectedData={filteredBlogs.filter(b => selectedBlogs.has(b.id))}
+        allData={blogs}
+        csvColumns={['id', 'title', 'slug', 'author', 'status', 'category_id', 'published_at']}
+        csvFilename="fastmoney_blogs"
       />
 
       {isLoading ? (

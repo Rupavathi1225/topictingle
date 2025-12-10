@@ -569,6 +569,10 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
               onDeactivate={handleDeactivateSearches}
               isAllSelected={selectedSearches.size === filteredSearches.length && filteredSearches.length > 0}
               isDarkTheme={true}
+              selectedData={filteredSearches.filter(s => selectedSearches.has(s.id))}
+              allData={relatedSearches}
+              csvColumns={['id', 'search_text', 'title', 'web_result_page', 'position', 'display_order', 'is_active']}
+              csvFilename="fastmoney_searches"
             />
 
             <div className="space-y-2">
@@ -749,6 +753,10 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
               onDeactivate={handleDeactivateWebResults}
               isAllSelected={selectedWebResults.size === filteredWebResults.length && filteredWebResults.length > 0}
               isDarkTheme={true}
+              selectedData={filteredWebResults.filter(w => selectedWebResults.has(w.id))}
+              allData={webResults}
+              csvColumns={['id', 'title', 'description', 'original_link', 'web_result_page', 'display_order', 'is_active', 'is_sponsored']}
+              csvFilename="fastmoney_web_results"
             />
 
             <div className="space-y-2">

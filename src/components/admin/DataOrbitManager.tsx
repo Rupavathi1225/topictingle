@@ -742,6 +742,10 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
               onActivate={handleBulkActivateBlogs}
               onDeactivate={handleBulkDeactivateBlogs}
               isAllSelected={selectedBlogs.size === blogs.length && blogs.length > 0}
+              selectedData={blogs.filter(b => selectedBlogs.has(b.id))}
+              allData={blogs}
+              csvColumns={['id', 'title', 'slug', 'author', 'status', 'category_id', 'serial_number']}
+              csvFilename="dataorbit_blogs"
             />
             
             <div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -858,6 +862,10 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
               onActivate={handleBulkActivateSearches}
               onDeactivate={handleBulkDeactivateSearches}
               isAllSelected={selectedSearches.size === searches.length && searches.length > 0}
+              selectedData={searches.filter(s => selectedSearches.has(s.id))}
+              allData={searches}
+              csvColumns={['id', 'title', 'blog_id', 'position', 'web_result_page']}
+              csvFilename="dataorbit_searches"
             />
             
             <div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -1047,6 +1055,10 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
               onActivate={handleBulkActivateWebResults}
               onDeactivate={handleBulkDeactivateWebResults}
               isAllSelected={selectedWebResults.size === webResults.length && webResults.length > 0}
+              selectedData={webResults.filter(w => selectedWebResults.has(w.id))}
+              allData={webResults}
+              csvColumns={['id', 'name', 'title', 'url', 'description', 'is_sponsored', 'position']}
+              csvFilename="dataorbit_web_results"
             />
             
             <div className="bg-card rounded-xl border border-border overflow-hidden">

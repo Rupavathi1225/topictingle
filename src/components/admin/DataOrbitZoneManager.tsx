@@ -597,6 +597,10 @@ export const DataOrbitZoneManager = () => {
               onActivate={handleBulkActivateBlogs}
               onDeactivate={handleBulkDeactivateBlogs}
               isAllSelected={selectedBlogs.size === blogs.length && blogs.length > 0}
+              selectedData={blogs.filter(b => selectedBlogs.has(b.id))}
+              allData={blogs}
+              csvColumns={['id', 'title', 'slug', 'author', 'status', 'category_id']}
+              csvFilename="dataorbitzone_blogs"
             />
             <div className="space-y-2">
               {blogs.map((blog) => (
@@ -718,6 +722,10 @@ export const DataOrbitZoneManager = () => {
               onActivate={handleBulkActivateWebResults}
               onDeactivate={handleBulkDeactivateWebResults}
               isAllSelected={selectedWebResults.size === webResults.length && webResults.length > 0}
+              selectedData={webResults.filter(w => selectedWebResults.has(w.id))}
+              allData={webResults}
+              csvColumns={['id', 'title', 'target_url', 'description', 'page_number', 'position', 'is_active', 'is_sponsored']}
+              csvFilename="dataorbitzone_web_results"
             />
             <div className="space-y-2">
               {webResults.map((result) => (
