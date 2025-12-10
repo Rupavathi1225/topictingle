@@ -209,11 +209,10 @@ const BlogPost = () => {
                   </div>
                 )}
 
-                <article className="prose prose-lg max-w-none">
-                  <div className="whitespace-pre-wrap text-blog-text leading-relaxed text-base">
-                    {blog.content}
-                  </div>
-                </article>
+                <article 
+                  className="prose prose-lg max-w-none text-blog-text leading-relaxed prose-headings:text-blog-heading prose-p:text-blog-text prose-strong:text-blog-heading prose-li:text-blog-text"
+                  dangerouslySetInnerHTML={{ __html: blog.content }}
+                />
 
                 {category && (
                   <RelatedSearches blogId={blog.id} categoryId={category.id} />
