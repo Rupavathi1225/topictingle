@@ -179,7 +179,7 @@ const Admin = () => {
   const websites = [
     {
       id: 'topicmingle' as Website,
-      name: 'TopicMingle',
+      name: 'Topic Tingle',
       description: 'Content Management & Analytics',
       color: 'bg-blue-500',
       icon: '📝'
