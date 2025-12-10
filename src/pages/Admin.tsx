@@ -932,6 +932,10 @@ const Admin = () => {
                 onActivate={handleBulkActivateBlogs}
                 onDeactivate={handleBulkDeactivateBlogs}
                 isAllSelected={selectedBlogs.size === blogs.length && blogs.length > 0}
+                selectedData={blogs.filter(b => selectedBlogs.has(b.id))}
+                allData={blogs}
+                csvColumns={['id', 'title', 'slug', 'author', 'status', 'category_id', 'serial_number', 'published_at']}
+                csvFilename="topicmingle_blogs"
               />
             </div>
             <div className="overflow-x-auto">

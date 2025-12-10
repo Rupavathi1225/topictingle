@@ -464,6 +464,10 @@ const OfferGrabZoneBlogs = () => {
           onDeactivate={handleBulkDeactivate}
           isAllSelected={selectedBlogs.size === filteredBlogs.length && filteredBlogs.length > 0}
           isDarkTheme={true}
+          selectedData={filteredBlogs.filter(b => selectedBlogs.has(b.id))}
+          allData={blogs}
+          csvColumns={['id', 'title', 'slug', 'author', 'status', 'category_id', 'created_at']}
+          csvFilename="offergrabzone_blogs"
         />
       )}
 

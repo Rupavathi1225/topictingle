@@ -375,6 +375,10 @@ export const TejaStarinBlogs = () => {
         onActivate={handleBulkActivate}
         onDeactivate={handleBulkDeactivate}
         isAllSelected={selectedItems.size === blogs.length && blogs.length > 0}
+        selectedData={blogs.filter(b => selectedItems.has(b.id))}
+        allData={blogs}
+        csvColumns={['id', 'title', 'slug', 'author', 'status', 'category_id', 'created_at']}
+        csvFilename="tejastarin_blogs"
       />
 
       <div className="bg-card rounded-lg border">

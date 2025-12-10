@@ -391,6 +391,10 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
         onDeactivate={handleBulkDeactivate}
         isAllSelected={selectedItems.size === webResults.length && webResults.length > 0}
         isDarkTheme={isSearchProject}
+        selectedData={webResults.filter(r => selectedItems.has(r.id))}
+        allData={webResults}
+        csvColumns={['id', 'title', 'target_url', 'description', 'page_number', 'position', 'is_active', 'is_sponsored']}
+        csvFilename={`${projectName.toLowerCase()}_web_results`}
       />
 
       <div className={tableContainerClass}>
