@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Trash2, Edit, Plus, Cloud, ChevronDown, ChevronRight, CheckCircle, XCircle } from "lucide-react";
+import { Trash2, Edit, Plus, Cloud, ChevronDown, ChevronRight, CheckCircle, XCircle, Sparkles, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -174,6 +174,7 @@ const Admin = () => {
   const [analyticsDetails, setAnalyticsDetails] = useState<AnalyticsDetail[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
   const [selectedSource, setSelectedSource] = useState<string>("all");
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
 
   // Website configurations
   const websites = [
@@ -499,6 +500,34 @@ const Admin = () => {
       title,
       slug: generateSlug(title),
     });
+  };
+
+  const handleGenerateContent = async () => {
+    if (!formData.title) {
+      toast.error("Please enter a title first");
+      return;
+    }
+
+    setIsGeneratingContent(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-blog-content', {
+        body: { title: formData.title, slug: formData.slug }
+      });
+
+      if (error) throw error;
+      
+      if (data?.content) {
+        setFormData({ ...formData, content: data.content });
+        toast.success("Content generated successfully!");
+      } else if (data?.error) {
+        toast.error(data.error);
+      }
+    } catch (error: any) {
+      console.error('Error generating content:', error);
+      toast.error(error.message || "Failed to generate content");
+    } finally {
+      setIsGeneratingContent(false);
+    }
   };
 
 
@@ -877,7 +906,28 @@ const Admin = () => {
                     />
 
                     <div>
-                      <Label htmlFor="content">Content *</Label>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label htmlFor="content">Content *</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleGenerateContent}
+                          disabled={isGeneratingContent || !formData.title}
+                        >
+                          {isGeneratingContent ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="mr-2 h-4 w-4" />
+                              Generate Content
+                            </>
+                          )}
+                        </Button>
+                      </div>
                       <Textarea
                         id="content"
                         value={formData.content}
