@@ -19,8 +19,8 @@ interface WebResult {
 
 export const DataOrbitZoneWebResults = () => {
   const [searchParams] = useSearchParams();
-  const pageNumber = parseInt(searchParams.get('wr') || '1');
-  const relatedSearchId = searchParams.get('rs');
+  const wrNumber = parseInt(searchParams.get('wr') || '1');
+  const relatedSearchId = searchParams.get('id'); // Changed from 'rs' to 'id'
   const [webResults, setWebResults] = useState<WebResult[]>([]);
   const [sponsoredResults, setSponsoredResults] = useState<WebResult[]>([]);
   const [searchTitle, setSearchTitle] = useState<string>('');
@@ -30,7 +30,7 @@ export const DataOrbitZoneWebResults = () => {
     if (relatedSearchId) {
       fetchSearchTitle();
     }
-  }, [pageNumber, relatedSearchId]);
+  }, [wrNumber, relatedSearchId]);
 
   const fetchSearchTitle = async () => {
     if (!relatedSearchId) return;
@@ -54,7 +54,7 @@ export const DataOrbitZoneWebResults = () => {
     if (relatedSearchId) {
       query = query.eq('related_search_id', relatedSearchId);
     } else {
-      query = query.eq('page_number', pageNumber);
+      query = query.eq('page_number', wrNumber);
     }
 
     const { data, error } = await query;
