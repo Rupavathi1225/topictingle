@@ -7,8 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Edit, Trash2, Plus } from 'lucide-react';
+import { Edit, Trash2, Plus, Sparkles, Loader2, FileText } from 'lucide-react';
 import { tejaStarinClient } from '@/integrations/tejastarin/client';
+import { supabase } from '@/integrations/supabase/client';
 import { BlogImageSelector } from './BlogImageSelector';
 import { BulkActionToolbar } from './BulkActionToolbar';
 
@@ -18,6 +19,8 @@ export const TejaStarinBlogs = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBlog, setEditingBlog] = useState<any>(null);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     slug: '',
@@ -138,6 +141,62 @@ export const TejaStarinBlogs = () => {
 
   const generateSlug = (title: string) => {
     return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  };
+
+  const generateContent = async () => {
+    if (!formData.title) {
+      toast.error("Please enter a title first");
+      return;
+    }
+
+    setIsGeneratingContent(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-blog-content', {
+        body: { title: formData.title, slug: formData.slug }
+      });
+
+      if (error) throw error;
+
+      if (data?.content) {
+        setFormData(prev => ({ ...prev, content: data.content }));
+        toast.success("Content generated successfully!");
+      } else {
+        throw new Error("No content returned");
+      }
+    } catch (error) {
+      console.error("Error generating content:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to generate content");
+    } finally {
+      setIsGeneratingContent(false);
+    }
+  };
+
+  const generateImage = async () => {
+    if (!formData.title) {
+      toast.error("Please enter a title first");
+      return;
+    }
+
+    setIsGeneratingImage(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-blog-image', {
+        body: { blogTitle: formData.title }
+      });
+
+      if (error) throw error;
+
+      if (data?.imageUrl) {
+        setFormData(prev => ({ ...prev, featured_image: data.imageUrl }));
+        toast.success("AI image generated successfully!");
+      } else {
+        throw new Error("No image URL returned");
+      }
+    } catch (error) {
+      console.error("Error generating image:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to generate image");
+    } finally {
+      setIsGeneratingImage(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -335,7 +394,24 @@ export const TejaStarinBlogs = () => {
               </Select>
             </div>
             <div>
-              <Label>Content *</Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label>Content *</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={generateContent}
+                  disabled={isGeneratingContent || !formData.title}
+                  className="gap-2"
+                >
+                  {isGeneratingContent ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FileText className="w-4 h-4" />
+                  )}
+                  Generate Content
+                </Button>
+              </div>
               <Textarea
                 value={formData.content}
                 onChange={(e) => setFormData({ ...formData, content: e.target.value })}
@@ -343,11 +419,38 @@ export const TejaStarinBlogs = () => {
                 required
               />
             </div>
-            <BlogImageSelector
-              blogTitle={formData.title}
-              imageUrl={formData.featured_image}
-              onImageChange={(url) => setFormData({ ...formData, featured_image: url })}
-            />
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label>Featured Image</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={generateImage}
+                  disabled={isGeneratingImage || !formData.title}
+                  className="gap-2"
+                >
+                  {isGeneratingImage ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  Generate AI Image
+                </Button>
+              </div>
+              <Input
+                value={formData.featured_image}
+                onChange={(e) => setFormData({ ...formData, featured_image: e.target.value })}
+                placeholder="Enter image URL or generate with AI"
+              />
+              {formData.featured_image && (
+                <img 
+                  src={formData.featured_image} 
+                  alt="Featured" 
+                  className="mt-2 w-full max-h-48 object-cover rounded-lg"
+                />
+              )}
+            </div>
             <div>
               <Label>Status</Label>
               <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
