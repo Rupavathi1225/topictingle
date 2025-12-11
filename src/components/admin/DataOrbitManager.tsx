@@ -746,6 +746,10 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
               allData={blogs}
               csvColumns={['id', 'title', 'slug', 'author', 'status', 'category_id', 'serial_number']}
               csvFilename="dataorbit_blogs"
+              linkGenerator={(blog) => {
+                const category = categories.find(c => c.id === (blog as Blog).category_id);
+                return `${window.location.origin}/dataorbit/blog/${category?.slug || 'general'}/${(blog as Blog).slug}`;
+              }}
             />
             
             <div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -866,6 +870,7 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
               allData={searches}
               csvColumns={['id', 'title', 'blog_id', 'position', 'web_result_page']}
               csvFilename="dataorbit_searches"
+              linkGenerator={(search) => `${window.location.origin}/dataorbit/wr?id=${(search as RelatedSearch).id}&wr=${(search as RelatedSearch).web_result_page}`}
             />
             
             <div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -1059,6 +1064,10 @@ export function DataOrbitManager({ initialTab = 'blogs' }: DataOrbitManagerProps
               allData={webResults}
               csvColumns={['id', 'name', 'title', 'url', 'description', 'is_sponsored', 'position']}
               csvFilename="dataorbit_web_results"
+              linkGenerator={(result) => {
+                const search = searches.find(s => s.id === (result as WebResult).related_search_id);
+                return `${window.location.origin}/dataorbit/wr?id=${search?.id}&wr=${search?.web_result_page || 1}`;
+              }}
             />
             
             <div className="bg-card rounded-xl border border-border overflow-hidden">
