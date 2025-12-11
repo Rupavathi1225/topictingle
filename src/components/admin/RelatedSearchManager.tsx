@@ -314,6 +314,9 @@ export const RelatedSearchManager = ({ projectClient, categoryId, projectName }:
         allData={searches}
         csvColumns={['id', 'title', 'search_text', 'web_result_page', 'position', 'is_active', 'display_order']}
         csvFilename={`${projectName || 'related'}_searches`}
+        linkGenerator={(search) => {
+          return `${window.location.origin}/wr?rsid=${search.id}`;
+        }}
       />
 
       <div className="space-y-2">

@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Trash2, CheckCircle, XCircle, Download, Copy } from 'lucide-react';
+import { Trash2, CheckCircle, XCircle, Download, Copy, Link } from 'lucide-react';
 import { exportToCSV } from '@/lib/csvExport';
 import { toast } from 'sonner';
 
@@ -19,6 +19,8 @@ interface BulkActionToolbarProps {
   csvColumns?: string[];
   csvFilename?: string;
   showCsvExport?: boolean;
+  // Link copy props
+  linkGenerator?: (item: any) => string;
 }
 
 export const BulkActionToolbar = ({
@@ -35,6 +37,7 @@ export const BulkActionToolbar = ({
   csvColumns = [],
   csvFilename = 'export',
   showCsvExport = true,
+  linkGenerator,
 }: BulkActionToolbarProps) => {
   const containerClass = isDarkTheme
     ? "flex flex-wrap items-center gap-3 p-3 bg-[#0d1520] rounded-lg border border-[#2a3f5f] mb-4"
@@ -71,12 +74,19 @@ export const BulkActionToolbar = ({
     }
     
     try {
-      const text = selectedData.map(item => {
-        return csvColumns.map(col => item[col] ?? '').join('\t');
-      }).join('\n');
+      let text: string;
+      if (linkGenerator) {
+        // Copy links when linkGenerator is provided
+        text = selectedData.map(item => linkGenerator(item)).join('\n');
+      } else {
+        // Fallback to tab-separated data
+        text = selectedData.map(item => {
+          return csvColumns.map(col => item[col] ?? '').join('\t');
+        }).join('\n');
+      }
       
       await navigator.clipboard.writeText(text);
-      toast.success(`Copied ${selectedData.length} item(s) to clipboard`);
+      toast.success(`Copied ${selectedData.length} link(s) to clipboard`);
     } catch (err) {
       toast.error('Failed to copy to clipboard');
     }

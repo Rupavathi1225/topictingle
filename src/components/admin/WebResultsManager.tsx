@@ -395,6 +395,7 @@ export const WebResultsManager = ({ projectClient, projectName }: WebResultsMana
         allData={webResults}
         csvColumns={['id', 'title', 'target_url', 'description', 'page_number', 'position', 'is_active', 'is_sponsored']}
         csvFilename={`${projectName.toLowerCase()}_web_results`}
+        linkGenerator={(result) => result.target_url}
       />
 
       <div className={tableContainerClass}>
