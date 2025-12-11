@@ -20,6 +20,8 @@ import DataOrbitZoneHome from "./pages/DataOrbitZoneHome";
 import DataOrbitZoneCategoryPage from "./pages/DataOrbitZoneCategoryPage";
 import DataOrbitZoneBlogPost from "./pages/DataOrbitZoneBlogPost";
 import OfferGrabZoneBlogPost from "./pages/OfferGrabZoneBlogPost";
+import DataCreditZoneBlogPost from "./pages/DataCreditZoneBlogPost";
+import DataCreditZoneWebResults from "./pages/DataCreditZoneWebResults";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +56,10 @@ const App = () => (
           {/* SearchProject Routes */}
           <Route path="/searchproject/wr" element={<SearchProjectWebResults />} />
           <Route path="/searchproject/prelanding" element={<SearchProjectPreLanding />} />
+          
+          {/* DataCreditZone (TejaStarin) Routes */}
+          <Route path="/datacreditzone/blog/:categorySlug/:blogSlug" element={<DataCreditZoneBlogPost />} />
+          <Route path="/datacreditzone/wr" element={<DataCreditZoneWebResults />} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
