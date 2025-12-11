@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { mingleMoodyClient } from "@/integrations/minglemoody/client";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Copy, ExternalLink, Loader2, Sparkles, Search } from "lucide-react";
+import { Plus, Edit, Trash2, Copy, ExternalLink, Loader2, Sparkles, Search, FileText } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkActionToolbar } from "./BulkActionToolbar";
 
@@ -37,6 +38,7 @@ export const MingleMoodyBlogs = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBlog, setEditingBlog] = useState<Blog | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBlogs, setSelectedBlogs] = useState<Set<string>>(new Set());
   
@@ -105,21 +107,51 @@ export const MingleMoodyBlogs = () => {
 
     setIsGeneratingImage(true);
     try {
-      // Use placeholder images for now
-      const placeholderImages = [
-        'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1432821596592-e2c18b78144f?w=800&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?w=800&auto=format&fit=crop',
-      ];
-      const randomImage = placeholderImages[Math.floor(Math.random() * placeholderImages.length)];
-      setFeaturedImage(randomImage);
-      toast.success("Image selected successfully!");
+      const { data, error } = await supabase.functions.invoke('generate-blog-image', {
+        body: { blogTitle: title }
+      });
+
+      if (error) throw error;
+
+      if (data?.imageUrl) {
+        setFeaturedImage(data.imageUrl);
+        toast.success("AI image generated successfully!");
+      } else {
+        throw new Error("No image URL returned");
+      }
     } catch (error) {
       console.error("Error generating image:", error);
       toast.error("Failed to generate image. Please try again.");
     } finally {
       setIsGeneratingImage(false);
+    }
+  };
+
+  const generateContent = async () => {
+    if (!title) {
+      toast.error("Please enter a title first");
+      return;
+    }
+
+    setIsGeneratingContent(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-blog-content', {
+        body: { title, slug }
+      });
+
+      if (error) throw error;
+
+      if (data?.content) {
+        setContent(data.content);
+        toast.success("Content generated successfully!");
+      } else {
+        throw new Error("No content returned");
+      }
+    } catch (error) {
+      console.error("Error generating content:", error);
+      toast.error("Failed to generate content. Please try again.");
+    } finally {
+      setIsGeneratingContent(false);
     }
   };
 
@@ -341,7 +373,24 @@ export const MingleMoodyBlogs = () => {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-gray-300">Content</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-gray-300">Content</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={generateContent}
+                    disabled={isGeneratingContent || !title}
+                    className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]"
+                  >
+                    {isGeneratingContent ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <FileText className="h-4 w-4 mr-2" />
+                    )}
+                    Generate Content
+                  </Button>
+                </div>
                 <Textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
