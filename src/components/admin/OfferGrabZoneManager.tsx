@@ -22,6 +22,13 @@ interface RelatedSearch {
   serial_number: number;
   target_wr: number;
   is_active: boolean;
+  blog_id: string | null;
+}
+
+interface Blog {
+  id: string;
+  title: string;
+  slug: string;
 }
 
 interface WebResult {
@@ -96,12 +103,13 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
 
   // Related Searches
   const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
+  const [blogs, setBlogs] = useState<Blog[]>([]);
   const [searchDialog, setSearchDialog] = useState(false);
   const [editingSearch, setEditingSearch] = useState<RelatedSearch | null>(null);
   const [selectedSearches, setSelectedSearches] = useState<Set<string>>(new Set());
   const [selectedWebResults, setSelectedWebResults] = useState<Set<string>>(new Set());
   const [searchForm, setSearchForm] = useState({
-    title: "", serial_number: 1, target_wr: 1, is_active: true
+    title: "", serial_number: 1, target_wr: 1, is_active: true, blog_id: "" as string | null
   });
 
   // Bulk action handlers for Related Searches
@@ -213,7 +221,8 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
       fetchRelatedSearches(),
       fetchWebResults(),
       fetchAllWebResults(),
-      fetchPrelandings()
+      fetchPrelandings(),
+      fetchBlogs()
     ]);
   };
 
@@ -226,6 +235,12 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
     const { data, error } = await offerGrabZoneClient.from("related_searches").select("*").order("serial_number");
     if (error) toast.error("Failed to fetch related searches");
     else setRelatedSearches(data || []);
+  };
+
+  const fetchBlogs = async () => {
+    const { data, error } = await offerGrabZoneClient.from("blogs").select("id, title, slug").order("title");
+    if (error) console.error("Failed to fetch blogs:", error);
+    else setBlogs(data || []);
   };
 
   const fetchAllWebResults = async () => {
@@ -289,7 +304,10 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
   // Related Search CRUD
   const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = { ...searchForm };
+    const data = { 
+      ...searchForm,
+      blog_id: searchForm.blog_id || null
+    };
 
     if (editingSearch) {
       const { error } = await offerGrabZoneClient.from("related_searches").update(data).eq("id", editingSearch.id);
@@ -311,7 +329,7 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
   };
 
   const resetSearchForm = () => {
-    setSearchForm({ title: "", serial_number: relatedSearches.length + 1, target_wr: 1, is_active: true });
+    setSearchForm({ title: "", serial_number: relatedSearches.length + 1, target_wr: 1, is_active: true, blog_id: null });
     setEditingSearch(null);
     setSearchDialog(false);
   };
@@ -489,6 +507,22 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
                 <DialogContent className="bg-[#1a2942] border-[#2a3f5f] text-white">
                   <DialogHeader><DialogTitle className="text-white">{editingSearch ? "Edit" : "Create"} Related Search</DialogTitle></DialogHeader>
                   <form onSubmit={handleSearchSubmit} className="space-y-4">
+                    <div>
+                      <Label className="text-gray-300">Blog *</Label>
+                      <Select value={searchForm.blog_id || ""} onValueChange={(value) => setSearchForm({ ...searchForm, blog_id: value || null })}>
+                        <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white">
+                          <SelectValue placeholder="Select blog" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#1a2942] border-[#2a3f5f] max-h-[200px]">
+                          <SelectItem value="" className="text-gray-400 hover:bg-[#2a3f5f]">No Blog</SelectItem>
+                          {blogs.map(blog => (
+                            <SelectItem key={blog.id} value={blog.id} className="text-white hover:bg-[#2a3f5f]">
+                              {blog.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div><Label className="text-gray-300">Title *</Label><Input value={searchForm.title} onChange={(e) => setSearchForm({ ...searchForm, title: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div className="grid grid-cols-2 gap-4">
                       <div><Label className="text-gray-300">Serial Number</Label><Input type="number" value={searchForm.serial_number} onChange={(e) => setSearchForm({ ...searchForm, serial_number: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
@@ -531,6 +565,13 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <Badge variant="outline" className="text-xs border-[#2a3f5f] text-[#00b4d8]">(Related Search)</Badge>
+                      {search.blog_id ? (
+                        <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-400 border-0">
+                          {blogs.find(b => b.id === search.blog_id)?.title || 'Blog'}
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs bg-red-500/20 text-red-400 border-0">No Blog</Badge>
+                      )}
                       <h3 className="font-semibold text-white">{search.title}</h3>
                     </div>
                     <p className="text-sm text-gray-400">Serial: {search.serial_number} • Target WR: {search.target_wr}</p>
@@ -543,7 +584,8 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
                       setEditingSearch(search);
                       setSearchForm({
                         title: search.title, serial_number: search.serial_number,
-                        target_wr: search.target_wr, is_active: search.is_active
+                        target_wr: search.target_wr, is_active: search.is_active,
+                        blog_id: search.blog_id || ""
                       });
                       setSearchDialog(true);
                     }}><Edit className="h-4 w-4" /></Button>
