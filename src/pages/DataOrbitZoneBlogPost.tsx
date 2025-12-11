@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { dataOrbitZoneClient } from "@/integrations/dataorbitzone/client";
+import { dataOrbitClient } from "@/integrations/dataorbit/client";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { format } from "date-fns";
 
-interface DzBlog {
+interface Blog {
   id: string;
   title: string;
   slug: string;
@@ -16,7 +16,7 @@ interface DzBlog {
   category_id: number | null;
 }
 
-interface DzCategory {
+interface Category {
   id: number;
   name: string;
   slug: string;
@@ -24,23 +24,25 @@ interface DzCategory {
 
 interface RelatedSearch {
   id: string;
+  title: string;
   search_text: string;
-  display_order: number;
+  web_result_page: number;
   blog_id: string;
 }
 
 const DataOrbitZoneBlogPost = () => {
   const { categorySlug, blogSlug } = useParams();
-  const [blog, setBlog] = useState<DzBlog | null>(null);
-  const [category, setCategory] = useState<DzCategory | null>(null);
+  const [blog, setBlog] = useState<Blog | null>(null);
+  const [category, setCategory] = useState<Category | null>(null);
   const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
-  const [recentPosts, setRecentPosts] = useState<DzBlog[]>([]);
+  const [recentPosts, setRecentPosts] = useState<Blog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      const { data: blogData, error } = await dataOrbitZoneClient
-        .from("dz_blogs")
+      // Fetch blog from blogs table using dataOrbitClient
+      const { data: blogData, error } = await dataOrbitClient
+        .from("blogs")
         .select("*")
         .eq("slug", blogSlug)
         .eq("status", "published")
@@ -51,31 +53,31 @@ const DataOrbitZoneBlogPost = () => {
         return;
       }
 
-      setBlog(blogData as DzBlog);
+      setBlog(blogData as Blog);
 
-      // Load related searches for this blog
-      const { data: searches } = await dataOrbitZoneClient
-        .from("dz_related_searches")
+      // Load related searches for this blog from related_searches table
+      const { data: searches } = await dataOrbitClient
+        .from("related_searches")
         .select("*")
         .eq("blog_id", blogData.id)
         .eq("is_active", true)
-        .order("display_order");
+        .order("web_result_page");
 
       if (searches) {
         setRelatedSearches(searches as RelatedSearch[]);
       }
 
       if (blogData.category_id) {
-        const { data: categoryData } = await dataOrbitZoneClient
-          .from("dz_categories")
+        const { data: categoryData } = await dataOrbitClient
+          .from("categories")
           .select("id, name, slug")
           .eq("id", blogData.category_id)
           .maybeSingle();
 
-        if (categoryData) setCategory(categoryData as DzCategory);
+        if (categoryData) setCategory(categoryData as Category);
 
-        const { data: recent } = await dataOrbitZoneClient
-          .from("dz_blogs")
+        const { data: recent } = await dataOrbitClient
+          .from("blogs")
           .select("*")
           .eq("status", "published")
           .eq("category_id", blogData.category_id)
@@ -83,7 +85,7 @@ const DataOrbitZoneBlogPost = () => {
           .order("created_at", { ascending: false })
           .limit(4);
 
-        if (recent) setRecentPosts(recent as DzBlog[]);
+        if (recent) setRecentPosts(recent as Blog[]);
       }
 
       setLoading(false);
@@ -201,10 +203,10 @@ const DataOrbitZoneBlogPost = () => {
                       {relatedSearches.slice(0, 4).map((search) => (
                         <a
                           key={search.id}
-                          href={`/dataorbit/wr?id=${search.id}&wr=${search.display_order}`}
+                          href={`/dataorbit/wr?id=${search.id}&wr=${search.web_result_page}`}
                           className="block p-4 border border-border rounded-lg hover:bg-accent/10 transition-colors text-foreground"
                         >
-                          {search.search_text}
+                          {search.title || search.search_text}
                         </a>
                       ))}
                     </div>

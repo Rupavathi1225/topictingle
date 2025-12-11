@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { dataOrbitZoneClient } from '@/integrations/dataorbitzone/client';
+import { dataOrbitClient } from '@/integrations/dataorbit/client';
 import { GoogleStyleWebResult } from '@/components/GoogleStyleWebResult';
 
 interface WebResult {
@@ -20,7 +20,7 @@ interface WebResult {
 export const DataOrbitZoneWebResults = () => {
   const [searchParams] = useSearchParams();
   const wrNumber = parseInt(searchParams.get('wr') || '1');
-  const relatedSearchId = searchParams.get('id'); // Changed from 'rs' to 'id'
+  const relatedSearchId = searchParams.get('id');
   const [webResults, setWebResults] = useState<WebResult[]>([]);
   const [sponsoredResults, setSponsoredResults] = useState<WebResult[]>([]);
   const [searchTitle, setSearchTitle] = useState<string>('');
@@ -34,19 +34,19 @@ export const DataOrbitZoneWebResults = () => {
 
   const fetchSearchTitle = async () => {
     if (!relatedSearchId) return;
-    const { data } = await dataOrbitZoneClient
-      .from('dz_related_searches')
-      .select('search_text')
+    const { data } = await dataOrbitClient
+      .from('related_searches')
+      .select('title, search_text')
       .eq('id', relatedSearchId)
-      .single();
+      .maybeSingle();
     if (data) {
-      setSearchTitle(data.search_text);
+      setSearchTitle(data.title || data.search_text);
     }
   };
 
   const fetchWebResults = async () => {
-    let query = dataOrbitZoneClient
-      .from('dz_web_results')
+    let query = dataOrbitClient
+      .from('web_results')
       .select('*')
       .eq('is_active', true)
       .order('position', { ascending: true });
@@ -70,13 +70,13 @@ export const DataOrbitZoneWebResults = () => {
       
       let prelandingSearchIds: string[] = [];
       if (relatedSearchIds.length > 0) {
-        const { data: prelandings } = await dataOrbitZoneClient
-          .from('dz_prelanding_pages')
-          .select('related_search_id')
-          .in('related_search_id', relatedSearchIds);
+        const { data: prelandings } = await dataOrbitClient
+          .from('pre_landing_pages')
+          .select('page_key')
+          .in('page_key', relatedSearchIds);
         
         if (prelandings) {
-          prelandingSearchIds = prelandings.map((p: any) => p.related_search_id);
+          prelandingSearchIds = prelandings.map((p: any) => p.page_key);
         }
       }
 
