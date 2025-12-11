@@ -52,6 +52,7 @@ export const FastMoneyBlogs = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBlog, setEditingBlog] = useState<Blog | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBlogs, setSelectedBlogs] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
@@ -130,21 +131,72 @@ export const FastMoneyBlogs = () => {
 
     setIsGeneratingImage(true);
     try {
-      // For now, use a placeholder - you can integrate with your image generation service
-      const placeholderImages = [
-        'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=800&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1553729459-efe14ef6055d?w=800&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&auto=format&fit=crop',
-      ];
-      const randomImage = placeholderImages[Math.floor(Math.random() * placeholderImages.length)];
-      setFormData({ ...formData, featured_image_url: randomImage });
-      toast.success("Image selected successfully");
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-blog-image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ blogTitle: formData.title }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate image');
+      }
+
+      const data = await response.json();
+      if (data.imageUrl) {
+        setFormData({ ...formData, featured_image_url: data.imageUrl });
+        toast.success("AI image generated successfully!");
+      } else {
+        throw new Error("No image URL returned");
+      }
     } catch (error) {
       console.error("Error generating image:", error);
-      toast.error("Error generating image");
+      toast.error(error instanceof Error ? error.message : "Error generating image");
     } finally {
       setIsGeneratingImage(false);
+    }
+  };
+
+  const generateContent = async () => {
+    if (!formData.title.trim() || !formData.slug.trim()) {
+      toast.error("Please enter a title and slug first");
+      return;
+    }
+
+    setIsGeneratingContent(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-blog-content`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ 
+          blogTitle: formData.title, 
+          blogSlug: formData.slug 
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate content');
+      }
+
+      const data = await response.json();
+      if (data.content) {
+        setFormData({ ...formData, content: data.content });
+        toast.success("AI content generated successfully!");
+      } else {
+        throw new Error("No content returned");
+      }
+    } catch (error) {
+      console.error("Error generating content:", error);
+      toast.error(error instanceof Error ? error.message : "Error generating content");
+    } finally {
+      setIsGeneratingContent(false);
     }
   };
 
@@ -334,7 +386,29 @@ export const FastMoneyBlogs = () => {
                 </Select>
               </div>
               <div>
-                <Label className="text-gray-300">Content *</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-gray-300">Content *</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={generateContent}
+                    disabled={isGeneratingContent || !formData.title.trim() || !formData.slug.trim()}
+                    className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]"
+                  >
+                    {isGeneratingContent ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Generate Content
+                      </>
+                    )}
+                  </Button>
+                </div>
                 <Textarea
                   value={formData.content}
                   onChange={(e) => setFormData({ ...formData, content: e.target.value })}
