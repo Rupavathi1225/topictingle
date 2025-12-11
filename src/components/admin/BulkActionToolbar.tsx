@@ -9,8 +9,8 @@ interface BulkActionToolbarProps {
   totalCount: number;
   onSelectAll: () => void;
   onDelete: () => void;
-  onActivate: () => void;
-  onDeactivate: () => void;
+  onActivate?: () => void;
+  onDeactivate?: () => void;
   isAllSelected: boolean;
   isDarkTheme?: boolean;
   // CSV Export props
@@ -156,30 +156,34 @@ export const BulkActionToolbar = ({
         {/* Action buttons - only visible when items selected */}
         {selectedCount > 0 && (
           <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onActivate}
-              className={isDarkTheme 
-                ? "border-green-600 text-green-400 hover:bg-green-900/30" 
-                : "border-green-600 text-green-600 hover:bg-green-50"
-              }
-            >
-              <CheckCircle className="h-4 w-4 mr-1" />
-              Activate
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onDeactivate}
-              className={isDarkTheme 
-                ? "border-gray-500 text-gray-400 hover:bg-gray-800" 
-                : "border-gray-400 text-gray-600 hover:bg-gray-100"
-              }
-            >
-              <XCircle className="h-4 w-4 mr-1" />
-              Deactivate
-            </Button>
+            {onActivate && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onActivate}
+                className={isDarkTheme 
+                  ? "border-green-600 text-green-400 hover:bg-green-900/30" 
+                  : "border-green-600 text-green-600 hover:bg-green-50"
+                }
+              >
+                <CheckCircle className="h-4 w-4 mr-1" />
+                Activate
+              </Button>
+            )}
+            {onDeactivate && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onDeactivate}
+                className={isDarkTheme 
+                  ? "border-gray-500 text-gray-400 hover:bg-gray-800" 
+                  : "border-gray-400 text-gray-600 hover:bg-gray-100"
+                }
+              >
+                <XCircle className="h-4 w-4 mr-1" />
+                Deactivate
+              </Button>
+            )}
             <Button
               variant="destructive"
               size="sm"

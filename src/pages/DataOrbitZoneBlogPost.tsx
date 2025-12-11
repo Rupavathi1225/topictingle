@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { dataOrbitZoneClient } from "@/integrations/dataorbitzone/client";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { format } from "date-fns";
@@ -22,21 +22,28 @@ interface DzCategory {
   slug: string;
 }
 
+interface RelatedSearch {
+  id: string;
+  search_text: string;
+  display_order: number;
+  blog_id: string;
+}
+
 const DataOrbitZoneBlogPost = () => {
   const { categorySlug, blogSlug } = useParams();
   const [blog, setBlog] = useState<DzBlog | null>(null);
   const [category, setCategory] = useState<DzCategory | null>(null);
+  const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
   const [recentPosts, setRecentPosts] = useState<DzBlog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      const { data: blogData, error } = await supabase
-        .from("blogs")
+      const { data: blogData, error } = await dataOrbitZoneClient
+        .from("dz_blogs")
         .select("*")
         .eq("slug", blogSlug)
         .eq("status", "published")
-        .eq("site_name", "dataorbitzone")
         .maybeSingle();
 
       if (error || !blogData) {
@@ -46,21 +53,31 @@ const DataOrbitZoneBlogPost = () => {
 
       setBlog(blogData as DzBlog);
 
+      // Load related searches for this blog
+      const { data: searches } = await dataOrbitZoneClient
+        .from("dz_related_searches")
+        .select("*")
+        .eq("blog_id", blogData.id)
+        .eq("is_active", true)
+        .order("display_order");
+
+      if (searches) {
+        setRelatedSearches(searches as RelatedSearch[]);
+      }
+
       if (blogData.category_id) {
-        const { data: categoryData } = await supabase
-          .from("categories")
+        const { data: categoryData } = await dataOrbitZoneClient
+          .from("dz_categories")
           .select("id, name, slug")
           .eq("id", blogData.category_id)
-          .eq("site_name", "dataorbitzone")
           .maybeSingle();
 
         if (categoryData) setCategory(categoryData as DzCategory);
 
-        const { data: recent } = await supabase
-          .from("blogs")
+        const { data: recent } = await dataOrbitZoneClient
+          .from("dz_blogs")
           .select("*")
           .eq("status", "published")
-          .eq("site_name", "dataorbitzone")
           .eq("category_id", blogData.category_id)
           .neq("id", blogData.id)
           .order("created_at", { ascending: false })
@@ -175,6 +192,24 @@ const DataOrbitZoneBlogPost = () => {
                     {blog.content}
                   </div>
                 </article>
+
+                {/* Related Searches Section - Under Content */}
+                {relatedSearches.length > 0 && (
+                  <div className="mt-8 border border-blog-border rounded-lg p-6 bg-card">
+                    <h3 className="font-bold text-xl mb-4 text-blog-heading">Related Searches</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {relatedSearches.slice(0, 4).map((search) => (
+                        <a
+                          key={search.id}
+                          href={`/dataorbit/wr?id=${search.id}&wr=${search.display_order}`}
+                          className="block p-4 border border-border rounded-lg hover:bg-accent/10 transition-colors text-foreground"
+                        >
+                          {search.search_text}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

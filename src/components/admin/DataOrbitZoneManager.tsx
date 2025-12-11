@@ -1,17 +1,16 @@
 import { useState, useEffect } from "react";
 import { dataOrbitZoneClient } from "@/integrations/dataorbitzone/client";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Trash2, Edit, Plus } from "lucide-react";
+import { Trash2, Edit, Plus, Sparkles, Loader2, Copy, ExternalLink } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkActionToolbar } from "./BulkActionToolbar";
 
@@ -42,30 +41,6 @@ interface RelatedSearch {
   display_order: number;
 }
 
-interface PrelandingPage {
-  id: string;
-  page_key: string;
-  logo_url?: string;
-  logo_position: string;
-  logo_width: number;
-  main_image_url?: string;
-  image_ratio: string;
-  headline: string;
-  description: string;
-  headline_font_size: number;
-  headline_color: string;
-  headline_align: string;
-  description_font_size: number;
-  description_color: string;
-  description_align: string;
-  cta_text: string;
-  cta_color: string;
-  background_color: string;
-  background_image_url?: string;
-  target_url: string;
-  is_active: boolean;
-}
-
 interface WebResult {
   id: string;
   related_search_id?: string;
@@ -83,12 +58,12 @@ export const DataOrbitZoneManager = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
-  const [prelandingPages, setPrelandingPages] = useState<PrelandingPage[]>([]);
   const [webResults, setWebResults] = useState<WebResult[]>([]);
   const [activeTab, setActiveTab] = useState("categories");
 
   // Bulk selection states
   const [selectedBlogs, setSelectedBlogs] = useState<Set<string>>(new Set());
+  const [selectedSearches, setSelectedSearches] = useState<Set<string>>(new Set());
   const [selectedWebResults, setSelectedWebResults] = useState<Set<string>>(new Set());
 
   // Category Form
@@ -104,24 +79,16 @@ export const DataOrbitZoneManager = () => {
     featured_image: "", status: "published", author_bio: "", author_image: ""
   });
 
+  // AI Generation states
+  const [generatingContent, setGeneratingContent] = useState(false);
+  const [generatedRelatedSearches, setGeneratedRelatedSearches] = useState<string[]>([]);
+  const [selectedGeneratedSearches, setSelectedGeneratedSearches] = useState<number[]>([]);
+
   // Related Search Form
   const [searchDialog, setSearchDialog] = useState(false);
   const [editingSearch, setEditingSearch] = useState<RelatedSearch | null>(null);
   const [searchForm, setSearchForm] = useState({
     blog_id: "", search_text: "", display_order: 0
-  });
-
-  // Prelanding Form
-  const [prelandingDialog, setPrelandingDialog] = useState(false);
-  const [editingPrelanding, setEditingPrelanding] = useState<PrelandingPage | null>(null);
-  const [prelandingForm, setPrelandingForm] = useState({
-    page_key: "", target_url: "", logo_url: "", logo_position: "top-center", logo_width: 150,
-    main_image_url: "", image_ratio: "16:9", headline: "Welcome",
-    description: "Check out this amazing resource", headline_font_size: 32,
-    headline_color: "#000000", headline_align: "center", description_font_size: 16, 
-    description_color: "#333333", description_align: "center",
-    cta_text: "Get Started", cta_color: "#10b981",
-    background_color: "#ffffff", background_image_url: "", is_active: true
   });
 
   // Web Result Form
@@ -131,7 +98,62 @@ export const DataOrbitZoneManager = () => {
     related_search_id: "", title: "", description: "", logo_url: "",
     target_url: "", page_number: 1, position: 1, is_active: true, is_sponsored: false
   });
-  const [selectedRelatedSearchId, setSelectedRelatedSearchId] = useState<string>("");
+
+  const getBaseUrl = () => window.location.origin;
+
+  // Copy link functions
+  const copyBlogLink = (blog: Blog) => {
+    const category = categories.find(c => c.id === blog.category_id);
+    const link = `${getBaseUrl()}/dataorbit/blog/${category?.slug || 'general'}/${blog.slug}`;
+    navigator.clipboard.writeText(link);
+    toast.success("Blog link copied!");
+  };
+
+  const copySearchLink = (search: RelatedSearch) => {
+    const link = `${getBaseUrl()}/dataorbit/wr?id=${search.id}&wr=${search.display_order}`;
+    navigator.clipboard.writeText(link);
+    toast.success("Related search link copied!");
+  };
+
+  const copyWebResultLink = (result: WebResult) => {
+    const search = relatedSearches.find(s => s.id === result.related_search_id);
+    const link = `${getBaseUrl()}/dataorbit/wr?id=${search?.id}&wr=${search?.display_order || 1}`;
+    navigator.clipboard.writeText(link);
+    toast.success("Web result page link copied!");
+  };
+
+  const copySelectedBlogLinks = () => {
+    const links = blogs
+      .filter(b => selectedBlogs.has(b.id))
+      .map(blog => {
+        const category = categories.find(c => c.id === blog.category_id);
+        return `${getBaseUrl()}/dataorbit/blog/${category?.slug || 'general'}/${blog.slug}`;
+      })
+      .join('\n');
+    navigator.clipboard.writeText(links);
+    toast.success(`${selectedBlogs.size} blog link(s) copied!`);
+  };
+
+  const copySelectedSearchLinks = () => {
+    const links = relatedSearches
+      .filter(s => selectedSearches.has(s.id))
+      .map(search => `${getBaseUrl()}/dataorbit/wr?id=${search.id}&wr=${search.display_order}`)
+      .join('\n');
+    navigator.clipboard.writeText(links);
+    toast.success(`${selectedSearches.size} search link(s) copied!`);
+  };
+
+  const copySelectedWebResultLinks = () => {
+    const links = webResults
+      .filter(r => selectedWebResults.has(r.id))
+      .map(result => {
+        const search = relatedSearches.find(s => s.id === result.related_search_id);
+        return `${getBaseUrl()}/dataorbit/wr?id=${search?.id}&wr=${search?.display_order || 1}`;
+      })
+      .join('\n');
+    navigator.clipboard.writeText(links);
+    toast.success(`${selectedWebResults.size} web result link(s) copied!`);
+  };
 
   // Bulk action handlers for Blogs
   const toggleBlogSelection = (id: string) => {
@@ -168,6 +190,27 @@ export const DataOrbitZoneManager = () => {
     toast.success(`Deactivated ${selectedBlogs.size} blog(s)`);
     setSelectedBlogs(new Set());
     fetchBlogs();
+  };
+
+  // Bulk action handlers for Related Searches
+  const toggleSearchSelection = (id: string) => {
+    const newSelected = new Set(selectedSearches);
+    if (newSelected.has(id)) newSelected.delete(id);
+    else newSelected.add(id);
+    setSelectedSearches(newSelected);
+  };
+
+  const handleSelectAllSearches = () => {
+    if (selectedSearches.size === relatedSearches.length) setSelectedSearches(new Set());
+    else setSelectedSearches(new Set(relatedSearches.map(s => s.id)));
+  };
+
+  const handleBulkDeleteSearches = async () => {
+    if (!confirm(`Delete ${selectedSearches.size} search(es)?`)) return;
+    await dataOrbitZoneClient.from("dz_related_searches").delete().in("id", Array.from(selectedSearches));
+    toast.success(`Deleted ${selectedSearches.size} search(es)`);
+    setSelectedSearches(new Set());
+    fetchRelatedSearches();
   };
 
   // Bulk action handlers for Web Results
@@ -214,7 +257,6 @@ export const DataOrbitZoneManager = () => {
       fetchCategories(),
       fetchBlogs(),
       fetchRelatedSearches(),
-      fetchPrelandingPages(),
       fetchWebResults()
     ]);
   };
@@ -244,16 +286,54 @@ export const DataOrbitZoneManager = () => {
     }
   };
 
-  const fetchPrelandingPages = async () => {
-    const { data, error } = await dataOrbitZoneClient.from("dz_prelanding_pages").select("*").order("created_at", { ascending: false });
-    if (error) toast.error("Failed to fetch prelanding pages: " + error.message);
-    else setPrelandingPages((data as any) || []);
-  };
-
   const fetchWebResults = async () => {
     const { data, error } = await dataOrbitZoneClient.from("dz_web_results").select("*").order("page_number", { ascending: true });
     if (error) toast.error("Failed to fetch web results: " + error.message);
     else setWebResults((data as any) || []);
+  };
+
+  // AI Content Generation
+  const generateContent = async () => {
+    if (!blogForm.title.trim()) {
+      toast.error("Please enter a title first");
+      return;
+    }
+
+    setGeneratingContent(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-blog-content', {
+        body: { title: blogForm.title, slug: blogForm.slug, generateSearches: true }
+      });
+
+      if (error) throw error;
+      
+      if (data.content) {
+        setBlogForm(prev => ({ ...prev, content: data.content }));
+        if (data.relatedSearches && data.relatedSearches.length > 0) {
+          setGeneratedRelatedSearches(data.relatedSearches);
+          // Auto-select first 4
+          setSelectedGeneratedSearches([0, 1, 2, 3].filter(i => i < data.relatedSearches.length));
+        }
+        toast.success("Content and related searches generated!");
+      } else if (data.error) {
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      console.error('Error generating content:', error);
+      toast.error(error.message || "Failed to generate content");
+    } finally {
+      setGeneratingContent(false);
+    }
+  };
+
+  const toggleGeneratedSearch = (index: number) => {
+    if (selectedGeneratedSearches.includes(index)) {
+      setSelectedGeneratedSearches(prev => prev.filter(i => i !== index));
+    } else if (selectedGeneratedSearches.length < 4) {
+      setSelectedGeneratedSearches(prev => [...prev, index]);
+    } else {
+      toast.error("You can select maximum 4 related searches");
+    }
   };
 
   // Category CRUD
@@ -296,17 +376,45 @@ export const DataOrbitZoneManager = () => {
       if (error) toast.error("Failed to update blog");
       else { toast.success("Blog updated"); fetchBlogs(); resetBlogForm(); }
     } else {
-      const { error } = await dataOrbitZoneClient.from("dz_blogs").insert([data]);
-      if (error) toast.error("Failed to create blog");
-      else { toast.success("Blog created"); fetchBlogs(); resetBlogForm(); }
+      const { data: newBlog, error } = await dataOrbitZoneClient.from("dz_blogs").insert([data]).select().single();
+      
+      if (error) {
+        toast.error("Failed to create blog");
+      } else if (newBlog) {
+        // Create selected related searches with display_order = 1, 2, 3, 4 for wr=1, wr=2, etc.
+        if (selectedGeneratedSearches.length > 0) {
+          const searchesToCreate = selectedGeneratedSearches.map((idx, position) => ({
+            search_text: generatedRelatedSearches[idx],
+            blog_id: newBlog.id,
+            display_order: position + 1, // wr=1, wr=2, wr=3, wr=4
+            target_url: '/web-results',
+            is_active: true
+          }));
+          
+          const { error: searchError } = await dataOrbitZoneClient
+            .from("dz_related_searches")
+            .insert(searchesToCreate);
+          
+          if (searchError) {
+            console.error('Error creating related searches:', searchError);
+          }
+        }
+        
+        toast.success("Blog created with related searches!");
+        fetchBlogs();
+        fetchRelatedSearches();
+        resetBlogForm();
+      }
     }
   };
 
   const handleDeleteBlog = async (id: string) => {
     if (confirm("Delete this blog?")) {
+      // Also delete related searches for this blog
+      await dataOrbitZoneClient.from("dz_related_searches").delete().eq("blog_id", id);
       const { error } = await dataOrbitZoneClient.from("dz_blogs").delete().eq("id", id);
       if (error) toast.error("Failed to delete");
-      else { toast.success("Deleted"); fetchBlogs(); }
+      else { toast.success("Deleted"); fetchBlogs(); fetchRelatedSearches(); }
     }
   };
 
@@ -317,6 +425,8 @@ export const DataOrbitZoneManager = () => {
     });
     setEditingBlog(null);
     setBlogDialog(false);
+    setGeneratedRelatedSearches([]);
+    setSelectedGeneratedSearches([]);
   };
 
   // Related Search CRUD
@@ -363,6 +473,7 @@ export const DataOrbitZoneManager = () => {
       }
     }
   };
+
   const handleDeleteSearch = async (id: string) => {
     if (confirm("Delete this search?")) {
       const { error } = await dataOrbitZoneClient.from("dz_related_searches").delete().eq("id", id);
@@ -375,47 +486,6 @@ export const DataOrbitZoneManager = () => {
     setSearchForm({ blog_id: "", search_text: "", display_order: 0 });
     setEditingSearch(null);
     setSearchDialog(false);
-  };
-
-  // Prelanding CRUD
-  const handlePrelandingSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const data = {
-      headline: prelandingForm.headline,
-      description: prelandingForm.description,
-      logo_url: prelandingForm.logo_url || null,
-      logo_position: prelandingForm.logo_position,
-      logo_size: prelandingForm.logo_width,
-      main_image_url: prelandingForm.main_image_url || null,
-      image_ratio: prelandingForm.image_ratio,
-      headline_font_size: prelandingForm.headline_font_size,
-      headline_color: prelandingForm.headline_color,
-      description_font_size: prelandingForm.description_font_size,
-      description_color: prelandingForm.description_color,
-      text_alignment: prelandingForm.headline_align,
-      button_text: prelandingForm.cta_text,
-      button_color: prelandingForm.cta_color,
-      background_color: prelandingForm.background_color,
-      background_image_url: prelandingForm.background_image_url || null,
-    };
-    
-    if (editingPrelanding) {
-      const { error} = await dataOrbitZoneClient.from("dz_prelanding_pages").update(data).eq("id", editingPrelanding.id);
-      if (error) toast.error("Failed to update prelanding page");
-      else { toast.success("Prelanding page updated"); fetchPrelandingPages(); resetPrelandingForm(); }
-    } else {
-      const { error } = await dataOrbitZoneClient.from("dz_prelanding_pages").insert([data]);
-      if (error) toast.error("Failed to create prelanding page");
-      else { toast.success("Prelanding page created"); fetchPrelandingPages(); resetPrelandingForm(); }
-    }
-  };
-
-  const handleDeletePrelanding = async (id: string) => {
-    if (confirm("Delete this prelanding page?")) {
-      const { error } = await dataOrbitZoneClient.from("dz_prelanding_pages").delete().eq("id", id);
-      if (error) toast.error("Failed to delete");
-      else { toast.success("Deleted"); fetchPrelandingPages(); }
-    }
   };
 
   // Web Result CRUD
@@ -437,7 +507,7 @@ export const DataOrbitZoneManager = () => {
       description: webResultForm.description || null,
       logo_url: webResultForm.logo_url || null,
       target_url: webResultForm.target_url,
-      related_search_id: selectedRelatedSearchId || null,
+      related_search_id: webResultForm.related_search_id || null,
       page_number: Math.max(1, parseInt(webResultForm.page_number.toString()) || 1),
       position: Math.max(1, parseInt(webResultForm.position.toString()) || 1),
       is_active: webResultForm.is_active,
@@ -475,26 +545,11 @@ export const DataOrbitZoneManager = () => {
     }
   };
 
-  const resetPrelandingForm = () => {
-    setPrelandingForm({
-      page_key: "", target_url: "", logo_url: "", logo_position: "top-center", logo_width: 150,
-      main_image_url: "", image_ratio: "16:9", headline: "Welcome",
-      description: "Check out this amazing resource", headline_font_size: 32,
-      headline_color: "#000000", headline_align: "center", description_font_size: 16,
-      description_color: "#333333", description_align: "center",
-      cta_text: "Get Started", cta_color: "#10b981",
-      background_color: "#ffffff", background_image_url: "", is_active: true
-    });
-    setEditingPrelanding(null);
-    setPrelandingDialog(false);
-  };
-
   const resetWebResultForm = () => {
     setWebResultForm({
       related_search_id: "", title: "", description: "", logo_url: "",
       target_url: "", page_number: 1, position: 1, is_active: true, is_sponsored: false
     });
-    setSelectedRelatedSearchId("");
     setEditingWebResult(null);
     setWebResultDialog(false);
   };
@@ -503,16 +558,15 @@ export const DataOrbitZoneManager = () => {
     <Card>
       <CardHeader>
         <CardTitle>DataOrbitZone Manager</CardTitle>
-        <CardDescription>Manage categories, blogs, related searches, and prelanding pages</CardDescription>
+        <CardDescription>Manage categories, blogs, related searches, and web results</CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="categories">Categories ({categories.length})</TabsTrigger>
             <TabsTrigger value="blogs">Blogs ({blogs.length})</TabsTrigger>
             <TabsTrigger value="searches">Searches ({relatedSearches.length})</TabsTrigger>
             <TabsTrigger value="webresults">Web Results ({webResults.length})</TabsTrigger>
-            <TabsTrigger value="prelanding">Prelanding ({prelandingPages.length})</TabsTrigger>
           </TabsList>
 
           {/* Categories Tab */}
@@ -554,7 +608,12 @@ export const DataOrbitZoneManager = () => {
 
           {/* Blogs Tab */}
           <TabsContent value="blogs" className="space-y-4">
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              {selectedBlogs.size > 0 && (
+                <Button variant="outline" onClick={copySelectedBlogLinks}>
+                  <Copy className="mr-2 h-4 w-4" />Copy {selectedBlogs.size} Link(s)
+                </Button>
+              )}
               <Dialog open={blogDialog} onOpenChange={setBlogDialog}>
                 <DialogTrigger asChild>
                   <Button onClick={resetBlogForm}><Plus className="mr-2 h-4 w-4" />New Blog</Button>
@@ -571,10 +630,62 @@ export const DataOrbitZoneManager = () => {
                       </Select>
                     </div>
                     <div><Label>Author *</Label><Input value={blogForm.author} onChange={(e) => setBlogForm({...blogForm, author: e.target.value})} required /></div>
-                    <div><Label>Author Bio</Label><Input value={blogForm.author_bio} onChange={(e) => setBlogForm({...blogForm, author_bio: e.target.value})} /></div>
-                    <div><Label>Author Image URL</Label><Input value={blogForm.author_image} onChange={(e) => setBlogForm({...blogForm, author_image: e.target.value})} /></div>
                     <div><Label>Featured Image URL</Label><Input value={blogForm.featured_image} onChange={(e) => setBlogForm({...blogForm, featured_image: e.target.value})} /></div>
-                    <div><Label>Content *</Label><Textarea value={blogForm.content} onChange={(e) => setBlogForm({...blogForm, content: e.target.value})} rows={10} required /></div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <Label>Content * (100 words)</Label>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={generateContent}
+                          disabled={generatingContent || !blogForm.title.trim()}
+                        >
+                          {generatingContent ? (
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          ) : (
+                            <Sparkles className="w-4 h-4 mr-1" />
+                          )}
+                          Generate AI Content
+                        </Button>
+                      </div>
+                      <Textarea value={blogForm.content} onChange={(e) => setBlogForm({...blogForm, content: e.target.value})} rows={6} required placeholder="Enter content or generate with AI..." />
+                    </div>
+
+                    {/* Generated Related Searches Selection */}
+                    {generatedRelatedSearches.length > 0 && (
+                      <div className="border border-border rounded-lg p-4 bg-muted/50">
+                        <div className="flex items-center justify-between mb-3">
+                          <Label className="text-base font-semibold">Select Related Searches (max 4)</Label>
+                          <span className="text-sm text-muted-foreground">{selectedGeneratedSearches.length}/4 selected</span>
+                        </div>
+                        <div className="space-y-2">
+                          {generatedRelatedSearches.map((search, index) => (
+                            <div
+                              key={index}
+                              className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                                selectedGeneratedSearches.includes(index) 
+                                  ? 'bg-primary/10 border-primary' 
+                                  : 'hover:bg-muted'
+                              }`}
+                              onClick={() => toggleGeneratedSearch(index)}
+                            >
+                              <Checkbox 
+                                checked={selectedGeneratedSearches.includes(index)}
+                                onCheckedChange={() => toggleGeneratedSearch(index)}
+                              />
+                              <span className="flex-1">{search}</span>
+                              {selectedGeneratedSearches.includes(index) && (
+                                <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">
+                                  WR={selectedGeneratedSearches.indexOf(index) + 1}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div><Label>Status</Label>
                       <Select value={blogForm.status} onValueChange={(value) => setBlogForm({...blogForm, status: value})}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
@@ -601,6 +712,10 @@ export const DataOrbitZoneManager = () => {
               allData={blogs}
               csvColumns={['id', 'title', 'slug', 'author', 'status', 'category_id']}
               csvFilename="dataorbitzone_blogs"
+              linkGenerator={(blog) => {
+                const category = categories.find(c => c.id === (blog as Blog).category_id);
+                return `${getBaseUrl()}/dataorbit/blog/${category?.slug || 'general'}/${(blog as Blog).slug}`;
+              }}
             />
             <div className="space-y-2">
               {blogs.map((blog) => (
@@ -614,6 +729,12 @@ export const DataOrbitZoneManager = () => {
                     <p className="text-sm text-muted-foreground">{blog.slug} • {blog.status}</p>
                   </div>
                   <div className="flex gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => copyBlogLink(blog)} title="Copy Link">
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => window.open(`/dataorbit/blog/${categories.find(c => c.id === blog.category_id)?.slug || 'general'}/${blog.slug}`, '_blank')} title="Open">
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => { setEditingBlog(blog); setBlogForm({title: blog.title, slug: blog.slug, category_id: blog.category_id?.toString() || "", author: blog.author, content: blog.content, featured_image: blog.featured_image || "", status: blog.status, author_bio: blog.author_bio || "", author_image: blog.author_image || ""}); setBlogDialog(true); }}><Edit className="h-4 w-4" /></Button>
                     <Button size="sm" variant="destructive" onClick={() => handleDeleteBlog(blog.id)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
@@ -624,7 +745,12 @@ export const DataOrbitZoneManager = () => {
 
           {/* Related Searches Tab */}
           <TabsContent value="searches" className="space-y-4">
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              {selectedSearches.size > 0 && (
+                <Button variant="outline" onClick={copySelectedSearchLinks}>
+                  <Copy className="mr-2 h-4 w-4" />Copy {selectedSearches.size} Link(s)
+                </Button>
+              )}
               <Dialog open={searchDialog} onOpenChange={setSearchDialog}>
                 <DialogTrigger asChild>
                   <Button onClick={resetSearchForm}><Plus className="mr-2 h-4 w-4" />New Search</Button>
@@ -637,14 +763,9 @@ export const DataOrbitZoneManager = () => {
                         <SelectTrigger><SelectValue placeholder="Select blog" /></SelectTrigger>
                         <SelectContent>{blogs.map((blog) => <SelectItem key={blog.id} value={blog.id}>{blog.title}</SelectItem>)}</SelectContent>
                       </Select>
-                      {searchForm.blog_id && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Adding related search to: <span className="font-semibold">{blogs.find(b => b.id === searchForm.blog_id)?.title}</span>
-                        </p>
-                      )}
                     </div>
                     <div><Label>Search Text *</Label><Input value={searchForm.search_text} onChange={(e) => setSearchForm({...searchForm, search_text: e.target.value})} required /></div>
-                    <div><Label>Display Order</Label><Input type="number" value={searchForm.display_order} onChange={(e) => setSearchForm({...searchForm, display_order: parseInt(e.target.value)})} /></div>
+                    <div><Label>Display Order (WR number)</Label><Input type="number" value={searchForm.display_order} onChange={(e) => setSearchForm({...searchForm, display_order: parseInt(e.target.value) || 1})} min="1" max="4" /></div>
                     <div className="flex gap-2">
                       <Button type="submit" className="flex-1">{editingSearch ? "Update" : "Create"}</Button>
                       <Button type="button" variant="outline" onClick={resetSearchForm}>Cancel</Button>
@@ -653,17 +774,38 @@ export const DataOrbitZoneManager = () => {
                 </DialogContent>
               </Dialog>
             </div>
+            <BulkActionToolbar
+              selectedCount={selectedSearches.size}
+              totalCount={relatedSearches.length}
+              onSelectAll={handleSelectAllSearches}
+              onDelete={handleBulkDeleteSearches}
+              isAllSelected={selectedSearches.size === relatedSearches.length && relatedSearches.length > 0}
+              selectedData={relatedSearches.filter(s => selectedSearches.has(s.id))}
+              allData={relatedSearches}
+              csvColumns={['id', 'search_text', 'display_order', 'blog_id']}
+              csvFilename="dataorbitzone_searches"
+              linkGenerator={(search) => `${getBaseUrl()}/dataorbit/wr?id=${(search as RelatedSearch).id}&wr=${(search as RelatedSearch).display_order}`}
+            />
             <div className="space-y-2">
               {relatedSearches.map((search) => (
-                <div key={search.id} className="flex items-center justify-between p-4 border rounded">
-                  <div>
+                <div key={search.id} className="flex items-center gap-3 p-4 border rounded">
+                  <Checkbox
+                    checked={selectedSearches.has(search.id)}
+                    onCheckedChange={() => toggleSearchSelection(search.id)}
+                  />
+                  <div className="flex-1">
                     <h3 className="font-semibold">{search.search_text}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {(search as any).blogs?.title && <span className="text-primary font-medium">Blog: {(search as any).blogs.title} | </span>}
-                      Order: {search.display_order}
+                      WR={search.display_order} • Blog: {blogs.find(b => b.id === search.blog_id)?.title || 'N/A'}
                     </p>
                   </div>
                   <div className="flex gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => copySearchLink(search)} title="Copy Link">
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => window.open(`/dataorbit/wr?id=${search.id}&wr=${search.display_order}`, '_blank')} title="Open">
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => { setEditingSearch(search); setSearchForm({blog_id: search.blog_id || "", search_text: search.search_text, display_order: search.display_order}); setSearchDialog(true); }}><Edit className="h-4 w-4" /></Button>
                     <Button size="sm" variant="destructive" onClick={() => handleDeleteSearch(search.id)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
@@ -674,7 +816,12 @@ export const DataOrbitZoneManager = () => {
 
           {/* Web Results Tab */}
           <TabsContent value="webresults" className="space-y-4">
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              {selectedWebResults.size > 0 && (
+                <Button variant="outline" onClick={copySelectedWebResultLinks}>
+                  <Copy className="mr-2 h-4 w-4" />Copy {selectedWebResults.size} Link(s)
+                </Button>
+              )}
               <Dialog open={webResultDialog} onOpenChange={setWebResultDialog}>
                 <DialogTrigger asChild>
                   <Button onClick={resetWebResultForm}><Plus className="mr-2 h-4 w-4" />Add Web Result</Button>
@@ -685,7 +832,7 @@ export const DataOrbitZoneManager = () => {
                     <div><Label>Related Search *</Label>
                       <Select value={webResultForm.related_search_id} onValueChange={(value) => setWebResultForm({...webResultForm, related_search_id: value})} required>
                         <SelectTrigger><SelectValue placeholder="Select related search" /></SelectTrigger>
-                        <SelectContent>{relatedSearches.map((search) => <SelectItem key={search.id} value={search.id}>{search.search_text}</SelectItem>)}</SelectContent>
+                        <SelectContent>{relatedSearches.map((search) => <SelectItem key={search.id} value={search.id}>{search.search_text} (WR={search.display_order})</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                     <div><Label>Title *</Label><Input value={webResultForm.title} onChange={(e) => setWebResultForm({...webResultForm, title: e.target.value})} required /></div>
@@ -726,6 +873,10 @@ export const DataOrbitZoneManager = () => {
               allData={webResults}
               csvColumns={['id', 'title', 'target_url', 'description', 'page_number', 'position', 'is_active', 'is_sponsored']}
               csvFilename="dataorbitzone_web_results"
+              linkGenerator={(result) => {
+                const search = relatedSearches.find(s => s.id === (result as WebResult).related_search_id);
+                return `${getBaseUrl()}/dataorbit/wr?id=${search?.id}&wr=${search?.display_order || 1}`;
+              }}
             />
             <div className="space-y-2">
               {webResults.map((result) => (
@@ -744,6 +895,15 @@ export const DataOrbitZoneManager = () => {
                     </p>
                   </div>
                   <div className="flex gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => copyWebResultLink(result)} title="Copy Link">
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => {
+                      const search = relatedSearches.find(s => s.id === result.related_search_id);
+                      window.open(`/dataorbit/wr?id=${search?.id}&wr=${search?.display_order || 1}`, '_blank');
+                    }} title="Open">
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => { 
                       setEditingWebResult(result); 
                       setWebResultForm({
@@ -760,77 +920,6 @@ export const DataOrbitZoneManager = () => {
                       setWebResultDialog(true); 
                     }}><Edit className="h-4 w-4" /></Button>
                     <Button size="sm" variant="destructive" onClick={() => handleDeleteWebResult(result.id)}><Trash2 className="h-4 w-4" /></Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </TabsContent>
-
-          {/* Prelanding Pages Tab */}
-          <TabsContent value="prelanding" className="space-y-4">
-            <div className="flex justify-end">
-              <Dialog open={prelandingDialog} onOpenChange={setPrelandingDialog}>
-                <DialogTrigger asChild>
-                  <Button onClick={resetPrelandingForm}><Plus className="mr-2 h-4 w-4" />New Prelanding</Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader><DialogTitle>{editingPrelanding ? "Edit" : "Create"} Prelanding Page</DialogTitle></DialogHeader>
-                  <form onSubmit={handlePrelandingSubmit} className="space-y-4">
-                    <div><Label>Page Key (unique identifier) *</Label>
-                      <Input value={prelandingForm.page_key} onChange={(e) => setPrelandingForm({...prelandingForm, page_key: e.target.value})} required placeholder="e.g., dataorbit-search-1" />
-                    </div>
-                    <div><Label>Target URL *</Label>
-                      <Input value={prelandingForm.target_url} onChange={(e) => setPrelandingForm({...prelandingForm, target_url: e.target.value})} required placeholder="https://example.com" />
-                    </div>
-                    <div><Label>Logo URL</Label><Input value={prelandingForm.logo_url} onChange={(e) => setPrelandingForm({...prelandingForm, logo_url: e.target.value})} /></div>
-                    <div><Label>Main Image URL</Label><Input value={prelandingForm.main_image_url} onChange={(e) => setPrelandingForm({...prelandingForm, main_image_url: e.target.value})} /></div>
-                    <div><Label>Headline</Label><Input value={prelandingForm.headline} onChange={(e) => setPrelandingForm({...prelandingForm, headline: e.target.value})} /></div>
-                    <div><Label>Description</Label><Textarea value={prelandingForm.description} onChange={(e) => setPrelandingForm({...prelandingForm, description: e.target.value})} /></div>
-                    <div><Label>CTA Button Text</Label><Input value={prelandingForm.cta_text} onChange={(e) => setPrelandingForm({...prelandingForm, cta_text: e.target.value})} /></div>
-                    <div><Label>CTA Button Color</Label><Input type="color" value={prelandingForm.cta_color} onChange={(e) => setPrelandingForm({...prelandingForm, cta_color: e.target.value})} /></div>
-                    <div className="flex gap-2">
-                      <Button type="submit" className="flex-1">{editingPrelanding ? "Update" : "Create"}</Button>
-                      <Button type="button" variant="outline" onClick={resetPrelandingForm}>Cancel</Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
-            <div className="space-y-2">
-              {prelandingPages.map((page) => (
-                <div key={page.id} className="flex items-center justify-between p-4 border rounded">
-                  <div>
-                    <h3 className="font-semibold">{page.headline}</h3>
-                    <p className="text-sm text-muted-foreground">{page.description}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => { 
-                      setEditingPrelanding(page); 
-                      setPrelandingForm({
-                        page_key: page.page_key,
-                        target_url: page.target_url,
-                        logo_url: page.logo_url || "",
-                        logo_position: page.logo_position,
-                        logo_width: page.logo_width,
-                        main_image_url: page.main_image_url || "",
-                        image_ratio: page.image_ratio,
-                        headline: page.headline,
-                        description: page.description,
-                        headline_font_size: page.headline_font_size,
-                        headline_color: page.headline_color,
-                        headline_align: page.headline_align,
-                        description_font_size: page.description_font_size,
-                        description_color: page.description_color,
-                        description_align: page.description_align,
-                        cta_text: page.cta_text,
-                        cta_color: page.cta_color,
-                        background_color: page.background_color,
-                        background_image_url: page.background_image_url || "",
-                        is_active: page.is_active
-                      }); 
-                      setPrelandingDialog(true); 
-                    }}><Edit className="h-4 w-4" /></Button>
-                    <Button size="sm" variant="destructive" onClick={() => handleDeletePrelanding(page.id)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 </div>
               ))}
