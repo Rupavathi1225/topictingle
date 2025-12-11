@@ -816,9 +816,9 @@ const Admin = () => {
     const client = getProjectClient(selectedWebsite);
     const projectName = getProjectName(selectedWebsite);
 
-    // DataOrbit uses DataOrbitZone manager component (uses dz_* tables)
+    // DataOrbit uses its own manager component
     if (selectedWebsite === 'dataorbit') {
-      return <DataOrbitZoneManager />;
+      return <DataOrbitManager initialTab={selectedSection} />;
     }
 
     switch (selectedSection) {
