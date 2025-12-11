@@ -13,6 +13,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { BlogImageSelector } from './BlogImageSelector';
 import { BulkActionToolbar } from './BulkActionToolbar';
 
+interface GeneratedSearch {
+  text: string;
+  selected: boolean;
+  wr: number;
+}
+
 export const TejaStarinBlogs = () => {
   const [blogs, setBlogs] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -21,6 +27,7 @@ export const TejaStarinBlogs = () => {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [generatedSearches, setGeneratedSearches] = useState<GeneratedSearch[]>([]);
   const [formData, setFormData] = useState({
     title: '',
     slug: '',
@@ -152,14 +159,24 @@ export const TejaStarinBlogs = () => {
     setIsGeneratingContent(true);
     try {
       const { data, error } = await supabase.functions.invoke('generate-blog-content', {
-        body: { title: formData.title, slug: formData.slug }
+        body: { title: formData.title, slug: formData.slug, generateSearches: true }
       });
 
       if (error) throw error;
 
       if (data?.content) {
         setFormData(prev => ({ ...prev, content: data.content }));
-        toast.success("Content generated successfully!");
+        
+        if (data.relatedSearches && data.relatedSearches.length > 0) {
+          setGeneratedSearches(data.relatedSearches.map((text: string) => ({
+            text,
+            selected: false,
+            wr: 0
+          })));
+          toast.success(`Content and ${data.relatedSearches.length} related searches generated!`);
+        } else {
+          toast.success("Content generated successfully!");
+        }
       } else {
         throw new Error("No content returned");
       }
@@ -199,6 +216,29 @@ export const TejaStarinBlogs = () => {
     }
   };
 
+  const toggleSearchSelection = (index: number) => {
+    const selectedCount = generatedSearches.filter(s => s.selected).length;
+    const isCurrentlySelected = generatedSearches[index].selected;
+    
+    if (!isCurrentlySelected && selectedCount >= 4) {
+      toast.error("You can only select up to 4 related searches");
+      return;
+    }
+
+    setGeneratedSearches(prev => {
+      const updated = [...prev];
+      if (!isCurrentlySelected) {
+        // Assign next available WR (1-4)
+        const usedWRs = updated.filter(s => s.selected).map(s => s.wr);
+        const nextWR = [1, 2, 3, 4].find(wr => !usedWRs.includes(wr)) || 1;
+        updated[index] = { ...updated[index], selected: true, wr: nextWR };
+      } else {
+        updated[index] = { ...updated[index], selected: false, wr: 0 };
+      }
+      return updated;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -213,6 +253,12 @@ export const TejaStarinBlogs = () => {
     };
 
     if (editingBlog) {
+      // Delete existing related searches for this blog first
+      await tejaStarinClient
+        .from('related_searches')
+        .delete()
+        .eq('blog_id', editingBlog.id);
+
       const { error } = await tejaStarinClient
         .from('blogs')
         .update(payload)
@@ -220,28 +266,84 @@ export const TejaStarinBlogs = () => {
       
       if (error) {
         toast.error('Failed to update blog');
-      } else {
-        toast.success('Blog updated!');
-        setDialogOpen(false);
-        setEditingBlog(null);
-        fetchBlogs();
+        return;
       }
+
+      // Insert selected related searches
+      const selectedSearches = generatedSearches.filter(s => s.selected);
+      if (selectedSearches.length > 0) {
+        const searchesToInsert = selectedSearches.map((search, idx) => ({
+          blog_id: editingBlog.id,
+          search_text: search.text,
+          wr: search.wr,
+          order_index: idx,
+        }));
+        
+        await tejaStarinClient.from('related_searches').insert(searchesToInsert);
+      }
+
+      toast.success('Blog updated!');
+      setDialogOpen(false);
+      setEditingBlog(null);
+      resetForm();
+      fetchBlogs();
     } else {
-      const { error } = await tejaStarinClient
+      const { data: newBlog, error } = await tejaStarinClient
         .from('blogs')
-        .insert([payload]);
+        .insert([payload])
+        .select()
+        .single();
       
       if (error) {
         toast.error('Failed to create blog');
+        return;
+      }
+
+      // Insert selected related searches
+      const selectedSearches = generatedSearches.filter(s => s.selected);
+      if (selectedSearches.length > 0 && newBlog) {
+        const searchesToInsert = selectedSearches.map((search, idx) => ({
+          blog_id: newBlog.id,
+          search_text: search.text,
+          wr: search.wr,
+          order_index: idx,
+        }));
+        
+        const { error: searchError } = await tejaStarinClient
+          .from('related_searches')
+          .insert(searchesToInsert);
+        
+        if (searchError) {
+          console.error('Error saving related searches:', searchError);
+          toast.error('Blog created but failed to save related searches');
+        } else {
+          toast.success('Blog and related searches created!');
+        }
       } else {
         toast.success('Blog created!');
-        setDialogOpen(false);
-        fetchBlogs();
       }
+      
+      setDialogOpen(false);
+      resetForm();
+      fetchBlogs();
     }
   };
 
-  const handleEdit = (blog: any) => {
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      slug: '',
+      author: '',
+      content: '',
+      category_id: '',
+      featured_image: '',
+      status: 'published',
+    });
+    setGeneratedSearches([]);
+    setEditingBlog(null);
+  };
+
+  const handleEdit = async (blog: any) => {
     setEditingBlog(blog);
     setFormData({
       title: blog.title,
@@ -252,6 +354,24 @@ export const TejaStarinBlogs = () => {
       featured_image: blog.featured_image || '',
       status: blog.status || 'published',
     });
+
+    // Load existing related searches for this blog
+    const { data: existingSearches } = await tejaStarinClient
+      .from('related_searches')
+      .select('*')
+      .eq('blog_id', blog.id)
+      .order('order_index');
+
+    if (existingSearches && existingSearches.length > 0) {
+      setGeneratedSearches(existingSearches.map(s => ({
+        text: s.search_text,
+        selected: true,
+        wr: s.wr || 1
+      })));
+    } else {
+      setGeneratedSearches([]);
+    }
+
     setDialogOpen(true);
   };
 
@@ -324,21 +444,19 @@ export const TejaStarinBlogs = () => {
     }
   };
 
+  // Link generator for copy functionality
+  const blogLinkGenerator = (blog: any) => {
+    const category = categories.find(c => c.id === blog.category_id);
+    const categorySlug = category?.slug || category?.name?.toLowerCase().replace(/\s+/g, '-') || 'uncategorized';
+    return `${window.location.origin}/datacreditzone/blog/${categorySlug}/${blog.slug}`;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-xl font-semibold">DataCreditZone Blogs</h3>
         <Button onClick={() => {
-          setEditingBlog(null);
-          setFormData({
-            title: '',
-            slug: '',
-            author: '',
-            content: '',
-            category_id: '',
-            featured_image: '',
-            status: 'published',
-          });
+          resetForm();
           setDialogOpen(true);
         }}>
           <Plus className="w-4 h-4 mr-2" />
@@ -419,6 +537,45 @@ export const TejaStarinBlogs = () => {
                 required
               />
             </div>
+
+            {/* Related Searches Selection */}
+            {generatedSearches.length > 0 && (
+              <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                <div className="flex justify-between items-center">
+                  <Label className="text-base font-semibold">
+                    Select Related Searches (max 4)
+                  </Label>
+                  <span className="text-sm text-muted-foreground">
+                    {generatedSearches.filter(s => s.selected).length}/4 selected
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {generatedSearches.map((search, index) => (
+                    <div
+                      key={index}
+                      className={`flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-colors ${
+                        search.selected 
+                          ? 'bg-primary/10 border-primary' 
+                          : 'hover:bg-muted/50'
+                      }`}
+                      onClick={() => toggleSearchSelection(index)}
+                    >
+                      <Checkbox
+                        checked={search.selected}
+                        onCheckedChange={() => toggleSearchSelection(index)}
+                      />
+                      <span className="flex-1">{search.text}</span>
+                      {search.selected && (
+                        <span className="px-2 py-1 bg-primary text-primary-foreground text-xs rounded">
+                          WR-{search.wr}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label>Featured Image</Label>
@@ -482,6 +639,7 @@ export const TejaStarinBlogs = () => {
         allData={blogs}
         csvColumns={['id', 'title', 'slug', 'author', 'status', 'category_id', 'created_at']}
         csvFilename="tejastarin_blogs"
+        linkGenerator={blogLinkGenerator}
       />
 
       <div className="bg-card rounded-lg border">

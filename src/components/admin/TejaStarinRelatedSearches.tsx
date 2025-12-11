@@ -171,6 +171,11 @@ export const TejaStarinRelatedSearches = () => {
     }
   };
 
+  // Link generator for copy functionality
+  const searchLinkGenerator = (search: any) => {
+    return `${window.location.origin}/datacreditzone/web-results/${search.id}?wr=${search.wr || 1}`;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -239,6 +244,7 @@ export const TejaStarinRelatedSearches = () => {
             allData={relatedSearches}
             csvColumns={['id', 'search_text', 'blog_id', 'wr', 'order_index']}
             csvFilename="tejastarin_related_searches"
+            linkGenerator={searchLinkGenerator}
           />
           <div className="overflow-x-auto">
             <table className="w-full">
