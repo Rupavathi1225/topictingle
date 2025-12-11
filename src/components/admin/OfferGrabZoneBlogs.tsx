@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { offerGrabZoneClient } from "@/integrations/offergrabzone/client";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,7 +31,7 @@ import {
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Pencil, Trash2, Copy, ExternalLink, Loader2, Sparkles, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Copy, ExternalLink, Loader2, Sparkles, Search, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { BulkActionToolbar } from "./BulkActionToolbar";
 
@@ -72,6 +73,7 @@ const OfferGrabZoneBlogs = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBlog, setEditingBlog] = useState<Blog | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBlogs, setSelectedBlogs] = useState<Set<string>>(new Set());
   
@@ -192,13 +194,51 @@ const OfferGrabZoneBlogs = () => {
 
     setIsGeneratingImage(true);
     try {
-      // Placeholder - would call edge function
-      toast.info("AI image generation coming soon");
+      const { data, error } = await supabase.functions.invoke('generate-blog-image', {
+        body: { blogTitle: formData.title }
+      });
+
+      if (error) throw error;
+
+      if (data?.imageUrl) {
+        setFormData(prev => ({ ...prev, featured_image_url: data.imageUrl }));
+        toast.success("AI image generated successfully!");
+      } else {
+        throw new Error("No image URL returned");
+      }
     } catch (error) {
       console.error("Error generating image:", error);
       toast.error(error instanceof Error ? error.message : "Failed to generate image");
     } finally {
       setIsGeneratingImage(false);
+    }
+  };
+
+  const generateContent = async () => {
+    if (!formData.title) {
+      toast.error("Please enter a title first");
+      return;
+    }
+
+    setIsGeneratingContent(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-blog-content', {
+        body: { title: formData.title, slug: formData.slug }
+      });
+
+      if (error) throw error;
+
+      if (data?.content) {
+        setFormData(prev => ({ ...prev, content: data.content }));
+        toast.success("Content generated successfully!");
+      } else {
+        throw new Error("No content returned");
+      }
+    } catch (error) {
+      console.error("Error generating content:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to generate content");
+    } finally {
+      setIsGeneratingContent(false);
     }
   };
 
@@ -411,7 +451,24 @@ const OfferGrabZoneBlogs = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="content" className="text-white">Content</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="content" className="text-white">Content</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={generateContent}
+                    disabled={isGeneratingContent || !formData.title}
+                    className="gap-2 border-[#2a3f5f] text-white hover:bg-[#2a3f5f]"
+                  >
+                    {isGeneratingContent ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <FileText className="w-4 h-4" />
+                    )}
+                    Generate Content
+                  </Button>
+                </div>
                 <Textarea
                   id="content"
                   value={formData.content}
