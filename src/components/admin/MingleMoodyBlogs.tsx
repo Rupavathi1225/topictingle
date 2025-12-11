@@ -435,12 +435,20 @@ export const MingleMoodyBlogs = () => {
 
               <div className="space-y-2">
                 <Label className="text-gray-300">Category</Label>
-                <Input
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  placeholder="Blog category"
-                  className="bg-[#0d1520] border-[#2a3f5f] text-white"
-                />
+                <Select value={category || "none"} onValueChange={(val) => setCategory(val === "none" ? "" : val)}>
+                  <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
+                    <SelectItem value="none" className="text-white hover:bg-[#2a3f5f]">Select category</SelectItem>
+                    <SelectItem value="Finance" className="text-white hover:bg-[#2a3f5f]">Finance</SelectItem>
+                    <SelectItem value="Technology" className="text-white hover:bg-[#2a3f5f]">Technology</SelectItem>
+                    <SelectItem value="Lifestyle" className="text-white hover:bg-[#2a3f5f]">Lifestyle</SelectItem>
+                    <SelectItem value="Business" className="text-white hover:bg-[#2a3f5f]">Business</SelectItem>
+                    <SelectItem value="Health" className="text-white hover:bg-[#2a3f5f]">Health</SelectItem>
+                    <SelectItem value="Education" className="text-white hover:bg-[#2a3f5f]">Education</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
