@@ -986,6 +986,11 @@ const Admin = () => {
                 allData={blogs}
                 csvColumns={['id', 'title', 'slug', 'author', 'status', 'category_id', 'serial_number', 'published_at']}
                 csvFilename="topicmingle_blogs"
+                linkGenerator={(blog) => {
+                  const category = categories.find(c => c.id === blog.category_id);
+                  const categorySlug = category?.slug || 'uncategorized';
+                  return `${window.location.origin}/blog/${categorySlug}/${blog.slug}`;
+                }}
               />
             </div>
             <div className="overflow-x-auto">
