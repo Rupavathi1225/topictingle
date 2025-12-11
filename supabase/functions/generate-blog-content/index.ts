@@ -41,26 +41,24 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a professional blog content writer. Generate engaging, well-structured blog content based on the given title. 
-            
+            content: `You are a professional blog content writer. Generate engaging blog content based on the given title.
+
+CRITICAL REQUIREMENT: The content MUST be EXACTLY 100 words. Not more, not less. Count carefully.
+
 The content should:
 - Be informative and engaging
-- Include an introduction, main body with sections, and conclusion
-- Be between 800-1200 words
 - Be SEO-friendly with natural keyword usage
 - Have a conversational yet professional tone
 - Use plain text only - NO HTML tags whatsoever (no <p>, <h2>, <strong>, <ul>, <li>, etc.)
 - Use blank lines to separate paragraphs
-- Use ALL CAPS or ** for emphasis instead of HTML tags
-- Use section headers in plain text format (e.g., "What is Referral Income?" on its own line)
-- Use bullet points with - or • characters for lists
 
 Do NOT include the title in the content as it will be displayed separately.
-Do NOT use any HTML tags at all - output plain text only.`
+Do NOT use any HTML tags at all - output plain text only.
+REMEMBER: EXACTLY 100 words total.`
           },
           {
             role: 'user',
-            content: `Write a comprehensive blog post with the title: "${title}"${slug ? ` (URL slug: ${slug})` : ''}. Remember: Use ONLY plain text, no HTML tags.`
+            content: `Write a blog post with the title: "${title}"${slug ? ` (URL slug: ${slug})` : ''}. Remember: EXACTLY 100 words, plain text only, no HTML tags.`
           }
         ],
       }),
