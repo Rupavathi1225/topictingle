@@ -19,6 +19,7 @@ import SearchProjectPreLanding from "./pages/SearchProjectPreLanding";
 import DataOrbitZoneHome from "./pages/DataOrbitZoneHome";
 import DataOrbitZoneCategoryPage from "./pages/DataOrbitZoneCategoryPage";
 import DataOrbitZoneBlogPost from "./pages/DataOrbitZoneBlogPost";
+import OfferGrabZoneBlogPost from "./pages/OfferGrabZoneBlogPost";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,9 @@ const App = () => (
           <Route path="/dataorbit/blog/:categorySlug/:blogSlug" element={<DataOrbitZoneBlogPost />} />
           <Route path="/dataorbit/wr" element={<DataOrbitZoneWebResults />} />
           <Route path="/dataorbit/prelanding" element={<DataOrbitZonePreLanding />} />
+          
+          {/* OfferGrabZone Site */}
+          <Route path="/offergrabzone/blog/:blogSlug" element={<OfferGrabZoneBlogPost />} />
           
           {/* SearchProject Routes */}
           <Route path="/searchproject/wr" element={<SearchProjectWebResults />} />

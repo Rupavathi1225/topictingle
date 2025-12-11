@@ -276,11 +276,11 @@ const OfferGrabZoneBlogs = () => {
     if (selectedSearches.size === 0) return;
     
     const selectedTitles = Array.from(selectedSearches).map(index => generatedSearches[index]);
-    const relatedSearchesToInsert = selectedTitles.map((searchText, idx) => ({
-      search_text: searchText,
+    const relatedSearchesToInsert = selectedTitles.map((title, idx) => ({
+      title: title,
       blog_id: blogId,
-      target_url: `https://offergrabzone.com/search?q=${encodeURIComponent(searchText)}`,
-      display_order: idx + 1,
+      serial_number: idx + 1,
+      target_wr: idx + 1,
       is_active: true,
     }));
     
