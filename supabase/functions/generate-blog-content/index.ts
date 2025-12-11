@@ -46,16 +46,21 @@ serve(async (req) => {
 The content should:
 - Be informative and engaging
 - Include an introduction, main body with sections, and conclusion
-- Use proper HTML formatting with headings (<h2>, <h3>), paragraphs (<p>), lists (<ul>, <li>), and bold text (<strong>) where appropriate
 - Be between 800-1200 words
 - Be SEO-friendly with natural keyword usage
 - Have a conversational yet professional tone
+- Use plain text only - NO HTML tags whatsoever (no <p>, <h2>, <strong>, <ul>, <li>, etc.)
+- Use blank lines to separate paragraphs
+- Use ALL CAPS or ** for emphasis instead of HTML tags
+- Use section headers in plain text format (e.g., "What is Referral Income?" on its own line)
+- Use bullet points with - or • characters for lists
 
-Do NOT include the title in the content as it will be displayed separately.`
+Do NOT include the title in the content as it will be displayed separately.
+Do NOT use any HTML tags at all - output plain text only.`
           },
           {
             role: 'user',
-            content: `Write a comprehensive blog post with the title: "${title}"${slug ? ` (URL slug: ${slug})` : ''}`
+            content: `Write a comprehensive blog post with the title: "${title}"${slug ? ` (URL slug: ${slug})` : ''}. Remember: Use ONLY plain text, no HTML tags.`
           }
         ],
       }),
