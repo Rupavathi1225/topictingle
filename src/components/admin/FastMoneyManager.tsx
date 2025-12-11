@@ -24,6 +24,13 @@ interface RelatedSearch {
   position: number;
   display_order: number;
   is_active: boolean;
+  blog_id: string | null;
+}
+
+interface Blog {
+  id: string;
+  title: string;
+  slug: string;
 }
 
 interface WebResult {
@@ -98,11 +105,12 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
 
   // Related Searches
   const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
+  const [blogs, setBlogs] = useState<Blog[]>([]);
   const [searchDialog, setSearchDialog] = useState(false);
   const [editingSearch, setEditingSearch] = useState<RelatedSearch | null>(null);
   const [selectedSearches, setSelectedSearches] = useState<Set<string>>(new Set());
   const [searchForm, setSearchForm] = useState({
-    search_text: "", title: "", web_result_page: 1, position: 1, display_order: 0, is_active: true
+    search_text: "", title: "", web_result_page: 1, position: 1, display_order: 0, is_active: true, blog_id: "" as string | null
   });
 
   // Web Results
@@ -145,7 +153,8 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
       fetchRelatedSearches(),
       fetchWebResults(),
       fetchAllWebResults(),
-      fetchPrelanders()
+      fetchPrelanders(),
+      fetchBlogs()
     ]);
   };
 
@@ -159,6 +168,12 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
     const { data, error } = await fastMoneyClient.from("related_searches").select("*").order("display_order");
     if (error) toast.error("Failed to fetch related searches");
     else setRelatedSearches(data || []);
+  };
+
+  const fetchBlogs = async () => {
+    const { data, error } = await fastMoneyClient.from("blogs").select("id, title, slug").order("title");
+    if (error) console.error("Failed to fetch blogs:", error);
+    else setBlogs(data || []);
   };
 
   const fetchAllWebResults = async () => {
@@ -227,7 +242,10 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
   // Related Search CRUD
   const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = { ...searchForm };
+    const data = { 
+      ...searchForm,
+      blog_id: searchForm.blog_id || null
+    };
 
     if (editingSearch) {
       const { error } = await fastMoneyClient.from("related_searches").update({
@@ -251,7 +269,7 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
   };
 
   const resetSearchForm = () => {
-    setSearchForm({ search_text: "", title: "", web_result_page: 1, position: 1, display_order: 0, is_active: true });
+    setSearchForm({ search_text: "", title: "", web_result_page: 1, position: 1, display_order: 0, is_active: true, blog_id: null });
     setEditingSearch(null);
     setSearchDialog(false);
   };
@@ -540,6 +558,20 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
                 <DialogContent className="bg-[#1a2942] border-[#2a3f5f] text-white">
                   <DialogHeader><DialogTitle className="text-white">{editingSearch ? "Edit" : "Create"} Related Search</DialogTitle></DialogHeader>
                   <form onSubmit={handleSearchSubmit} className="space-y-4">
+                    <div>
+                      <Label className="text-gray-300">Blog (optional)</Label>
+                      <Select value={searchForm.blog_id || "no_blog"} onValueChange={(value) => setSearchForm({ ...searchForm, blog_id: value === "no_blog" ? null : value })}>
+                        <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white">
+                          <SelectValue placeholder="No blog (Landing page)" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#1a2942] border-[#2a3f5f] max-h-[200px]">
+                          <SelectItem value="no_blog" className="text-white hover:bg-[#2a3f5f]">No blog (Landing page)</SelectItem>
+                          {blogs.map(blog => (
+                            <SelectItem key={blog.id} value={blog.id} className="text-white hover:bg-[#2a3f5f]">{blog.title}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div><Label className="text-gray-300">Search Text *</Label><Input value={searchForm.search_text} onChange={(e) => setSearchForm({ ...searchForm, search_text: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div><Label className="text-gray-300">Title *</Label><Input value={searchForm.title} onChange={(e) => setSearchForm({ ...searchForm, title: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div className="grid grid-cols-2 gap-4">
@@ -588,7 +620,10 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
                       <Badge variant="outline" className="text-xs border-[#2a3f5f] text-[#00b4d8]">(Related Search)</Badge>
                       <h3 className="font-semibold text-white">{search.title}</h3>
                     </div>
-                    <p className="text-sm text-gray-400">{search.search_text} • Page {search.web_result_page} • Pos {search.position}</p>
+                    <p className="text-sm text-gray-400">
+                      {search.search_text} • Page {search.web_result_page} • Pos {search.position}
+                      {search.blog_id && ` • Blog: ${blogs.find(b => b.id === search.blog_id)?.title || 'Unknown'}`}
+                    </p>
                     <span className={`text-xs px-2 py-1 rounded ${search.is_active ? 'bg-[#00b4d8]/20 text-[#00b4d8]' : 'bg-red-500/20 text-red-400'}`}>
                       {search.is_active ? 'Active' : 'Inactive'}
                     </span>
@@ -599,7 +634,8 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
                       setSearchForm({
                         search_text: search.search_text, title: search.title,
                         web_result_page: search.web_result_page, position: search.position,
-                        display_order: search.display_order, is_active: search.is_active
+                        display_order: search.display_order, is_active: search.is_active,
+                        blog_id: search.blog_id || ""
                       });
                       setSearchDialog(true);
                     }}><Edit className="h-4 w-4" /></Button>
