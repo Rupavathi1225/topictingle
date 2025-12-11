@@ -76,6 +76,8 @@ const OfferGrabZoneBlogs = () => {
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBlogs, setSelectedBlogs] = useState<Set<string>>(new Set());
+  const [generatedSearches, setGeneratedSearches] = useState<string[]>([]);
+  const [selectedSearches, setSelectedSearches] = useState<Set<number>>(new Set());
   
   const [formData, setFormData] = useState({
     title: "",
@@ -103,10 +105,15 @@ const OfferGrabZoneBlogs = () => {
   const createMutation = useMutation({
     mutationFn: async (data: Omit<Blog, "id" | "created_at" | "updated_at" | "is_active" | "excerpt">) => {
       const isActive = data.status === "published";
-      const { error } = await offerGrabZoneClient.from("blogs").insert([{ ...data, is_active: isActive, excerpt: null }]);
+      const { data: insertedData, error } = await offerGrabZoneClient.from("blogs").insert([{ ...data, is_active: isActive, excerpt: null }]).select().single();
       if (error) throw error;
+      return insertedData;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      // Save selected related searches
+      if (data && selectedSearches.size > 0) {
+        await saveRelatedSearches(data.id);
+      }
       queryClient.invalidateQueries({ queryKey: ["offergrabzone-blogs"] });
       toast.success("Blog created successfully");
       resetForm();
@@ -176,6 +183,8 @@ const OfferGrabZoneBlogs = () => {
       status: "published",
     });
     setEditingBlog(null);
+    setGeneratedSearches([]);
+    setSelectedSearches(new Set());
   };
 
   const handleTitleChange = (title: string) => {
@@ -223,14 +232,21 @@ const OfferGrabZoneBlogs = () => {
     setIsGeneratingContent(true);
     try {
       const { data, error } = await supabase.functions.invoke('generate-blog-content', {
-        body: { title: formData.title, slug: formData.slug }
+        body: { title: formData.title, slug: formData.slug, generateSearches: true }
       });
 
       if (error) throw error;
 
       if (data?.content) {
         setFormData(prev => ({ ...prev, content: data.content }));
-        toast.success("Content generated successfully!");
+        
+        // Store generated searches in state for user selection
+        if (data.relatedSearches && data.relatedSearches.length > 0) {
+          setGeneratedSearches(data.relatedSearches);
+          setSelectedSearches(new Set()); // Reset selections
+        }
+        
+        toast.success("Content generated! Select related searches below.");
       } else {
         throw new Error("No content returned");
       }
@@ -239,6 +255,44 @@ const OfferGrabZoneBlogs = () => {
       toast.error(error instanceof Error ? error.message : "Failed to generate content");
     } finally {
       setIsGeneratingContent(false);
+    }
+  };
+
+  const toggleSearchSelection = (index: number) => {
+    setSelectedSearches(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else if (newSet.size < 4) {
+        newSet.add(index);
+      } else {
+        toast.error("Maximum 4 related searches allowed");
+      }
+      return newSet;
+    });
+  };
+
+  const saveRelatedSearches = async (blogId: string) => {
+    if (selectedSearches.size === 0) return;
+    
+    const selectedTitles = Array.from(selectedSearches).map(index => generatedSearches[index]);
+    const relatedSearchesToInsert = selectedTitles.map((searchText, idx) => ({
+      search_text: searchText,
+      blog_id: blogId,
+      target_url: `https://offergrabzone.com/search?q=${encodeURIComponent(searchText)}`,
+      display_order: idx + 1,
+      is_active: true,
+    }));
+    
+    // Delete existing related searches for this blog first
+    await offerGrabZoneClient.from("related_searches").delete().eq("blog_id", blogId);
+    
+    // Insert selected related searches
+    const { error: insertError } = await offerGrabZoneClient.from("related_searches").insert(relatedSearchesToInsert);
+    if (insertError) {
+      console.error("Error saving related searches:", insertError);
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["offergrabzone-related-searches"] });
     }
   };
 
@@ -494,6 +548,35 @@ const OfferGrabZoneBlogs = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Related Searches Selection */}
+              {generatedSearches.length > 0 && !editingBlog && (
+                <div className="space-y-2 p-4 border border-[#2a3f5f] rounded-lg bg-[#0d1520]">
+                  <Label className="text-white">Select Related Searches (max 4)</Label>
+                  <p className="text-sm text-gray-400">Choose up to 4 related searches to link with this blog</p>
+                  <div className="space-y-2 mt-2">
+                    {generatedSearches.map((search, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`search-${index}`}
+                          checked={selectedSearches.has(index)}
+                          onCheckedChange={() => toggleSearchSelection(index)}
+                          className="border-[#2a3f5f] data-[state=checked]:bg-[#00b4d8]"
+                        />
+                        <label
+                          htmlFor={`search-${index}`}
+                          className="text-sm text-gray-300 cursor-pointer"
+                        >
+                          {search}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Selected: {selectedSearches.size}/4
+                  </p>
+                </div>
+              )}
 
               <div className="flex justify-end gap-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="border-[#2a3f5f] text-white hover:bg-[#2a3f5f]">
