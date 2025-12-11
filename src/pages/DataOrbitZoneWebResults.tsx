@@ -7,11 +7,10 @@ interface WebResult {
   id: string;
   title: string;
   description?: string;
-  logo_url?: string;
-  target_url: string;
-  page_number: number;
+  logo?: string;
+  url: string;
+  name?: string;
   position: number;
-  is_active: boolean;
   is_sponsored?: boolean;
   related_search_id?: string | null;
   has_prelanding?: boolean;
@@ -40,21 +39,19 @@ export const DataOrbitZoneWebResults = () => {
       .eq('id', relatedSearchId)
       .maybeSingle();
     if (data) {
-      setSearchTitle(data.title || data.search_text);
+      setSearchTitle(data.title || data.search_text || '');
     }
   };
 
   const fetchWebResults = async () => {
+    // Query web_results from DataOrbit external database
     let query = dataOrbitClient
       .from('web_results')
       .select('*')
-      .eq('is_active', true)
       .order('position', { ascending: true });
 
     if (relatedSearchId) {
       query = query.eq('related_search_id', relatedSearchId);
-    } else {
-      query = query.eq('page_number', wrNumber);
     }
 
     const { data, error } = await query;
@@ -64,41 +61,42 @@ export const DataOrbitZoneWebResults = () => {
       return;
     }
 
-    if (data) {
-      // Fetch pre-landing pages to check which results have them
+    if (data && data.length > 0) {
+      // Check for pre-landing configs
       const relatedSearchIds = [...new Set(data.map((r: any) => r.related_search_id).filter(Boolean))];
       
       let prelandingSearchIds: string[] = [];
       if (relatedSearchIds.length > 0) {
         const { data: prelandings } = await dataOrbitClient
-          .from('pre_landing_pages')
-          .select('page_key')
-          .in('page_key', relatedSearchIds);
+          .from('pre_landing_config')
+          .select('web_result_id');
         
         if (prelandings) {
-          prelandingSearchIds = prelandings.map((p: any) => p.page_key);
+          // Get web_result_ids that have pre-landing configs
+          const webResultIdsWithPrelanding = prelandings.map((p: any) => p.web_result_id);
+          // Mark results that have pre-landing pages
+          data.forEach((r: any) => {
+            r.has_prelanding = webResultIdsWithPrelanding.includes(r.id);
+          });
         }
       }
 
-      // Mark results that have pre-landing pages
-      const resultsWithPrelanding = data.map((r: any) => ({
-        ...r,
-        has_prelanding: prelandingSearchIds.includes(r.related_search_id)
-      }));
-
-      const sponsored = resultsWithPrelanding.filter((r: any) => r.is_sponsored);
-      const organic = resultsWithPrelanding.filter((r: any) => !r.is_sponsored);
+      const sponsored = data.filter((r: any) => r.is_sponsored);
+      const organic = data.filter((r: any) => !r.is_sponsored);
       setSponsoredResults(sponsored as WebResult[]);
       setWebResults(organic as WebResult[]);
+    } else {
+      setSponsoredResults([]);
+      setWebResults([]);
     }
   };
 
   const handleResultClick = (result: WebResult) => {
     // If has pre-landing page, redirect to prelanding first
     if (result.has_prelanding && result.related_search_id) {
-      window.location.href = `/dataorbit/prelanding?search=${result.related_search_id}&redirect=${encodeURIComponent(result.target_url)}`;
+      window.location.href = `/dataorbit/prelanding?search=${result.related_search_id}&redirect=${encodeURIComponent(result.url)}`;
     } else {
-      window.location.href = result.target_url;
+      window.location.href = result.url;
     }
   };
 
@@ -132,9 +130,9 @@ export const DataOrbitZoneWebResults = () => {
                 <div className="flex gap-3">
                   {/* Favicon/Logo */}
                   <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0 border border-slate-600">
-                    {result.logo_url ? (
+                    {result.logo ? (
                       <img 
-                        src={result.logo_url} 
+                        src={result.logo} 
                         alt=""
                         className="w-full h-full object-cover"
                       />
@@ -189,8 +187,8 @@ export const DataOrbitZoneWebResults = () => {
                   key={result.id}
                   title={result.title}
                   description={result.description}
-                  logoUrl={result.logo_url}
-                  targetUrl={result.target_url}
+                  logoUrl={result.logo}
+                  targetUrl={result.url}
                   onClick={() => handleResultClick(result)}
                   siteName="dataorbitzone"
                   position={result.position || index + 1}
