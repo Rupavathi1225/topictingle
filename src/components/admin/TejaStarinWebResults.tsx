@@ -245,6 +245,11 @@ export const TejaStarinWebResults = () => {
     }
   };
 
+  // Link generator for copy functionality - copy the target URL
+  const webResultLinkGenerator = (result: any) => {
+    return result.url;
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -400,6 +405,7 @@ export const TejaStarinWebResults = () => {
             allData={webResults}
             csvColumns={['id', 'title', 'url', 'description', 'is_sponsored', 'order_index']}
             csvFilename="tejastarin_web_results"
+            linkGenerator={webResultLinkGenerator}
           />
 
           <Card>
