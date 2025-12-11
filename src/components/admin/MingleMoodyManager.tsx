@@ -24,6 +24,13 @@ interface RelatedSearch {
   position: number;
   display_order: number;
   is_active: boolean;
+  blog_id: string | null;
+}
+
+interface Blog {
+  id: string;
+  title: string;
+  slug: string;
 }
 
 interface WebResult {
@@ -88,8 +95,11 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
   const [editingSearch, setEditingSearch] = useState<RelatedSearch | null>(null);
   const [selectedSearches, setSelectedSearches] = useState<Set<string>>(new Set());
   const [selectedWebResults, setSelectedWebResults] = useState<Set<string>>(new Set());
+  // Blogs
+  const [blogs, setBlogs] = useState<Blog[]>([]);
+
   const [searchForm, setSearchForm] = useState({
-    search_text: "", title: "", web_result_page: 1, position: 1, display_order: 0, is_active: true
+    search_text: "", title: "", web_result_page: 1, position: 1, display_order: 0, is_active: true, blog_id: "" as string
   });
 
   // Bulk action handlers for Related Searches
@@ -207,8 +217,15 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
       fetchRelatedSearches(),
       fetchWebResults(),
       fetchAllWebResults(),
-      fetchPrelandings()
+      fetchPrelandings(),
+      fetchBlogs()
     ]);
+  };
+
+  const fetchBlogs = async () => {
+    const { data, error } = await mingleMoodyClient.from("blogs").select("id, title, slug").order("title");
+    if (error) console.error("Failed to fetch blogs:", error);
+    else setBlogs(data || []);
   };
 
   const fetchLandingContent = async () => {
@@ -283,7 +300,11 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
   // Related Search CRUD
   const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = { ...searchForm, title: searchForm.title || searchForm.search_text };
+    const data = { 
+      ...searchForm, 
+      title: searchForm.title || searchForm.search_text,
+      blog_id: searchForm.blog_id || null 
+    };
 
     if (editingSearch) {
       const { error } = await mingleMoodyClient.from("related_searches").update(data).eq("id", editingSearch.id);
@@ -306,7 +327,7 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
   };
 
   const resetSearchForm = () => {
-    setSearchForm({ search_text: "", title: "", web_result_page: 1, position: 1, display_order: 0, is_active: true });
+    setSearchForm({ search_text: "", title: "", web_result_page: 1, position: 1, display_order: 0, is_active: true, blog_id: "" });
     setEditingSearch(null);
     setSearchDialog(false);
   };
@@ -517,13 +538,43 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
                 <DialogContent className="bg-[#1a2942] border-[#2a3f5f] text-white">
                   <DialogHeader><DialogTitle className="text-white">{editingSearch ? "Edit" : "Create"} Related Search</DialogTitle></DialogHeader>
                   <form onSubmit={handleSearchSubmit} className="space-y-4">
-                    <div><Label className="text-gray-300">Search Text *</Label><Input value={searchForm.search_text} onChange={(e) => setSearchForm({ ...searchForm, search_text: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
-                    <div><Label className="text-gray-300">Title</Label><Input value={searchForm.title} onChange={(e) => setSearchForm({ ...searchForm, title: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div><Label className="text-gray-300">Web Result Page</Label><Input type="number" value={searchForm.web_result_page} onChange={(e) => setSearchForm({ ...searchForm, web_result_page: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
-                      <div><Label className="text-gray-300">Position</Label><Input type="number" value={searchForm.position} onChange={(e) => setSearchForm({ ...searchForm, position: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                      <div>
+                        <Label className="text-gray-300">Blog *</Label>
+                        <Select value={searchForm.blog_id || "none"} onValueChange={(v) => setSearchForm({ ...searchForm, blog_id: v === "none" ? "" : v })}>
+                          <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white"><SelectValue placeholder="Select Blog" /></SelectTrigger>
+                          <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
+                            <SelectItem value="none" className="text-white hover:bg-[#2a3f5f]">No Blog (Global)</SelectItem>
+                            {blogs.map(blog => <SelectItem key={blog.id} value={blog.id} className="text-white hover:bg-[#2a3f5f]">{blog.title}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div><Label className="text-gray-300">Title (visible to users)</Label><Input value={searchForm.title} onChange={(e) => setSearchForm({ ...searchForm, title: e.target.value })} placeholder="e.g., Best Social Media Platforms 2024" className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" /></div>
                     </div>
-                    <div><Label className="text-gray-300">Display Order</Label><Input type="number" value={searchForm.display_order} onChange={(e) => setSearchForm({ ...searchForm, display_order: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><Label className="text-gray-300">Search Text</Label><Input value={searchForm.search_text} onChange={(e) => setSearchForm({ ...searchForm, search_text: e.target.value })} required placeholder="Internal search text" className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" /></div>
+                      <div>
+                        <Label className="text-gray-300">Web Result Page (1-4)</Label>
+                        <Select value={searchForm.web_result_page.toString()} onValueChange={(v) => setSearchForm({ ...searchForm, web_result_page: parseInt(v) })}>
+                          <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white"><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
+                            {[1, 2, 3, 4].map(p => <SelectItem key={p} value={p.toString()} className="text-white hover:bg-[#2a3f5f]">Page {p}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-gray-300">Position (1-4)</Label>
+                        <Select value={searchForm.position.toString()} onValueChange={(v) => setSearchForm({ ...searchForm, position: parseInt(v) })}>
+                          <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white"><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
+                            {[1, 2, 3, 4].map(p => <SelectItem key={p} value={p.toString()} className="text-white hover:bg-[#2a3f5f]">Position {p}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div><Label className="text-gray-300">Display Order</Label><Input type="number" value={searchForm.display_order} onChange={(e) => setSearchForm({ ...searchForm, display_order: parseInt(e.target.value) })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    </div>
                     <div className="flex items-center gap-2">
                       <Switch checked={searchForm.is_active} onCheckedChange={(checked) => setSearchForm({ ...searchForm, is_active: checked })} />
                       <Label className="text-gray-300">Active</Label>
@@ -574,7 +625,8 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
                       setSearchForm({
                         search_text: search.search_text, title: search.title || "",
                         web_result_page: search.web_result_page, position: search.position,
-                        display_order: search.display_order, is_active: search.is_active
+                        display_order: search.display_order, is_active: search.is_active,
+                        blog_id: search.blog_id || ""
                       });
                       setSearchDialog(true);
                     }}><Edit className="h-4 w-4" /></Button>
