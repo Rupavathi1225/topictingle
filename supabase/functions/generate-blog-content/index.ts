@@ -15,6 +15,7 @@ serve(async (req) => {
     // Support both parameter naming conventions
     const title = body.title || body.blogTitle;
     const slug = body.slug || body.blogSlug;
+    const generateSearches = body.generateSearches !== false; // default true
     
     if (!title) {
       return new Response(
@@ -30,7 +31,8 @@ serve(async (req) => {
 
     console.log('Generating content for:', title);
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    // Generate blog content
+    const contentResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
@@ -64,28 +66,28 @@ REMEMBER: EXACTLY 100 words total.`
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
+    if (!contentResponse.ok) {
+      const errorText = await contentResponse.text();
+      console.error('AI gateway error:', contentResponse.status, errorText);
       
-      if (response.status === 429) {
+      if (contentResponse.status === 429) {
         return new Response(
           JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      if (response.status === 402) {
+      if (contentResponse.status === 402) {
         return new Response(
           JSON.stringify({ error: 'AI credits exhausted. Please add more credits.' }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
-      throw new Error(`AI gateway error: ${response.status}`);
+      throw new Error(`AI gateway error: ${contentResponse.status}`);
     }
 
-    const data = await response.json();
-    const generatedContent = data.choices?.[0]?.message?.content;
+    const contentData = await contentResponse.json();
+    const generatedContent = contentData.choices?.[0]?.message?.content;
 
     if (!generatedContent) {
       throw new Error('No content generated');
@@ -93,8 +95,49 @@ REMEMBER: EXACTLY 100 words total.`
 
     console.log('Content generated successfully');
 
+    // Generate related searches if requested
+    let relatedSearches: string[] = [];
+    if (generateSearches) {
+      console.log('Generating related searches...');
+      const searchResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            {
+              role: 'system',
+              content: `You generate related search queries for blog posts. Generate exactly 8 related search queries that users might search for related to the given blog topic. Each query should be a natural search phrase (3-7 words). Return ONLY a JSON array of strings, nothing else.`
+            },
+            {
+              role: 'user',
+              content: `Generate 8 related search queries for a blog titled: "${title}". Return only a JSON array like ["query 1", "query 2", ...]`
+            }
+          ],
+        }),
+      });
+
+      if (searchResponse.ok) {
+        const searchData = await searchResponse.json();
+        const searchContent = searchData.choices?.[0]?.message?.content;
+        if (searchContent) {
+          try {
+            // Parse the JSON array from response
+            const cleanedContent = searchContent.replace(/```json\n?|\n?```/g, '').trim();
+            relatedSearches = JSON.parse(cleanedContent);
+            console.log('Generated related searches:', relatedSearches);
+          } catch (e) {
+            console.error('Failed to parse related searches:', e);
+          }
+        }
+      }
+    }
+
     return new Response(
-      JSON.stringify({ content: generatedContent }),
+      JSON.stringify({ content: generatedContent, relatedSearches }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

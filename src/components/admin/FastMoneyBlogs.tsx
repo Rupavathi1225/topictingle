@@ -55,6 +55,8 @@ export const FastMoneyBlogs = () => {
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBlogs, setSelectedBlogs] = useState<Set<string>>(new Set());
+  const [generatedSearches, setGeneratedSearches] = useState<string[]>([]);
+  const [selectedSearches, setSelectedSearches] = useState<Set<number>>(new Set());
   const [formData, setFormData] = useState({
     title: "",
     slug: "",
@@ -78,13 +80,33 @@ export const FastMoneyBlogs = () => {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
-      const { error } = await fastMoneyClient.from("blogs").insert([data]);
+    mutationFn: async (data: typeof formData & { selectedSearchIndexes: number[] }) => {
+      const { selectedSearchIndexes, ...blogData } = data;
+      const { data: insertedBlog, error } = await fastMoneyClient.from("blogs").insert([blogData]).select().single();
       if (error) throw error;
+      
+      // Create selected related searches linked to this blog
+      if (selectedSearchIndexes.length > 0 && insertedBlog) {
+        const searchesToInsert = selectedSearchIndexes.map((index, i) => ({
+          search_text: generatedSearches[index],
+          title: generatedSearches[index],
+          web_result_page: i + 1,
+          position: 1,
+          display_order: i,
+          is_active: true,
+          blog_id: insertedBlog.id,
+        }));
+        
+        const { error: searchError } = await fastMoneyClient.from("related_searches").insert(searchesToInsert);
+        if (searchError) console.error("Error creating related searches:", searchError);
+      }
+      
+      return insertedBlog;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["fastmoney-blogs"] });
-      toast.success("Blog created successfully");
+      queryClient.invalidateQueries({ queryKey: ["fastmoney-related-searches"] });
+      toast.success("Blog created with related searches");
       resetForm();
       setIsDialogOpen(false);
     },
@@ -176,7 +198,8 @@ export const FastMoneyBlogs = () => {
         },
         body: JSON.stringify({ 
           blogTitle: formData.title, 
-          blogSlug: formData.slug 
+          blogSlug: formData.slug,
+          generateSearches: true
         }),
       });
 
@@ -188,7 +211,12 @@ export const FastMoneyBlogs = () => {
       const data = await response.json();
       if (data.content) {
         setFormData({ ...formData, content: data.content });
-        toast.success("AI content generated successfully!");
+        // Set generated related searches
+        if (data.relatedSearches && Array.isArray(data.relatedSearches)) {
+          setGeneratedSearches(data.relatedSearches);
+          setSelectedSearches(new Set());
+        }
+        toast.success("AI content & related searches generated!");
       } else {
         throw new Error("No content returned");
       }
@@ -198,6 +226,18 @@ export const FastMoneyBlogs = () => {
     } finally {
       setIsGeneratingContent(false);
     }
+  };
+
+  const toggleSearchSelection = (index: number) => {
+    const newSelected = new Set(selectedSearches);
+    if (newSelected.has(index)) {
+      newSelected.delete(index);
+    } else if (newSelected.size < 4) {
+      newSelected.add(index);
+    } else {
+      toast.error("You can only select up to 4 related searches");
+    }
+    setSelectedSearches(newSelected);
   };
 
   const resetForm = () => {
@@ -211,6 +251,8 @@ export const FastMoneyBlogs = () => {
       status: "draft",
     });
     setEditingBlog(null);
+    setGeneratedSearches([]);
+    setSelectedSearches(new Set());
   };
 
   const handleEdit = (blog: Blog) => {
@@ -224,6 +266,8 @@ export const FastMoneyBlogs = () => {
       featured_image_url: blog.featured_image_url || "",
       status: blog.status,
     });
+    setGeneratedSearches([]);
+    setSelectedSearches(new Set());
     setIsDialogOpen(true);
   };
 
@@ -232,7 +276,7 @@ export const FastMoneyBlogs = () => {
     if (editingBlog) {
       updateMutation.mutate({ id: editingBlog.id, data: formData });
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate({ ...formData, selectedSearchIndexes: Array.from(selectedSearches) });
     }
   };
 
@@ -417,6 +461,46 @@ export const FastMoneyBlogs = () => {
                   className="bg-[#0d1520] border-[#2a3f5f] text-white"
                 />
               </div>
+
+              {/* Generated Related Searches Selection */}
+              {generatedSearches.length > 0 && !editingBlog && (
+                <div>
+                  <Label className="text-gray-300">Select Related Searches (max 4)</Label>
+                  <p className="text-sm text-gray-400 mb-2">
+                    Selected searches will be linked to this blog and redirect to /wr=1, /wr=2, etc.
+                  </p>
+                  <div className="space-y-2 border border-[#2a3f5f] rounded-md p-3 bg-[#0d1520]">
+                    {generatedSearches.map((search, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`search-${index}`}
+                          checked={selectedSearches.has(index)}
+                          onCheckedChange={() => toggleSearchSelection(index)}
+                          disabled={!selectedSearches.has(index) && selectedSearches.size >= 4}
+                          className="border-[#2a3f5f] data-[state=checked]:bg-[#00b4d8]"
+                        />
+                        <label
+                          htmlFor={`search-${index}`}
+                          className={`text-sm cursor-pointer ${
+                            selectedSearches.has(index) ? "text-white" : "text-gray-400"
+                          }`}
+                        >
+                          {search}
+                          {selectedSearches.has(index) && (
+                            <span className="ml-2 text-xs text-[#00b4d8]">
+                              → /wr={Array.from(selectedSearches).sort((a, b) => a - b).indexOf(index) + 1}
+                            </span>
+                          )}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {selectedSearches.size}/4 selected
+                  </p>
+                </div>
+              )}
+
               <div>
                 <Label className="text-gray-300">Featured Image</Label>
                 <div className="space-y-2">
@@ -496,73 +580,75 @@ export const FastMoneyBlogs = () => {
         isAllSelected={selectedBlogs.size === filteredBlogs.length && filteredBlogs.length > 0}
         isDarkTheme={true}
         selectedData={filteredBlogs.filter(b => selectedBlogs.has(b.id))}
-        allData={blogs}
-        csvColumns={['id', 'title', 'slug', 'author', 'status', 'category_id', 'published_at']}
-        csvFilename="fastmoney_blogs"
+        linkGenerator={(blog) => `https://fastmoney.site/blog/${blog.slug}`}
       />
 
       {isLoading ? (
-        <div className="text-center py-8 text-gray-400">Loading...</div>
+        <div className="text-center py-8 text-gray-400">Loading blogs...</div>
       ) : (
-        <div className="rounded-md border border-[#2a3f5f] overflow-hidden">
+        <div className="border border-[#2a3f5f] rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="border-[#2a3f5f] hover:bg-transparent">
-                <TableHead className="text-gray-300 w-12"></TableHead>
+                <TableHead className="w-12 text-gray-300">
+                  <Checkbox
+                    checked={selectedBlogs.size === filteredBlogs.length && filteredBlogs.length > 0}
+                    onCheckedChange={handleSelectAllBlogs}
+                    className="border-[#2a3f5f]"
+                  />
+                </TableHead>
                 <TableHead className="text-gray-300">Title</TableHead>
-                <TableHead className="text-gray-300">Slug</TableHead>
                 <TableHead className="text-gray-300">Category</TableHead>
                 <TableHead className="text-gray-300">Status</TableHead>
+                <TableHead className="text-gray-300">Created</TableHead>
                 <TableHead className="text-right text-gray-300">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredBlogs.map((blog) => (
-                <TableRow key={blog.id} className={`border-[#2a3f5f] ${selectedBlogs.has(blog.id) ? 'bg-[#00b4d8]/10' : 'hover:bg-[#0d1520]'}`}>
+                <TableRow key={blog.id} className="border-[#2a3f5f] hover:bg-[#1a2942]">
                   <TableCell>
                     <Checkbox
                       checked={selectedBlogs.has(blog.id)}
                       onCheckedChange={() => toggleBlogSelection(blog.id)}
-                      className="border-gray-500"
+                      className="border-[#2a3f5f]"
                     />
                   </TableCell>
                   <TableCell className="font-medium text-white">{blog.title}</TableCell>
-                  <TableCell className="text-gray-400">{blog.slug}</TableCell>
-                  <TableCell className="text-gray-400">{blog.category || "-"}</TableCell>
+                  <TableCell className="text-gray-300">{blog.category || "-"}</TableCell>
                   <TableCell>
-                    <span
-                      className={`px-2 py-1 rounded text-xs ${
-                        blog.status === "published"
-                          ? "bg-green-500/20 text-green-400"
-                          : "bg-yellow-500/20 text-yellow-400"
-                      }`}
-                    >
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      blog.status === "published" 
+                        ? "bg-green-500/20 text-green-400" 
+                        : "bg-yellow-500/20 text-yellow-400"
+                    }`}>
                       {blog.status}
                     </span>
                   </TableCell>
+                  <TableCell className="text-gray-400">
+                    {new Date(blog.created_at).toLocaleDateString()}
+                  </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-1">
                       <Button
                         variant="ghost"
-                        size="icon"
+                        size="sm"
                         onClick={() => copyLink(blog.slug)}
-                        title="Copy Link"
                         className="text-gray-400 hover:text-white hover:bg-[#2a3f5f]"
                       >
                         <Copy className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
-                        size="icon"
+                        size="sm"
                         onClick={() => openBlog(blog.slug)}
-                        title="Open Blog"
                         className="text-gray-400 hover:text-white hover:bg-[#2a3f5f]"
                       >
                         <ExternalLink className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
-                        size="icon"
+                        size="sm"
                         onClick={() => handleEdit(blog)}
                         className="text-gray-400 hover:text-white hover:bg-[#2a3f5f]"
                       >
@@ -570,9 +656,13 @@ export const FastMoneyBlogs = () => {
                       </Button>
                       <Button
                         variant="ghost"
-                        size="icon"
-                        onClick={() => deleteMutation.mutate(blog.id)}
-                        className="text-destructive hover:bg-[#2a3f5f]"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm("Delete this blog?")) {
+                            deleteMutation.mutate(blog.id);
+                          }
+                        }}
+                        className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -583,7 +673,7 @@ export const FastMoneyBlogs = () => {
               {filteredBlogs.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-gray-400">
-                    No blogs yet. Create your first blog!
+                    No blogs found
                   </TableCell>
                 </TableRow>
               )}
@@ -594,5 +684,3 @@ export const FastMoneyBlogs = () => {
     </div>
   );
 };
-
-export default FastMoneyBlogs;
