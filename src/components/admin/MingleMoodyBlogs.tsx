@@ -32,6 +32,11 @@ interface RelatedSearch {
   title: string | null;
 }
 
+interface GeneratedSearch {
+  text: string;
+  selected: boolean;
+}
+
 export const MingleMoodyBlogs = () => {
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [relatedSearches, setRelatedSearches] = useState<RelatedSearch[]>([]);
@@ -41,6 +46,7 @@ export const MingleMoodyBlogs = () => {
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBlogs, setSelectedBlogs] = useState<Set<string>>(new Set());
+  const [generatedSearches, setGeneratedSearches] = useState<GeneratedSearch[]>([]);
   
   // Form state
   const [title, setTitle] = useState("");
@@ -136,14 +142,17 @@ export const MingleMoodyBlogs = () => {
     setIsGeneratingContent(true);
     try {
       const { data, error } = await supabase.functions.invoke('generate-blog-content', {
-        body: { title, slug }
+        body: { title, slug, generateSearches: true }
       });
 
       if (error) throw error;
 
       if (data?.content) {
         setContent(data.content);
-        toast.success("Content generated successfully!");
+        if (data?.relatedSearches?.length) {
+          setGeneratedSearches(data.relatedSearches.map((text: string) => ({ text, selected: false })));
+        }
+        toast.success("Content generated!");
       } else {
         throw new Error("No content returned");
       }
@@ -155,6 +164,20 @@ export const MingleMoodyBlogs = () => {
     }
   };
 
+  const toggleSearchSelection = (index: number) => {
+    const selectedCount = generatedSearches.filter(s => s.selected).length;
+    const search = generatedSearches[index];
+    
+    if (!search.selected && selectedCount >= 4) {
+      toast.error("Maximum 4 related searches can be selected");
+      return;
+    }
+    
+    setGeneratedSearches(prev => prev.map((s, i) => 
+      i === index ? { ...s, selected: !s.selected } : s
+    ));
+  };
+
   const resetForm = () => {
     setTitle("");
     setSlug("");
@@ -164,6 +187,7 @@ export const MingleMoodyBlogs = () => {
     setFeaturedImage("");
     setStatus("draft");
     setRelatedSearchId("");
+    setGeneratedSearches([]);
     setEditingBlog(null);
   };
 
@@ -184,6 +208,8 @@ export const MingleMoodyBlogs = () => {
       related_search_id: relatedSearchId === "none" ? null : relatedSearchId || null,
     };
 
+    let blogId = editingBlog?.id;
+
     if (editingBlog) {
       const { error } = await mingleMoodyClient
         .from("blogs")
@@ -194,9 +220,8 @@ export const MingleMoodyBlogs = () => {
         toast.error("Failed to update blog");
         return;
       }
-      toast.success("Blog updated successfully!");
     } else {
-      const { error } = await mingleMoodyClient.from("blogs").insert(blogData);
+      const { data, error } = await mingleMoodyClient.from("blogs").insert(blogData).select().single();
 
       if (error) {
         if (error.code === "23505") {
@@ -206,15 +231,41 @@ export const MingleMoodyBlogs = () => {
         }
         return;
       }
-      toast.success("Blog created successfully!");
+      blogId = data?.id;
     }
+
+    // Save selected related searches
+    const selectedSearches = generatedSearches.filter(s => s.selected);
+    if (selectedSearches.length > 0 && blogId) {
+      // First, remove any existing related searches for this blog
+      await mingleMoodyClient.from("related_searches").delete().eq("blog_id", blogId);
+      
+      // Insert new selected searches
+      const searchesToInsert = selectedSearches.map((s, idx) => ({
+        search_text: s.text,
+        title: s.text,
+        blog_id: blogId,
+        web_result_page: idx + 1,
+        display_order: idx,
+        position: idx + 1,
+        is_active: true,
+      }));
+      
+      const { error: searchError } = await mingleMoodyClient.from("related_searches").insert(searchesToInsert);
+      if (searchError) {
+        console.error("Failed to save related searches:", searchError);
+      }
+    }
+
+    toast.success(editingBlog ? "Blog updated!" : "Blog created!");
 
     resetForm();
     setIsDialogOpen(false);
     fetchBlogs();
+    fetchRelatedSearches();
   };
 
-  const handleEdit = (blog: Blog) => {
+  const handleEdit = async (blog: Blog) => {
     setEditingBlog(blog);
     setTitle(blog.title);
     setSlug(blog.slug);
@@ -224,11 +275,28 @@ export const MingleMoodyBlogs = () => {
     setFeaturedImage(blog.featured_image || "");
     setStatus(blog.status);
     setRelatedSearchId(blog.related_search_id || "");
+    
+    // Load existing related searches for this blog
+    const { data: searches } = await mingleMoodyClient
+      .from("related_searches")
+      .select("search_text")
+      .eq("blog_id", blog.id)
+      .order("display_order");
+    
+    if (searches?.length) {
+      setGeneratedSearches(searches.map(s => ({ text: s.search_text, selected: true })));
+    } else {
+      setGeneratedSearches([]);
+    }
+    
     setIsDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this blog?")) return;
+    
+    // First delete related searches linked to this blog
+    await mingleMoodyClient.from("related_searches").delete().eq("blog_id", id);
     
     const { error } = await mingleMoodyClient.from("blogs").delete().eq("id", id);
 
@@ -238,7 +306,10 @@ export const MingleMoodyBlogs = () => {
     }
     toast.success("Blog deleted successfully!");
     fetchBlogs();
+    fetchRelatedSearches();
   };
+
+  const selectedSearchCount = generatedSearches.filter(s => s.selected).length;
 
   const copyBlogUrl = (slug: string) => {
     const url = `https://minglemoody.com/blog/${slug}`;
@@ -433,22 +504,54 @@ export const MingleMoodyBlogs = () => {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-gray-300">Related Search</Label>
-                <Select value={relatedSearchId} onValueChange={setRelatedSearchId}>
-                  <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white">
-                    <SelectValue placeholder="Select a related search" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
-                    <SelectItem value="none" className="text-white hover:bg-[#2a3f5f]">None</SelectItem>
-                    {relatedSearches.map((search) => (
-                      <SelectItem key={search.id} value={search.id} className="text-white hover:bg-[#2a3f5f]">
-                        {search.title || search.search_text}
-                      </SelectItem>
+              {/* Related Searches Selection */}
+              {generatedSearches.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Select Related Searches (max 4)</Label>
+                  <p className="text-xs text-gray-400">Selected searches will be linked to this blog and redirect to /wr=1, /wr=2, etc.</p>
+                  <div className="border border-[#2a3f5f] rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto bg-[#0d1520]">
+                    {generatedSearches.map((search, idx) => (
+                      <div 
+                        key={idx}
+                        className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
+                          search.selected ? 'bg-[#00b4d8]/20 border border-[#00b4d8]' : 'hover:bg-[#2a3f5f]'
+                        }`}
+                        onClick={() => toggleSearchSelection(idx)}
+                      >
+                        <Checkbox
+                          checked={search.selected}
+                          className="border-gray-500 data-[state=checked]:bg-[#00b4d8] data-[state=checked]:border-[#00b4d8]"
+                        />
+                        <span className="flex-1 text-sm text-white">{search.text}</span>
+                        {search.selected && (
+                          <span className="text-xs text-[#00b4d8]">→ /wr={generatedSearches.filter((s, i) => s.selected && i <= idx).length}</span>
+                        )}
+                      </div>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  </div>
+                  <p className="text-xs text-gray-400">{selectedSearchCount}/4 selected</p>
+                </div>
+              )}
+
+              {/* Legacy Related Search Dropdown - only show when no generated searches */}
+              {generatedSearches.length === 0 && (
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Related Search</Label>
+                  <Select value={relatedSearchId} onValueChange={setRelatedSearchId}>
+                    <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white">
+                      <SelectValue placeholder="Select a related search" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
+                      <SelectItem value="none" className="text-white hover:bg-[#2a3f5f]">None</SelectItem>
+                      {relatedSearches.map((search) => (
+                        <SelectItem key={search.id} value={search.id} className="text-white hover:bg-[#2a3f5f]">
+                          {search.title || search.search_text}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label className="text-gray-300">Status</Label>
