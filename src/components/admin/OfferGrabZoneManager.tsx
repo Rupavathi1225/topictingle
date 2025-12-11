@@ -508,13 +508,13 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
                   <DialogHeader><DialogTitle className="text-white">{editingSearch ? "Edit" : "Create"} Related Search</DialogTitle></DialogHeader>
                   <form onSubmit={handleSearchSubmit} className="space-y-4">
                     <div>
-                      <Label className="text-gray-300">Blog *</Label>
-                      <Select value={searchForm.blog_id || ""} onValueChange={(value) => setSearchForm({ ...searchForm, blog_id: value || null })}>
+                      <Label className="text-gray-300">Blog</Label>
+                      <Select value={searchForm.blog_id || "none"} onValueChange={(value) => setSearchForm({ ...searchForm, blog_id: value === "none" ? null : value })}>
                         <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white">
                           <SelectValue placeholder="Select blog" />
                         </SelectTrigger>
                         <SelectContent className="bg-[#1a2942] border-[#2a3f5f] max-h-[200px]">
-                          <SelectItem value="" className="text-gray-400 hover:bg-[#2a3f5f]">No Blog</SelectItem>
+                          <SelectItem value="none" className="text-gray-400 hover:bg-[#2a3f5f]">No Blog</SelectItem>
                           {blogs.map(blog => (
                             <SelectItem key={blog.id} value={blog.id} className="text-white hover:bg-[#2a3f5f]">
                               {blog.title}
