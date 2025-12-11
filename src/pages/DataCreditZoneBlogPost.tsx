@@ -197,13 +197,13 @@ const DataCreditZoneBlogPost = () => {
                 {/* Related Searches Section - Under Content */}
                 {relatedSearches.length > 0 && (
                   <div className="mt-8 border border-blog-border rounded-lg p-6 bg-card">
-                    <h3 className="font-bold text-lg mb-4 text-blog-heading">Related Searches</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {relatedSearches.map((search) => (
+                    <h3 className="font-bold text-xl mb-4 text-blog-heading">Related Searches</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {relatedSearches.slice(0, 4).map((search) => (
                         <a
                           key={search.id}
                           href={`/datacreditzone/wr?id=${search.id}&wr=${search.wr}`}
-                          className="block p-3 bg-muted rounded-lg hover:bg-accent/10 transition-colors text-sm text-foreground"
+                          className="block p-4 border border-border rounded-lg hover:bg-accent/10 transition-colors text-foreground"
                         >
                           {search.search_text}
                         </a>
