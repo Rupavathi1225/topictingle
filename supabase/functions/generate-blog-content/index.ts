@@ -11,7 +11,10 @@ serve(async (req) => {
   }
 
   try {
-    const { title, slug } = await req.json();
+    const body = await req.json();
+    // Support both parameter naming conventions
+    const title = body.title || body.blogTitle;
+    const slug = body.slug || body.blogSlug;
     
     if (!title) {
       return new Response(
