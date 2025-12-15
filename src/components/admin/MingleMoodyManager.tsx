@@ -211,6 +211,7 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
   const [prelandingDialog, setPrelandingDialog] = useState(false);
   const [editingPrelanding, setEditingPrelanding] = useState<Prelanding | null>(null);
   const [selectedWebResultForPrelanding, setSelectedWebResultForPrelanding] = useState<string>("");
+  const [generatingPrelanding, setGeneratingPrelanding] = useState(false);
   const [prelandingForm, setPrelandingForm] = useState({
     key: "", logo_url: "", main_image_url: "", headline: "", subtitle: "",
     description: "", redirect_description: "You will be redirected to...", is_active: true
@@ -544,6 +545,49 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
   // Prelanding CRUD
   const generateKey = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString(36);
 
+  const handleGeneratePrelandingWithAI = async () => {
+    if (!selectedWebResultForPrelanding) {
+      toast.error("Please select a web result first");
+      return;
+    }
+
+    const webResult = allWebResults.find(wr => wr.id === selectedWebResultForPrelanding);
+    if (!webResult) {
+      toast.error("Web result not found");
+      return;
+    }
+
+    setGeneratingPrelanding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-prelanding-content', {
+        body: { 
+          webResultTitle: webResult.title,
+          webResultDescription: webResult.description,
+          originalLink: webResult.url
+        }
+      });
+
+      if (error) throw error;
+
+      if (data) {
+        setPrelandingForm(prev => ({
+          ...prev,
+          headline: data.headline || "",
+          subtitle: data.subtitle || "",
+          description: data.description || "",
+          redirect_description: data.redirect_description || `You will be redirected to ${webResult.url}`,
+          main_image_url: data.main_image_url || ""
+        }));
+        toast.success("Content and image generated with AI!");
+      }
+    } catch (error: any) {
+      console.error("AI generation error:", error);
+      toast.error(error.message || "Failed to generate content");
+    } finally {
+      setGeneratingPrelanding(false);
+    }
+  };
+
   const handlePrelandingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -602,6 +646,7 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
     });
     setSelectedWebResultForPrelanding("");
     setEditingPrelanding(null);
+    setGeneratingPrelanding(false);
     setPrelandingDialog(false);
   };
 
@@ -1095,18 +1140,34 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
                   <form onSubmit={handlePrelandingSubmit} className="space-y-4">
                     <div>
                       <Label className="text-gray-300">Select Web Result *</Label>
-                      <Select value={selectedWebResultForPrelanding} onValueChange={setSelectedWebResultForPrelanding}>
-                        <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white">
-                          <SelectValue placeholder="Select a web result" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
-                          {allWebResults.map((wr) => (
-                            <SelectItem key={wr.id} value={wr.id} className="text-white hover:bg-[#2a3f5f]">
-                              {wr.title} (Page {wr.web_result_page}, Pos {wr.position})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex gap-2">
+                        <Select value={selectedWebResultForPrelanding} onValueChange={setSelectedWebResultForPrelanding}>
+                          <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white flex-1">
+                            <SelectValue placeholder="Select a web result" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
+                            {allWebResults.map((wr) => (
+                              <SelectItem key={wr.id} value={wr.id} className="text-white hover:bg-[#2a3f5f]">
+                                {wr.title} (Page {wr.web_result_page}, Pos {wr.position})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button 
+                          type="button"
+                          onClick={handleGeneratePrelandingWithAI} 
+                          disabled={generatingPrelanding || !selectedWebResultForPrelanding}
+                          variant="outline"
+                          className="shrink-0 border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]"
+                        >
+                          {generatingPrelanding ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-4 w-4 mr-2" />
+                          )}
+                          Generate with AI
+                        </Button>
+                      </div>
                       {selectedWebResultForPrelanding && (
                         <p className="text-xs text-[#00b4d8] mt-1">
                           Selected: {allWebResults.find(w => w.id === selectedWebResultForPrelanding)?.title}
@@ -1117,7 +1178,22 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
                     <div><Label className="text-gray-300">Subtitle</Label><Input value={prelandingForm.subtitle} onChange={(e) => setPrelandingForm({ ...prelandingForm, subtitle: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div><Label className="text-gray-300">Description</Label><Textarea value={prelandingForm.description} onChange={(e) => setPrelandingForm({ ...prelandingForm, description: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div><Label className="text-gray-300">Logo URL</Label><Input value={prelandingForm.logo_url} onChange={(e) => setPrelandingForm({ ...prelandingForm, logo_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
-                    <div><Label className="text-gray-300">Main Image URL</Label><Input value={prelandingForm.main_image_url} onChange={(e) => setPrelandingForm({ ...prelandingForm, main_image_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div>
+                      <Label className="text-gray-300">Main Image URL</Label>
+                      <Input value={prelandingForm.main_image_url} onChange={(e) => setPrelandingForm({ ...prelandingForm, main_image_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" />
+                      {prelandingForm.main_image_url && (
+                        <div className="mt-2 rounded overflow-hidden border border-[#2a3f5f]">
+                          <img 
+                            src={prelandingForm.main_image_url} 
+                            alt="Preview" 
+                            className="w-full max-h-40 object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
                     <div><Label className="text-gray-300">Redirect Description</Label><Input value={prelandingForm.redirect_description} onChange={(e) => setPrelandingForm({ ...prelandingForm, redirect_description: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div className="flex items-center gap-2">
                       <Switch checked={prelandingForm.is_active} onCheckedChange={(checked) => setPrelandingForm({ ...prelandingForm, is_active: checked })} />
