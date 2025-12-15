@@ -216,6 +216,7 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
   const [prelandings, setPrelandings] = useState<Prelanding[]>([]);
   const [prelandingDialog, setPrelandingDialog] = useState(false);
   const [editingPrelanding, setEditingPrelanding] = useState<Prelanding | null>(null);
+  const [isGeneratingPrelanding, setIsGeneratingPrelanding] = useState(false);
   const [prelandingForm, setPrelandingForm] = useState({
     web_result_id: "", logo_url: "", main_image_url: "", headline: "",
     description: "", email_placeholder: "Enter your email", cta_button_text: "Get Started",
@@ -531,6 +532,51 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
     }
   };
 
+  // Generate Prelanding with AI
+  const generatePrelandingWithAI = async () => {
+    if (!prelandingForm.web_result_id) {
+      toast.error("Please select a web result first");
+      return;
+    }
+
+    const selectedResult = allWebResults.find(r => r.id === prelandingForm.web_result_id);
+    if (!selectedResult) {
+      toast.error("Web result not found");
+      return;
+    }
+
+    setIsGeneratingPrelanding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-offergrabzone-prelanding', {
+        body: {
+          webResultName: selectedResult.name,
+          webResultTitle: selectedResult.title,
+          webResultLink: selectedResult.link,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data) {
+        setPrelandingForm({
+          ...prelandingForm,
+          headline: data.headline || prelandingForm.headline,
+          description: data.description || prelandingForm.description,
+          email_placeholder: data.email_placeholder || prelandingForm.email_placeholder,
+          cta_button_text: data.cta_button_text || prelandingForm.cta_button_text,
+          background_color: data.background_color || prelandingForm.background_color,
+          main_image_url: data.main_image_url || 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&q=80',
+        });
+        toast.success("Pre-landing content generated with AI!");
+      }
+    } catch (error) {
+      console.error('Error generating prelanding:', error);
+      toast.error(error instanceof Error ? error.message : "Failed to generate content. Please try again.");
+    } finally {
+      setIsGeneratingPrelanding(false);
+    }
+  };
+
   const handleDeletePrelanding = async (id: string) => {
     if (confirm("Delete this prelanding?")) {
       const { error } = await offerGrabZoneClient.from("prelandings").delete().eq("id", id);
@@ -547,6 +593,7 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
     });
     setEditingPrelanding(null);
     setPrelandingDialog(false);
+    setIsGeneratingPrelanding(false);
   };
 
   const filteredSearches = relatedSearches.filter(s =>
@@ -1023,34 +1070,71 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
                   <form onSubmit={handlePrelandingSubmit} className="space-y-4">
                     <div>
                       <Label className="text-gray-300">Web Result</Label>
-                      <Select value={prelandingForm.web_result_id} onValueChange={(v) => setPrelandingForm({ ...prelandingForm, web_result_id: v })}>
-                        <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white"><SelectValue placeholder="Select web result" /></SelectTrigger>
-                        <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
-                          {webResults.map(wr => {
-                            const hasPrelander = prelandings.some(p => p.web_result_id === wr.id);
-                            return (
-                              <SelectItem key={wr.id} value={wr.id} className="text-white hover:bg-[#2a3f5f]">
-                                <span className="flex items-center gap-2">
-                                  <Badge variant="outline" className="text-xs">(Web Result)</Badge>
-                                  {wr.title}
-                                  {hasPrelander && <Badge className="text-xs bg-green-600">Has Pre-landing</Badge>}
-                                </span>
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex gap-2">
+                        <Select value={prelandingForm.web_result_id} onValueChange={(v) => setPrelandingForm({ ...prelandingForm, web_result_id: v })}>
+                          <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white flex-1"><SelectValue placeholder="Select web result" /></SelectTrigger>
+                          <SelectContent className="bg-[#1a2942] border-[#2a3f5f] max-h-[200px]">
+                            {allWebResults.map(wr => {
+                              const hasPrelander = prelandings.some(p => p.web_result_id === wr.id);
+                              return (
+                                <SelectItem key={wr.id} value={wr.id} className="text-white hover:bg-[#2a3f5f]">
+                                  <span className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-xs">(WR)</Badge>
+                                    {wr.title}
+                                    {hasPrelander && <Badge className="text-xs bg-green-600">Has Pre-landing</Badge>}
+                                  </span>
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                        <Button 
+                          type="button"
+                          onClick={generatePrelandingWithAI}
+                          disabled={isGeneratingPrelanding || !prelandingForm.web_result_id}
+                          className="bg-purple-600 hover:bg-purple-700 text-white shrink-0"
+                        >
+                          {isGeneratingPrelanding ? (
+                            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</>
+                          ) : (
+                            <><Sparkles className="w-4 h-4 mr-2" /> Generate with AI</>
+                          )}
+                        </Button>
+                      </div>
+                      {prelandingForm.web_result_id && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          Redirect URL: {allWebResults.find(r => r.id === prelandingForm.web_result_id)?.link || 'N/A'}
+                        </p>
+                      )}
                     </div>
                     <div><Label className="text-gray-300">Headline *</Label><Input value={prelandingForm.headline} onChange={(e) => setPrelandingForm({ ...prelandingForm, headline: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div><Label className="text-gray-300">Description</Label><Textarea value={prelandingForm.description} onChange={(e) => setPrelandingForm({ ...prelandingForm, description: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
-                    <div><Label className="text-gray-300">Logo URL</Label><Input value={prelandingForm.logo_url} onChange={(e) => setPrelandingForm({ ...prelandingForm, logo_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
-                    <div><Label className="text-gray-300">Main Image URL</Label><Input value={prelandingForm.main_image_url} onChange={(e) => setPrelandingForm({ ...prelandingForm, main_image_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
-                    <div><Label className="text-gray-300">Email Placeholder</Label><Input value={prelandingForm.email_placeholder} onChange={(e) => setPrelandingForm({ ...prelandingForm, email_placeholder: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
-                    <div><Label className="text-gray-300">CTA Button Text</Label><Input value={prelandingForm.cta_button_text} onChange={(e) => setPrelandingForm({ ...prelandingForm, cta_button_text: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><Label className="text-gray-300">Logo URL</Label><Input value={prelandingForm.logo_url} onChange={(e) => setPrelandingForm({ ...prelandingForm, logo_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                      <div>
+                        <Label className="text-gray-300">Main Image URL</Label>
+                        <Input value={prelandingForm.main_image_url} onChange={(e) => setPrelandingForm({ ...prelandingForm, main_image_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" />
+                      </div>
+                    </div>
+                    {prelandingForm.main_image_url && (
+                      <div className="border border-[#2a3f5f] rounded p-2">
+                        <Label className="text-gray-300 text-xs">Image Preview</Label>
+                        <img 
+                          src={prelandingForm.main_image_url} 
+                          alt="Preview" 
+                          className="mt-1 max-h-32 w-full object-contain rounded"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><Label className="text-gray-300">Email Placeholder</Label><Input value={prelandingForm.email_placeholder} onChange={(e) => setPrelandingForm({ ...prelandingForm, email_placeholder: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                      <div><Label className="text-gray-300">CTA Button Text</Label><Input value={prelandingForm.cta_button_text} onChange={(e) => setPrelandingForm({ ...prelandingForm, cta_button_text: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div><Label className="text-gray-300">Background Color</Label><Input type="color" value={prelandingForm.background_color} onChange={(e) => setPrelandingForm({ ...prelandingForm, background_color: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] h-10" /></div>
+                      <div><Label className="text-gray-300">Background Image URL</Label><Input value={prelandingForm.background_image_url} onChange={(e) => setPrelandingForm({ ...prelandingForm, background_image_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     </div>
-                    <div><Label className="text-gray-300">Background Image URL</Label><Input value={prelandingForm.background_image_url} onChange={(e) => setPrelandingForm({ ...prelandingForm, background_image_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div className="flex items-center gap-2">
                       <Switch checked={prelandingForm.is_active} onCheckedChange={(checked) => setPrelandingForm({ ...prelandingForm, is_active: checked })} />
                       <Label className="text-gray-300">Active</Label>
