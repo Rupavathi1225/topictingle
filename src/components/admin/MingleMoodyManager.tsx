@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { mingleMoodyClient } from "@/integrations/minglemoody/client";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Trash2, Edit, Plus, Search, AlertTriangle } from "lucide-react";
+import { Trash2, Edit, Plus, Search, AlertTriangle, Sparkles, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -189,7 +190,17 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
   const [webResultDialog, setWebResultDialog] = useState(false);
   const [editingWebResult, setEditingWebResult] = useState<WebResult | null>(null);
   const [selectedSearchForResult, setSelectedSearchForResult] = useState<string>("");
+  const [selectedSearchForAI, setSelectedSearchForAI] = useState<string>("");
   const [forceReplace, setForceReplace] = useState(false);
+  const [generatingAI, setGeneratingAI] = useState(false);
+  const [generatedResults, setGeneratedResults] = useState<Array<{
+    title: string;
+    description: string;
+    name: string;
+    url: string;
+    is_sponsored: boolean;
+    selected: boolean;
+  }>>([]);
   const [webResultForm, setWebResultForm] = useState({
     name: "", logo: "", url: "", title: "", description: "",
     web_result_page: 1, position: 0, prelanding_key: "", is_active: true, is_sponsored: false
@@ -413,6 +424,97 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
     setEditingWebResult(null);
     setForceReplace(false);
     setWebResultDialog(false);
+  };
+
+  // AI Web Results Generation
+  const handleGenerateAIWebResults = async () => {
+    if (!selectedSearchForAI) {
+      toast.error("Please select a related search first");
+      return;
+    }
+
+    const selectedSearch = relatedSearches.find(s => s.id === selectedSearchForAI);
+    if (!selectedSearch) return;
+
+    setGeneratingAI(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-web-results', {
+        body: { searchText: selectedSearch.title || selectedSearch.search_text, count: 4 }
+      });
+
+      if (error) throw error;
+
+      if (data?.webResults && Array.isArray(data.webResults)) {
+        setGeneratedResults(data.webResults.map((r: any) => ({ ...r, selected: true })));
+        toast.success(`Generated ${data.webResults.length} web results`);
+      }
+    } catch (error: any) {
+      console.error('Error generating web results:', error);
+      toast.error(error.message || 'Failed to generate web results');
+    } finally {
+      setGeneratingAI(false);
+    }
+  };
+
+  const handleSaveGeneratedResults = async () => {
+    const selectedSearch = relatedSearches.find(s => s.id === selectedSearchForAI);
+    if (!selectedSearch) return;
+
+    const selectedResults = generatedResults.filter(r => r.selected);
+    if (selectedResults.length === 0) {
+      toast.error("Please select at least one result to save");
+      return;
+    }
+
+    // Get existing positions for this page
+    const pageNum = selectedSearch.web_result_page;
+    const existingPositions = allWebResults
+      .filter(wr => wr.web_result_page === pageNum)
+      .map(wr => wr.position);
+    
+    let nextPosition = 0;
+    while (existingPositions.includes(nextPosition)) {
+      nextPosition++;
+    }
+
+    const resultsToInsert = selectedResults.map((result, index) => {
+      let position = nextPosition + index;
+      while (existingPositions.includes(position)) {
+        position++;
+      }
+      existingPositions.push(position);
+      
+      return {
+        title: result.title,
+        description: result.description || null,
+        name: result.name,
+        url: result.url,
+        logo: null,
+        web_result_page: pageNum,
+        position: position,
+        is_active: true,
+        is_sponsored: result.is_sponsored,
+        related_search_id: selectedSearchForAI
+      };
+    });
+
+    const { error } = await mingleMoodyClient.from("web_results").insert(resultsToInsert);
+    if (error) {
+      toast.error("Failed to save web results");
+      console.error(error);
+    } else {
+      toast.success(`Saved ${resultsToInsert.length} web results`);
+      setGeneratedResults([]);
+      setSelectedSearchForAI("");
+      fetchWebResults();
+      fetchAllWebResults();
+    }
+  };
+
+  const toggleGeneratedResultSelection = (index: number) => {
+    setGeneratedResults(prev => prev.map((r, i) => 
+      i === index ? { ...r, selected: !r.selected } : r
+    ));
   };
 
   // Prelanding CRUD
@@ -654,23 +756,106 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
 
           {/* Web Results Tab */}
           <TabsContent value="webresults" className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <Select value={selectedPage.toString()} onValueChange={(v) => setSelectedPage(parseInt(v))}>
-                  <SelectTrigger className="w-32 bg-[#0d1520] border-[#2a3f5f] text-white"><SelectValue placeholder="Page" /></SelectTrigger>
-                  <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
-                    {[1, 2, 3, 4, 5].map(p => <SelectItem key={p} value={p.toString()} className="text-white hover:bg-[#2a3f5f]">Page {p}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <div className="relative flex-1 max-w-sm">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" />
+            {/* AI Generation Section */}
+            <Card className="bg-[#0d1520] border-[#2a3f5f]">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-[#00b4d8] text-lg flex items-center gap-2">
+                  <Sparkles className="h-5 w-5" />
+                  Add Web Results
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="text-gray-300">Related Search (determines page) *</Label>
+                  <Select value={selectedSearchForAI} onValueChange={setSelectedSearchForAI}>
+                    <SelectTrigger className="bg-[#1a2942] border-[#2a3f5f] text-white">
+                      <SelectValue placeholder="Select a related search..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1a2942] border-[#2a3f5f] max-h-[200px]">
+                      {relatedSearches.map(s => (
+                        <SelectItem key={s.id} value={s.id} className="text-white hover:bg-[#2a3f5f]">
+                          {s.title || s.search_text} (Page {s.web_result_page})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
-              <Dialog open={webResultDialog} onOpenChange={setWebResultDialog}>
-                <DialogTrigger asChild>
-                  <Button onClick={resetWebResultForm} className="bg-[#00b4d8] hover:bg-[#0096b4] text-white"><Plus className="mr-2 h-4 w-4" />Add Result</Button>
-                </DialogTrigger>
+                <Button 
+                  type="button" 
+                  onClick={handleGenerateAIWebResults} 
+                  disabled={generatingAI || !selectedSearchForAI}
+                  className="bg-[#00b4d8] hover:bg-[#0096b4] text-white"
+                >
+                  {generatingAI ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Generate AI Web Results
+                    </>
+                  )}
+                </Button>
+
+                {/* Generated Results */}
+                {generatedResults.length > 0 && (
+                  <div className="space-y-3">
+                    <Label className="text-gray-300">Generated Results (select to save):</Label>
+                    {generatedResults.map((result, index) => (
+                      <div 
+                        key={index} 
+                        className={`p-3 rounded border ${result.selected ? 'border-[#00b4d8] bg-[#1a2942]' : 'border-[#2a3f5f] bg-[#0d1520] opacity-50'} cursor-pointer`}
+                        onClick={() => toggleGeneratedResultSelection(index)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Checkbox checked={result.selected} className="border-gray-500" />
+                          <div className="flex-1">
+                            <p className="text-white font-medium">{result.title}</p>
+                            <p className="text-gray-400 text-sm">{result.description}</p>
+                            <p className="text-[#00b4d8] text-xs">{result.name} • {result.url}</p>
+                            {result.is_sponsored && (
+                              <Badge className="mt-1 bg-yellow-500/20 text-yellow-400">Sponsored</Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <Button 
+                      onClick={handleSaveGeneratedResults}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      Save Selected Results ({generatedResults.filter(r => r.selected).length})
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Or Add Manually Section */}
+            <Card className="bg-[#0d1520] border-[#2a3f5f]">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-[#00b4d8] text-lg">Or Add Manually</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <Select value={selectedPage.toString()} onValueChange={(v) => setSelectedPage(parseInt(v))}>
+                      <SelectTrigger className="w-32 bg-[#1a2942] border-[#2a3f5f] text-white"><SelectValue placeholder="Page" /></SelectTrigger>
+                      <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
+                        {[1, 2, 3, 4, 5].map(p => <SelectItem key={p} value={p.toString()} className="text-white hover:bg-[#2a3f5f]">Page {p}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <div className="relative flex-1 max-w-sm">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 bg-[#1a2942] border-[#2a3f5f] text-white placeholder:text-gray-500" />
+                    </div>
+                  </div>
+                  <Dialog open={webResultDialog} onOpenChange={setWebResultDialog}>
+                    <DialogTrigger asChild>
+                      <Button onClick={resetWebResultForm} className="bg-[#00b4d8] hover:bg-[#0096b4] text-white"><Plus className="mr-2 h-4 w-4" />Create Manual</Button>
+                    </DialogTrigger>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1a2942] border-[#2a3f5f] text-white">
                   <DialogHeader><DialogTitle className="text-white">{editingWebResult ? "Edit" : "Create"} Web Result</DialogTitle></DialogHeader>
                   <form onSubmit={handleWebResultSubmit} className="space-y-4">
@@ -770,25 +955,34 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
                   </form>
                 </DialogContent>
               </Dialog>
-            </div>
-            <BulkActionToolbar
-              selectedCount={selectedWebResults.size}
-              totalCount={filteredWebResults.length}
-              onSelectAll={handleSelectAllWebResults}
-              onDelete={handleBulkDeleteWebResults}
-              onActivate={handleBulkActivateWebResults}
-              onDeactivate={handleBulkDeactivateWebResults}
-              isAllSelected={selectedWebResults.size === filteredWebResults.length && filteredWebResults.length > 0}
-              isDarkTheme={true}
-              selectedData={filteredWebResults.filter(w => selectedWebResults.has(w.id))}
-              allData={webResults}
-              csvColumns={['id', 'name', 'title', 'description', 'url', 'web_result_page', 'position', 'is_active', 'is_sponsored']}
-              csvFilename="minglemoody_web_results"
-            />
-            <div className="space-y-2">
-              {filteredWebResults.map((result) => {
-                const hasPrelander = result.prelanding_key && prelandings.some(p => p.key === result.prelanding_key);
-                return (
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Existing Web Results */}
+            <Card className="bg-[#0d1520] border-[#2a3f5f]">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-[#00b4d8] text-lg">Existing Web Results</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <BulkActionToolbar
+                  selectedCount={selectedWebResults.size}
+                  totalCount={filteredWebResults.length}
+                  onSelectAll={handleSelectAllWebResults}
+                  onDelete={handleBulkDeleteWebResults}
+                  onActivate={handleBulkActivateWebResults}
+                  onDeactivate={handleBulkDeactivateWebResults}
+                  isAllSelected={selectedWebResults.size === filteredWebResults.length && filteredWebResults.length > 0}
+                  isDarkTheme={true}
+                  selectedData={filteredWebResults.filter(w => selectedWebResults.has(w.id))}
+                  allData={webResults}
+                  csvColumns={['id', 'name', 'title', 'description', 'url', 'web_result_page', 'position', 'is_active', 'is_sponsored']}
+                  csvFilename="minglemoody_web_results"
+                />
+                <div className="space-y-2">
+                  {filteredWebResults.map((result) => {
+                    const hasPrelander = result.prelanding_key && prelandings.some(p => p.key === result.prelanding_key);
+                    return (
                   <div key={result.id} className={`flex items-center justify-between p-4 border border-[#2a3f5f] rounded bg-[#0d1520] ${selectedWebResults.has(result.id) ? 'ring-2 ring-[#00b4d8]' : ''}`}>
                     <div className="flex items-center gap-4">
                       <Checkbox
@@ -828,7 +1022,9 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
                 );
               })}
               {filteredWebResults.length === 0 && <p className="text-gray-400 text-center py-8">No web results found for page {selectedPage}.</p>}
-            </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Prelandings Tab */}
