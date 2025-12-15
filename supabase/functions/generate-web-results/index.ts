@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { searchText, count = 4 } = await req.json();
+    const { searchText, count = 6 } = await req.json();
     
     if (!searchText) {
       return new Response(
@@ -25,7 +25,7 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    console.log('Generating web results for:', searchText);
+    console.log('Generating web results for:', searchText, 'count:', count);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -45,7 +45,7 @@ For each result, provide:
 - description: A brief description of what the page offers (100-150 characters)
 - name: A realistic domain name (e.g., "bestreviews.com", "expertguide.net")
 - url: A realistic URL for the result
-- is_sponsored: Boolean, make first 1-2 results sponsored (true), rest organic (false)
+- is_sponsored: Boolean, make first 2 results sponsored (true), rest organic (false)
 
 Return a JSON array with exactly ${count} results. Results should be relevant to the search query and look like real search engine results.`
           },
