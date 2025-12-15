@@ -274,6 +274,12 @@ const OfferGrabZoneBlogs = () => {
     });
   };
 
+  const updateGeneratedSearch = (index: number, value: string) => {
+    setGeneratedSearches(prev => 
+      prev.map((s, i) => i === index ? value : s)
+    );
+  };
+
   const saveRelatedSearches = async (blogId: string) => {
     if (selectedSearchesOrder.length === 0) return;
     
@@ -563,27 +569,32 @@ const OfferGrabZoneBlogs = () => {
                       return (
                         <div 
                           key={index} 
-                          className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors cursor-pointer ${
+                          className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
                             isSelected 
                               ? 'border-[#00b4d8] bg-[#00b4d8]/10' 
                               : 'border-[#2a3f5f] hover:border-[#00b4d8]/50'
                           }`}
-                          onClick={() => toggleSearchSelection(index)}
                         >
-                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                            isSelected 
-                              ? 'bg-[#00b4d8] border-[#00b4d8]' 
-                              : 'border-gray-500'
-                          }`}>
+                        <div 
+                            className={`w-4 h-4 rounded border-2 flex items-center justify-center cursor-pointer ${
+                              isSelected 
+                                ? 'bg-[#00b4d8] border-[#00b4d8]' 
+                                : 'border-gray-500'
+                            }`}
+                            onClick={() => toggleSearchSelection(index)}
+                          >
                             {isSelected && (
                               <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                               </svg>
                             )}
                           </div>
-                          <span className="text-sm cursor-pointer flex-1 text-gray-300">
-                            {search}
-                          </span>
+                          <Input
+                            value={search}
+                            onChange={(e) => updateGeneratedSearch(index, e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex-1 bg-[#0d1520] border-[#2a3f5f] text-white text-sm h-8"
+                          />
                           {isSelected && (
                             <span className="text-xs text-[#00b4d8] font-medium">
                               → /wr={selectionOrder + 1}
