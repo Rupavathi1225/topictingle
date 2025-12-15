@@ -498,7 +498,6 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
         url: result.url,
         position: position,
         is_sponsored: result.is_sponsored || false,
-        related_search_id: selectedSearchForAI
       };
     });
 
