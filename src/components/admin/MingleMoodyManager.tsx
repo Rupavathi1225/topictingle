@@ -35,15 +35,17 @@ interface Blog {
 
 interface WebResult {
   id: string;
-  web_result_page: number;
+  name: string;
+  logo: string | null;
+  url: string;
   title: string;
   description: string | null;
-  logo_url: string | null;
-  original_link: string;
+  web_result_page: number;
   position: number;
   prelanding_key: string | null;
   is_sponsored: boolean;
   is_active: boolean;
+  related_search_id: string | null;
 }
 
 interface LandingContent {
@@ -189,8 +191,8 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
   const [selectedSearchForResult, setSelectedSearchForResult] = useState<string>("");
   const [forceReplace, setForceReplace] = useState(false);
   const [webResultForm, setWebResultForm] = useState({
-    title: "", description: "", logo_url: "", original_link: "",
-    web_result_page: 1, position: 0, prelanding_key: "", is_active: true
+    name: "", logo: "", url: "", title: "", description: "",
+    web_result_page: 1, position: 0, prelanding_key: "", is_active: true, is_sponsored: false
   });
 
   // Prelandings
@@ -363,7 +365,19 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
       }
     }
     
-    const data = { ...webResultForm, web_result_page: pageNumber, prelanding_key: webResultForm.prelanding_key || null };
+    const data = { 
+      name: webResultForm.name,
+      logo: webResultForm.logo || null,
+      url: webResultForm.url,
+      title: webResultForm.title,
+      description: webResultForm.description || null,
+      web_result_page: pageNumber, 
+      position: webResultForm.position,
+      prelanding_key: webResultForm.prelanding_key || null,
+      is_active: webResultForm.is_active,
+      is_sponsored: webResultForm.is_sponsored,
+      related_search_id: selectedSearchForResult || null
+    };
 
     if (editingWebResult) {
       const { error } = await mingleMoodyClient.from("web_results").update(data).eq("id", editingWebResult.id);
@@ -392,8 +406,8 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
 
   const resetWebResultForm = () => {
     setWebResultForm({
-      title: "", description: "", logo_url: "", original_link: "",
-      web_result_page: selectedPage, position: 0, prelanding_key: "", is_active: true
+      name: "", logo: "", url: "", title: "", description: "",
+      web_result_page: selectedPage, position: 0, prelanding_key: "", is_active: true, is_sponsored: false
     });
     setSelectedSearchForResult("");
     setEditingWebResult(null);
@@ -685,8 +699,9 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
                     )}
                     <div><Label className="text-gray-300">Title *</Label><Input value={webResultForm.title} onChange={(e) => setWebResultForm({ ...webResultForm, title: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div><Label className="text-gray-300">Description</Label><Textarea value={webResultForm.description} onChange={(e) => setWebResultForm({ ...webResultForm, description: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" /></div>
-                    <div><Label className="text-gray-300">Logo URL</Label><Input value={webResultForm.logo_url} onChange={(e) => setWebResultForm({ ...webResultForm, logo_url: e.target.value })} placeholder="https://..." className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" /></div>
-                    <div><Label className="text-gray-300">Original Link *</Label><Input value={webResultForm.original_link} onChange={(e) => setWebResultForm({ ...webResultForm, original_link: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Logo URL</Label><Input value={webResultForm.logo} onChange={(e) => setWebResultForm({ ...webResultForm, logo: e.target.value })} placeholder="https://..." className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" /></div>
+                    <div><Label className="text-gray-300">Target URL *</Label><Input value={webResultForm.url} onChange={(e) => setWebResultForm({ ...webResultForm, url: e.target.value })} required className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div><Label className="text-gray-300">Name/Domain *</Label><Input value={webResultForm.name} onChange={(e) => setWebResultForm({ ...webResultForm, name: e.target.value })} placeholder="example.com" required className="bg-[#0d1520] border-[#2a3f5f] text-white placeholder:text-gray-500" /></div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label className="text-gray-300">Page {!editingWebResult && "(Auto)"}</Label>
@@ -738,9 +753,15 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
                       </div>
                     </div>
                     <div><Label className="text-gray-300">Prelanding Key</Label><Input value={webResultForm.prelanding_key} onChange={(e) => setWebResultForm({ ...webResultForm, prelanding_key: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
-                    <div className="flex items-center gap-2">
-                      <Switch checked={webResultForm.is_active} onCheckedChange={(checked) => setWebResultForm({ ...webResultForm, is_active: checked })} />
-                      <Label className="text-gray-300">Active</Label>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <Switch checked={webResultForm.is_active} onCheckedChange={(checked) => setWebResultForm({ ...webResultForm, is_active: checked })} />
+                        <Label className="text-gray-300">Active</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch checked={webResultForm.is_sponsored} onCheckedChange={(checked) => setWebResultForm({ ...webResultForm, is_sponsored: checked })} />
+                        <Label className="text-gray-300">Sponsored</Label>
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <Button type="submit" className="flex-1 bg-[#00b4d8] hover:bg-[#0096b4] text-white">{editingWebResult ? "Update" : "Create"}</Button>
@@ -761,7 +782,7 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
               isDarkTheme={true}
               selectedData={filteredWebResults.filter(w => selectedWebResults.has(w.id))}
               allData={webResults}
-              csvColumns={['id', 'title', 'description', 'original_link', 'web_result_page', 'position', 'is_active', 'is_sponsored']}
+              csvColumns={['id', 'name', 'title', 'description', 'url', 'web_result_page', 'position', 'is_active', 'is_sponsored']}
               csvFilename="minglemoody_web_results"
             />
             <div className="space-y-2">
@@ -775,7 +796,7 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
                         onCheckedChange={() => toggleWebResultSelection(result.id)}
                         className="border-gray-500"
                       />
-                      {result.logo_url && <img src={result.logo_url} alt="" className="w-10 h-10 rounded object-contain" />}
+                      {result.logo && <img src={result.logo} alt="" className="w-10 h-10 rounded object-contain" />}
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <Badge variant="outline" className="text-xs border-[#2a3f5f] text-[#00b4d8]">(Web Result)</Badge>
@@ -793,10 +814,11 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
                       <Button size="sm" variant="outline" className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]" onClick={() => {
                         setEditingWebResult(result);
                         setWebResultForm({
+                          name: result.name || "", logo: result.logo || "", url: result.url,
                           title: result.title, description: result.description || "",
-                          logo_url: result.logo_url || "", original_link: result.original_link,
                           web_result_page: result.web_result_page, position: result.position,
-                          is_active: result.is_active, prelanding_key: result.prelanding_key || ""
+                          is_active: result.is_active, is_sponsored: result.is_sponsored,
+                          prelanding_key: result.prelanding_key || ""
                         });
                         setWebResultDialog(true);
                       }}><Edit className="h-4 w-4" /></Button>
