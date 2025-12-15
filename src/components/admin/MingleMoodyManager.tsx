@@ -439,13 +439,16 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
     setGeneratingAI(true);
     try {
       const { data, error } = await supabase.functions.invoke('generate-web-results', {
-        body: { searchText: selectedSearch.title || selectedSearch.search_text, count: 4 }
+        body: { searchText: selectedSearch.title || selectedSearch.search_text, count: 6 }
       });
 
       if (error) throw error;
 
       if (data?.webResults && Array.isArray(data.webResults)) {
-        setGeneratedResults(data.webResults.map((r: any) => ({ ...r, selected: true })));
+        setGeneratedResults(data.webResults.map((r: any, index: number) => ({ 
+          ...r, 
+          selected: index < 4 // Select first 4 by default
+        })));
         toast.success(`Generated ${data.webResults.length} web results`);
       }
     } catch (error: any) {
@@ -463,6 +466,11 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
     const selectedResults = generatedResults.filter(r => r.selected);
     if (selectedResults.length === 0) {
       toast.error("Please select at least one result to save");
+      return;
+    }
+
+    if (selectedResults.length > 4) {
+      toast.error("You can only save up to 4 results at a time");
       return;
     }
 
@@ -492,28 +500,49 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
         logo: null,
         web_result_page: pageNum,
         position: position,
+        prelanding_key: null,
         is_active: true,
-        is_sponsored: result.is_sponsored,
+        is_sponsored: result.is_sponsored || false,
         related_search_id: selectedSearchForAI
       };
     });
 
-    const { error } = await mingleMoodyClient.from("web_results").insert(resultsToInsert);
-    if (error) {
-      toast.error("Failed to save web results");
-      console.error(error);
-    } else {
-      toast.success(`Saved ${resultsToInsert.length} web results`);
-      setGeneratedResults([]);
-      setSelectedSearchForAI("");
-      fetchWebResults();
-      fetchAllWebResults();
+    try {
+      const { error } = await mingleMoodyClient.from("web_results").insert(resultsToInsert);
+      if (error) {
+        console.error('Save error:', error);
+        toast.error(`Failed to save: ${error.message}`);
+      } else {
+        toast.success(`Saved ${resultsToInsert.length} web results`);
+        setGeneratedResults([]);
+        setSelectedSearchForAI("");
+        fetchWebResults();
+        fetchAllWebResults();
+      }
+    } catch (err: any) {
+      console.error('Exception:', err);
+      toast.error(`Error: ${err.message}`);
     }
   };
 
   const toggleGeneratedResultSelection = (index: number) => {
+    const currentSelected = generatedResults.filter(r => r.selected).length;
+    const isCurrentlySelected = generatedResults[index].selected;
+    
+    // If trying to select and already have 4 selected, show warning
+    if (!isCurrentlySelected && currentSelected >= 4) {
+      toast.error("You can only select up to 4 results");
+      return;
+    }
+    
     setGeneratedResults(prev => prev.map((r, i) => 
       i === index ? { ...r, selected: !r.selected } : r
+    ));
+  };
+
+  const handleEditGeneratedResult = (index: number, field: string, value: string) => {
+    setGeneratedResults(prev => prev.map((r, i) => 
+      i === index ? { ...r, [field]: value } : r
     ));
   };
 
@@ -802,21 +831,52 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
                 {/* Generated Results */}
                 {generatedResults.length > 0 && (
                   <div className="space-y-3">
-                    <Label className="text-gray-300">Generated Results (select to save):</Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-gray-300">Generated Results (select up to 4 to save):</Label>
+                      <span className="text-sm text-gray-400">
+                        {generatedResults.filter(r => r.selected).length}/4 selected
+                      </span>
+                    </div>
                     {generatedResults.map((result, index) => (
                       <div 
                         key={index} 
-                        className={`p-3 rounded border ${result.selected ? 'border-[#00b4d8] bg-[#1a2942]' : 'border-[#2a3f5f] bg-[#0d1520] opacity-50'} cursor-pointer`}
-                        onClick={() => toggleGeneratedResultSelection(index)}
+                        className={`p-3 rounded border ${result.selected ? 'border-[#00b4d8] bg-[#1a2942]' : 'border-[#2a3f5f] bg-[#0d1520]'}`}
                       >
-                        <div className="flex items-center gap-3">
-                          <Checkbox checked={result.selected} className="border-gray-500" />
-                          <div className="flex-1">
-                            <p className="text-white font-medium">{result.title}</p>
-                            <p className="text-gray-400 text-sm">{result.description}</p>
-                            <p className="text-[#00b4d8] text-xs">{result.name} • {result.url}</p>
+                        <div className="flex items-start gap-3">
+                          <Checkbox 
+                            checked={result.selected} 
+                            onCheckedChange={() => toggleGeneratedResultSelection(index)}
+                            className="border-gray-500 mt-1" 
+                          />
+                          <div className="flex-1 space-y-2">
+                            <Input 
+                              value={result.title} 
+                              onChange={(e) => handleEditGeneratedResult(index, 'title', e.target.value)}
+                              className="bg-[#0d1520] border-[#2a3f5f] text-white font-medium"
+                              placeholder="Title"
+                            />
+                            <Textarea 
+                              value={result.description || ''} 
+                              onChange={(e) => handleEditGeneratedResult(index, 'description', e.target.value)}
+                              className="bg-[#0d1520] border-[#2a3f5f] text-gray-300 text-sm min-h-[60px]"
+                              placeholder="Description"
+                            />
+                            <div className="grid grid-cols-2 gap-2">
+                              <Input 
+                                value={result.name} 
+                                onChange={(e) => handleEditGeneratedResult(index, 'name', e.target.value)}
+                                className="bg-[#0d1520] border-[#2a3f5f] text-[#00b4d8] text-xs"
+                                placeholder="Domain name"
+                              />
+                              <Input 
+                                value={result.url} 
+                                onChange={(e) => handleEditGeneratedResult(index, 'url', e.target.value)}
+                                className="bg-[#0d1520] border-[#2a3f5f] text-[#00b4d8] text-xs"
+                                placeholder="URL"
+                              />
+                            </div>
                             {result.is_sponsored && (
-                              <Badge className="mt-1 bg-yellow-500/20 text-yellow-400">Sponsored</Badge>
+                              <Badge className="bg-yellow-500/20 text-yellow-400">Sponsored</Badge>
                             )}
                           </div>
                         </div>
@@ -824,9 +884,10 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
                     ))}
                     <Button 
                       onClick={handleSaveGeneratedResults}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                      disabled={generatedResults.filter(r => r.selected).length === 0 || generatedResults.filter(r => r.selected).length > 4}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
                     >
-                      Save Selected Results ({generatedResults.filter(r => r.selected).length})
+                      Save Selected Results ({generatedResults.filter(r => r.selected).length}/4)
                     </Button>
                   </div>
                 )}
