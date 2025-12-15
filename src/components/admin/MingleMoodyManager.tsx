@@ -445,16 +445,29 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
 
       if (error) throw error;
 
+      // Check for error in response data (e.g., 402 credits exhausted)
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+
       if (data?.webResults && Array.isArray(data.webResults)) {
         setGeneratedResults(data.webResults.map((r: any, index: number) => ({ 
           ...r, 
           selected: index < 4 // Select first 4 by default
         })));
         toast.success(`Generated ${data.webResults.length} web results`);
+      } else {
+        toast.error('No web results generated. Please try again.');
       }
     } catch (error: any) {
       console.error('Error generating web results:', error);
-      toast.error(error.message || 'Failed to generate web results');
+      const errorMessage = error?.message || 'Failed to generate web results';
+      if (errorMessage.includes('credits') || errorMessage.includes('402')) {
+        toast.error('AI credits exhausted. Please add more credits in Settings → Workspace → Usage.');
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setGeneratingAI(false);
     }
