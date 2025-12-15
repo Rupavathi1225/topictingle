@@ -495,12 +495,10 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
       return {
         title: result.title,
         description: result.description || null,
-        site_name: result.name || null,
-        target_url: result.url,
-        web_result_page: pageNum,
+        name: result.name,
+        logo: null,
+        url: result.url,
         position: position,
-        prelanding_key: null,
-        is_active: true,
         is_sponsored: result.is_sponsored || false,
         related_search_id: selectedSearchForAI
       };
