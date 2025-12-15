@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.generate-web-results]
 verify_jwt = false
+
+[functions.generate-prelanding-content]
+verify_jwt = false
+
+[functions.generate-offergrabzone-prelanding]
+verify_jwt = false
