@@ -516,23 +516,34 @@ export const MingleMoodyBlogs = () => {
               {generatedSearches.length > 0 && (
                 <div className="space-y-2">
                   <Label className="text-gray-300">Select Related Searches (max 4)</Label>
-                  <p className="text-xs text-gray-400">Selected searches will be linked to this blog and redirect to /wr=1, /wr=2, etc.</p>
-                  <div className="border border-[#2a3f5f] rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto bg-[#0d1520]">
+                  <p className="text-xs text-gray-400">Selected searches will be linked to this blog and redirect to /wr=1, /wr=2, etc. Edit text as needed.</p>
+                  <div className="border border-[#2a3f5f] rounded-lg p-3 space-y-2 max-h-64 overflow-y-auto bg-[#0d1520]">
                     {generatedSearches.map((search, idx) => (
                       <div 
                         key={idx}
-                        className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
-                          search.selected ? 'bg-[#00b4d8]/20 border border-[#00b4d8]' : 'hover:bg-[#2a3f5f]'
+                        className={`flex items-center gap-3 p-2 rounded transition-colors ${
+                          search.selected ? 'bg-[#00b4d8]/20 border border-[#00b4d8]' : 'border border-transparent hover:bg-[#2a3f5f]'
                         }`}
-                        onClick={() => toggleSearchSelection(idx)}
                       >
                         <Checkbox
                           checked={search.selected}
+                          onCheckedChange={() => toggleSearchSelection(idx)}
                           className="border-gray-500 data-[state=checked]:bg-[#00b4d8] data-[state=checked]:border-[#00b4d8]"
                         />
-                        <span className="flex-1 text-sm text-white">{search.text}</span>
+                        <Input
+                          value={search.text}
+                          onChange={(e) => {
+                            const updated = [...generatedSearches];
+                            updated[idx] = { ...updated[idx], text: e.target.value };
+                            setGeneratedSearches(updated);
+                          }}
+                          className={`flex-1 text-sm bg-[#0d1520] border-[#2a3f5f] text-white ${
+                            search.selected ? 'border-[#00b4d8]' : ''
+                          }`}
+                          onClick={(e) => e.stopPropagation()}
+                        />
                         {search.selected && (
-                          <span className="text-xs text-[#00b4d8]">→ /wr={generatedSearches.filter((s, i) => s.selected && i <= idx).length}</span>
+                          <span className="text-xs text-[#00b4d8] whitespace-nowrap">→ /wr={generatedSearches.filter((s, i) => s.selected && i <= idx).length}</span>
                         )}
                       </div>
                     ))}
