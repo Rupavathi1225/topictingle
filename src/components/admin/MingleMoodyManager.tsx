@@ -496,7 +496,6 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
         title: result.title,
         description: result.description || null,
         name: result.name,
-        logo: null,
         url: result.url,
         position: position,
         is_sponsored: result.is_sponsored || false,
