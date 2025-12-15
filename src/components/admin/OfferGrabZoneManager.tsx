@@ -479,6 +479,14 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
     );
   };
 
+  const updateGeneratedResult = (index: number, field: keyof GeneratedWebResult, value: string | boolean) => {
+    setGeneratedWebResults(prev => 
+      prev.map((r, i) => 
+        i === index ? { ...r, [field]: value } : r
+      )
+    );
+  };
+
   const saveGeneratedWebResults = async () => {
     const selectedResults = generatedWebResults.filter(r => r.isSelected);
     if (selectedResults.length === 0) {
@@ -834,20 +842,40 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
                               onCheckedChange={() => toggleGeneratedResultSelection(index)}
                               className="mt-1 border-gray-500"
                             />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-medium text-white">{result.name}</span>
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  value={result.name}
+                                  onChange={(e) => updateGeneratedResult(index, 'name', e.target.value)}
+                                  className="h-8 w-32 bg-[#0d1520] border-[#2a3f5f] text-white font-medium"
+                                  placeholder="Site name"
+                                />
                                 {result.isSponsored && (
                                   <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded">
                                     Sponsored
                                   </span>
                                 )}
                               </div>
-                              <p className="text-sm text-[#00b4d8] mb-1">{result.title}</p>
-                              <p className="text-xs text-gray-400 mb-2">{result.description}</p>
-                              <p className="text-xs text-gray-500 truncate">{result.link}</p>
+                              <Input
+                                value={result.title}
+                                onChange={(e) => updateGeneratedResult(index, 'title', e.target.value)}
+                                className="h-8 bg-[#0d1520] border-[#2a3f5f] text-[#00b4d8] text-sm"
+                                placeholder="Title"
+                              />
+                              <Textarea
+                                value={result.description}
+                                onChange={(e) => updateGeneratedResult(index, 'description', e.target.value)}
+                                className="bg-[#0d1520] border-[#2a3f5f] text-gray-300 text-xs min-h-[60px]"
+                                placeholder="Description"
+                              />
+                              <Input
+                                value={result.link}
+                                onChange={(e) => updateGeneratedResult(index, 'link', e.target.value)}
+                                className="h-8 bg-[#0d1520] border-[#2a3f5f] text-gray-400 text-xs"
+                                placeholder="URL"
+                              />
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-col items-center gap-2">
                               <Label className="text-xs text-gray-400">Sponsored</Label>
                               <Switch
                                 checked={result.isSponsored}
