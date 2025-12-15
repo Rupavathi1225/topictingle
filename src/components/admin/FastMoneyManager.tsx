@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { fastMoneyClient } from "@/integrations/fastmoney/client";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Trash2, Edit, Plus, Search, ChevronRight, AlertTriangle } from "lucide-react";
+import { Trash2, Edit, Plus, Search, ChevronRight, AlertTriangle, Sparkles, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -128,10 +129,24 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
     country_permissions: ["worldwide"] as string[], fallback_link: ""
   });
 
+  // AI Web Results Generation
+  interface GeneratedResult {
+    title: string;
+    description: string;
+    link: string;
+    targetPage: number;
+    selected: boolean;
+    isSponsored: boolean;
+  }
+  const [selectedRelatedSearchForAI, setSelectedRelatedSearchForAI] = useState<string>("");
+  const [isGeneratingWebResults, setIsGeneratingWebResults] = useState(false);
+  const [generatedWebResults, setGeneratedWebResults] = useState<GeneratedResult[]>([]);
+
   // Prelander Settings
   const [prelanders, setPrelanders] = useState<PrelanderSettings[]>([]);
   const [prelanderDialog, setPrelanderDialog] = useState(false);
   const [editingPrelander, setEditingPrelander] = useState<PrelanderSettings | null>(null);
+  const [isGeneratingPrelanding, setIsGeneratingPrelanding] = useState(false);
   const [prelanderForm, setPrelanderForm] = useState({
     web_result_id: "", is_enabled: false, logo_url: "", main_image_url: "",
     headline_text: "Welcome to Our Platform", description_text: "Join thousands of users already benefiting from our service.",
@@ -379,6 +394,131 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
     });
     setEditingPrelander(null);
     setPrelanderDialog(false);
+    setIsGeneratingPrelanding(false);
+  };
+
+  // AI Web Results Generation
+  const generateWebResultsWithAI = async () => {
+    if (!selectedRelatedSearchForAI) {
+      toast.error("Please select a related search first");
+      return;
+    }
+
+    const selectedSearch = relatedSearches.find(s => s.id === selectedRelatedSearchForAI);
+    if (!selectedSearch) return;
+
+    setIsGeneratingWebResults(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-web-results', {
+        body: { searchText: selectedSearch.title, count: 6 }
+      });
+
+      if (error) throw error;
+
+      const generated = (data.webResults || []).map((r: any) => ({
+        title: r.title || '',
+        description: r.description || '',
+        link: r.url || '',
+        targetPage: selectedSearch.web_result_page,
+        selected: true,
+        isSponsored: r.is_sponsored || false,
+      }));
+
+      setGeneratedWebResults(generated);
+      toast.success("Generated 6 web results. Select which ones to save.");
+    } catch (error) {
+      console.error('Error generating web results:', error);
+      toast.error("Failed to generate web results");
+    } finally {
+      setIsGeneratingWebResults(false);
+    }
+  };
+
+  const saveGeneratedWebResults = async () => {
+    const toSave = generatedWebResults.filter(r => r.selected);
+    if (toSave.length === 0) {
+      toast.error("Please select at least one result to save");
+      return;
+    }
+
+    if (toSave.length > 4) {
+      toast.error("You can only save up to 4 results at a time");
+      return;
+    }
+
+    const missingLinks = toSave.filter(r => !r.link.trim());
+    if (missingLinks.length > 0) {
+      toast.error("Please enter a link URL for all selected results");
+      return;
+    }
+
+    try {
+      const inserts = toSave.map((r, idx) => ({
+        title: r.title,
+        description: r.description,
+        original_link: r.link,
+        web_result_page: r.targetPage,
+        display_order: idx,
+        is_active: true,
+        is_sponsored: r.isSponsored,
+        country_permissions: ["worldwide"],
+      }));
+
+      const { error } = await fastMoneyClient.from('web_results').insert(inserts);
+      if (error) throw error;
+
+      toast.success(`Saved ${toSave.length} web results`);
+      setGeneratedWebResults([]);
+      setSelectedRelatedSearchForAI("");
+      fetchWebResults();
+      fetchAllWebResults();
+    } catch (error) {
+      console.error('Error saving web results:', error);
+      toast.error("Failed to save web results");
+    }
+  };
+
+  // AI Prelanding Generation
+  const generatePrelandingWithAI = async () => {
+    if (!prelanderForm.web_result_id) {
+      toast.error("Please select a web result first");
+      return;
+    }
+
+    const selectedResult = allWebResults.find(wr => wr.id === prelanderForm.web_result_id);
+    if (!selectedResult) return;
+
+    setIsGeneratingPrelanding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-prelanding-content', {
+        body: {
+          webResultTitle: selectedResult.title,
+          webResultDescription: selectedResult.description,
+          originalLink: selectedResult.original_link
+        }
+      });
+
+      if (error) throw error;
+
+      setPrelanderForm(prev => ({
+        ...prev,
+        headline_text: data.headline || prev.headline_text,
+        description_text: data.description || prev.description_text,
+        email_placeholder: data.emailPlaceholder || prev.email_placeholder,
+        button_text: data.buttonText || prev.button_text,
+        main_image_url: data.mainImageUrl || prev.main_image_url,
+        background_color: data.backgroundColor || prev.background_color,
+        button_color: data.buttonColor || prev.button_color,
+        is_enabled: true,
+      }));
+
+      toast.success("Prelanding content generated with AI!");
+    } catch (error) {
+      console.error('Error generating prelanding:', error);
+      toast.error("Failed to generate prelanding content");
+    } finally {
+      setIsGeneratingPrelanding(false);
+    }
   };
 
   const filteredSearches = relatedSearches.filter(s =>
@@ -649,6 +789,128 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
 
           {/* Web Results Tab */}
           <TabsContent value="webresults" className="space-y-4">
+            {/* AI Web Results Generator */}
+            <div className="p-4 border-2 border-[#00b4d8]/30 rounded-lg bg-[#0d1520]">
+              <h3 className="text-lg font-semibold text-[#00b4d8] mb-4 flex items-center gap-2">
+                <Sparkles className="w-5 h-5" />
+                AI Web Results Generator
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <Label className="text-gray-300">Select Related Search</Label>
+                  <Select
+                    value={selectedRelatedSearchForAI}
+                    onValueChange={(value) => setSelectedRelatedSearchForAI(value)}
+                  >
+                    <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white mt-1">
+                      <SelectValue placeholder="Choose a related search..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1a2942] border-[#2a3f5f] max-h-[200px]">
+                      {relatedSearches.map((search) => (
+                        <SelectItem key={search.id} value={search.id} className="text-white hover:bg-[#2a3f5f]">
+                          {search.title} (wr={search.web_result_page})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    onClick={generateWebResultsWithAI}
+                    disabled={!selectedRelatedSearchForAI || isGeneratingWebResults}
+                    className="bg-[#00b4d8] hover:bg-[#0096b4] text-white gap-2"
+                  >
+                    {isGeneratingWebResults ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    Generate 6 Web Results
+                  </Button>
+                </div>
+              </div>
+
+              {/* Generated Results */}
+              {generatedWebResults.length > 0 && (
+                <div className="space-y-3 mt-4 border-t border-[#2a3f5f] pt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-base text-white">Generated Results for wr={generatedWebResults[0]?.targetPage}:</Label>
+                    <span className="text-sm text-gray-400">(Select up to 4 to save)</span>
+                  </div>
+                  {generatedWebResults.map((result, idx) => (
+                    <div key={idx} className={`p-4 rounded-lg border space-y-3 ${result.isSponsored ? 'bg-amber-500/10 border-amber-500/50' : 'bg-[#1a2942] border-[#2a3f5f]'}`}>
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          checked={result.selected}
+                          onCheckedChange={(checked) => {
+                            const updated = [...generatedWebResults];
+                            updated[idx].selected = !!checked;
+                            setGeneratedWebResults(updated);
+                          }}
+                          className="border-gray-500 data-[state=checked]:bg-[#00b4d8]"
+                        />
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-xs text-gray-400">Title</Label>
+                            <div className="flex items-center gap-2">
+                              <Label className="text-xs text-gray-400">Sponsored</Label>
+                              <Switch
+                                checked={result.isSponsored}
+                                onCheckedChange={(checked) => {
+                                  const updated = [...generatedWebResults];
+                                  updated[idx].isSponsored = checked;
+                                  setGeneratedWebResults(updated);
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <Input
+                            value={result.title}
+                            onChange={(e) => {
+                              const updated = [...generatedWebResults];
+                              updated[idx].title = e.target.value;
+                              setGeneratedWebResults(updated);
+                            }}
+                            className="bg-[#0d1520] border-[#2a3f5f] text-white"
+                          />
+                          <div>
+                            <Label className="text-xs text-gray-400">Description</Label>
+                            <Textarea
+                              value={result.description}
+                              onChange={(e) => {
+                                const updated = [...generatedWebResults];
+                                updated[idx].description = e.target.value;
+                                setGeneratedWebResults(updated);
+                              }}
+                              className="mt-1 bg-[#0d1520] border-[#2a3f5f] text-white"
+                              rows={2}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-gray-400">Link URL (required)</Label>
+                            <Input
+                              value={result.link}
+                              onChange={(e) => {
+                                const updated = [...generatedWebResults];
+                                updated[idx].link = e.target.value;
+                                setGeneratedWebResults(updated);
+                              }}
+                              placeholder="https://example.com"
+                              className="mt-1 bg-[#0d1520] border-[#2a3f5f] text-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex gap-2">
+                    <Button onClick={saveGeneratedWebResults} className="bg-[#00b4d8] hover:bg-[#0096b4] text-white">
+                      Save Selected to wr={generatedWebResults[0]?.targetPage}
+                    </Button>
+                    <Button variant="outline" onClick={() => setGeneratedWebResults([])} className="border-[#2a3f5f] text-gray-300 hover:bg-[#2a3f5f]">
+                      Clear
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <Select value={selectedPage.toString()} onValueChange={(v) => setSelectedPage(parseInt(v))}>
@@ -859,14 +1121,14 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
                       <Label className="text-gray-300">Web Result</Label>
                       <Select value={prelanderForm.web_result_id} onValueChange={(v) => setPrelanderForm({ ...prelanderForm, web_result_id: v })}>
                         <SelectTrigger className="bg-[#0d1520] border-[#2a3f5f] text-white"><SelectValue placeholder="Select web result" /></SelectTrigger>
-                        <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
-                          {webResults.map(wr => {
+                        <SelectContent className="bg-[#1a2942] border-[#2a3f5f] max-h-[200px]">
+                          {allWebResults.map(wr => {
                             const hasPrelander = prelanders.some(p => p.web_result_id === wr.id);
                             return (
                               <SelectItem key={wr.id} value={wr.id} className="text-white hover:bg-[#2a3f5f]">
                                 <span className="flex items-center gap-2">
                                   <Badge variant="outline" className="text-xs">(Web Result)</Badge>
-                                  {wr.title}
+                                  {wr.title} (Page {wr.web_result_page})
                                   {hasPrelander && (
                                     <Badge className="text-xs bg-green-600">Has Pre-landing</Badge>
                                   )}
@@ -877,12 +1139,53 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {/* Generate with AI Button */}
+                    {prelanderForm.web_result_id && (
+                      <div className="flex items-center gap-4 p-3 bg-[#0d1520] border border-[#00b4d8]/30 rounded-lg">
+                        <Button
+                          type="button"
+                          onClick={generatePrelandingWithAI}
+                          disabled={isGeneratingPrelanding}
+                          className="bg-[#00b4d8] hover:bg-[#0096b4] text-white gap-2"
+                        >
+                          {isGeneratingPrelanding ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-4 h-4" />
+                              Generate with AI
+                            </>
+                          )}
+                        </Button>
+                        <span className="text-sm text-gray-400">
+                          Auto-fill all fields based on selected web result
+                        </span>
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-2">
                       <Switch checked={prelanderForm.is_enabled} onCheckedChange={(checked) => setPrelanderForm({ ...prelanderForm, is_enabled: checked })} />
                       <Label className="text-gray-300">Enabled</Label>
                     </div>
                     <div><Label className="text-gray-300">Logo URL</Label><Input value={prelanderForm.logo_url} onChange={(e) => setPrelanderForm({ ...prelanderForm, logo_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
-                    <div><Label className="text-gray-300">Main Image URL</Label><Input value={prelanderForm.main_image_url} onChange={(e) => setPrelanderForm({ ...prelanderForm, main_image_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
+                    <div>
+                      <Label className="text-gray-300">Main Image URL</Label>
+                      <Input value={prelanderForm.main_image_url} onChange={(e) => setPrelanderForm({ ...prelanderForm, main_image_url: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" />
+                      {prelanderForm.main_image_url && (
+                        <div className="mt-2">
+                          <img 
+                            src={prelanderForm.main_image_url} 
+                            alt="Preview" 
+                            className="max-h-32 rounded-lg object-cover"
+                            onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
+                          />
+                        </div>
+                      )}
+                    </div>
                     <div><Label className="text-gray-300">Headline Text</Label><Input value={prelanderForm.headline_text} onChange={(e) => setPrelanderForm({ ...prelanderForm, headline_text: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div><Label className="text-gray-300">Description Text</Label><Textarea value={prelanderForm.description_text} onChange={(e) => setPrelanderForm({ ...prelanderForm, description_text: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
                     <div><Label className="text-gray-300">Email Placeholder</Label><Input value={prelanderForm.email_placeholder} onChange={(e) => setPrelanderForm({ ...prelanderForm, email_placeholder: e.target.value })} className="bg-[#0d1520] border-[#2a3f5f] text-white" /></div>
