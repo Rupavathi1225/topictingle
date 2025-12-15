@@ -504,11 +504,11 @@ export const FastMoneyManager = ({ initialTab = "landing" }: FastMoneyManagerPro
         ...prev,
         headline_text: data.headline || prev.headline_text,
         description_text: data.description || prev.description_text,
-        email_placeholder: data.emailPlaceholder || prev.email_placeholder,
-        button_text: data.buttonText || prev.button_text,
-        main_image_url: data.mainImageUrl || prev.main_image_url,
-        background_color: data.backgroundColor || prev.background_color,
-        button_color: data.buttonColor || prev.button_color,
+        email_placeholder: data.emailPlaceholder || data.email_placeholder || prev.email_placeholder,
+        button_text: data.buttonText || data.button_text || prev.button_text,
+        main_image_url: data.main_image_url || prev.main_image_url,
+        background_color: data.backgroundColor || data.background_color || prev.background_color,
+        button_color: data.buttonColor || data.button_color || prev.button_color,
         is_enabled: true,
       }));
 
