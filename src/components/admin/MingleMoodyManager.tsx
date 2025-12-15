@@ -495,8 +495,8 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
       return {
         title: result.title,
         description: result.description || null,
-        name: result.name,
-        url: result.url,
+        site_name: result.name || null,
+        target_url: result.url,
         web_result_page: pageNum,
         position: position,
         prelanding_key: null,
