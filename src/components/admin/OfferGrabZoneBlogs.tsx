@@ -77,7 +77,7 @@ const OfferGrabZoneBlogs = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBlogs, setSelectedBlogs] = useState<Set<string>>(new Set());
   const [generatedSearches, setGeneratedSearches] = useState<string[]>([]);
-  const [selectedSearches, setSelectedSearches] = useState<Set<number>>(new Set());
+  const [selectedSearchesOrder, setSelectedSearchesOrder] = useState<number[]>([]);
   
   const [formData, setFormData] = useState({
     title: "",
@@ -111,7 +111,7 @@ const OfferGrabZoneBlogs = () => {
     },
     onSuccess: async (data) => {
       // Save selected related searches
-      if (data && selectedSearches.size > 0) {
+      if (data && selectedSearchesOrder.length > 0) {
         await saveRelatedSearches(data.id);
       }
       queryClient.invalidateQueries({ queryKey: ["offergrabzone-blogs"] });
@@ -184,7 +184,7 @@ const OfferGrabZoneBlogs = () => {
     });
     setEditingBlog(null);
     setGeneratedSearches([]);
-    setSelectedSearches(new Set());
+    setSelectedSearchesOrder([]);
   };
 
   const handleTitleChange = (title: string) => {
@@ -243,7 +243,7 @@ const OfferGrabZoneBlogs = () => {
         // Store generated searches in state for user selection
         if (data.relatedSearches && data.relatedSearches.length > 0) {
           setGeneratedSearches(data.relatedSearches);
-          setSelectedSearches(new Set()); // Reset selections
+          setSelectedSearchesOrder([]); // Reset selections
         }
         
         toast.success("Content generated! Select related searches below.");
@@ -259,28 +259,30 @@ const OfferGrabZoneBlogs = () => {
   };
 
   const toggleSearchSelection = (index: number) => {
-    setSelectedSearches(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(index)) {
-        newSet.delete(index);
-      } else if (newSet.size < 4) {
-        newSet.add(index);
+    setSelectedSearchesOrder(prev => {
+      const existingIndex = prev.indexOf(index);
+      if (existingIndex !== -1) {
+        // Remove from selection
+        return prev.filter(i => i !== index);
+      } else if (prev.length < 4) {
+        // Add to selection order
+        return [...prev, index];
       } else {
         toast.error("Maximum 4 related searches allowed");
+        return prev;
       }
-      return newSet;
     });
   };
 
   const saveRelatedSearches = async (blogId: string) => {
-    if (selectedSearches.size === 0) return;
+    if (selectedSearchesOrder.length === 0) return;
     
-    const selectedTitles = Array.from(selectedSearches).map(index => generatedSearches[index]);
-    const relatedSearchesToInsert = selectedTitles.map((title, idx) => ({
-      title: title,
+    // Use the order array to maintain selection order for target_wr assignment
+    const relatedSearchesToInsert = selectedSearchesOrder.map((index, orderIdx) => ({
+      title: generatedSearches[index],
       blog_id: blogId,
-      serial_number: idx + 1,
-      target_wr: idx + 1,
+      serial_number: orderIdx + 1,
+      target_wr: orderIdx + 1, // First selected = 1, second = 2, etc.
       is_active: true,
     }));
     
@@ -551,29 +553,48 @@ const OfferGrabZoneBlogs = () => {
 
               {/* Related Searches Selection */}
               {generatedSearches.length > 0 && !editingBlog && (
-                <div className="space-y-2 p-4 border border-[#2a3f5f] rounded-lg bg-[#0d1520]">
-                  <Label className="text-white">Select Related Searches (max 4)</Label>
-                  <p className="text-sm text-gray-400">Choose up to 4 related searches to link with this blog</p>
-                  <div className="space-y-2 mt-2">
-                    {generatedSearches.map((search, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`search-${index}`}
-                          checked={selectedSearches.has(index)}
-                          onCheckedChange={() => toggleSearchSelection(index)}
-                          className="border-[#2a3f5f] data-[state=checked]:bg-[#00b4d8]"
-                        />
-                        <label
-                          htmlFor={`search-${index}`}
-                          className="text-sm text-gray-300 cursor-pointer"
+                <div className="space-y-3 p-4 border border-[#2a3f5f] rounded-lg bg-[#0d1520]">
+                  <Label className="text-white">Select Related Searches for Landing Page (max 4)</Label>
+                  <p className="text-sm text-gray-400">Selected searches will appear on landing page and redirect to /wr=1, /wr=2, etc.</p>
+                  <div className="flex flex-col gap-2">
+                    {generatedSearches.map((search, index) => {
+                      const selectionOrder = selectedSearchesOrder.indexOf(index);
+                      const isSelected = selectionOrder !== -1;
+                      return (
+                        <div 
+                          key={index} 
+                          className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors cursor-pointer ${
+                            isSelected 
+                              ? 'border-[#00b4d8] bg-[#00b4d8]/10' 
+                              : 'border-[#2a3f5f] hover:border-[#00b4d8]/50'
+                          }`}
+                          onClick={() => toggleSearchSelection(index)}
                         >
-                          {search}
-                        </label>
-                      </div>
-                    ))}
+                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                            isSelected 
+                              ? 'bg-[#00b4d8] border-[#00b4d8]' 
+                              : 'border-gray-500'
+                          }`}>
+                            {isSelected && (
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className="text-sm cursor-pointer flex-1 text-gray-300">
+                            {search}
+                          </span>
+                          {isSelected && (
+                            <span className="text-xs text-[#00b4d8] font-medium">
+                              → /wr={selectionOrder + 1}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Selected: {selectedSearches.size}/4
+                  <p className="text-xs text-gray-500">
+                    {selectedSearchesOrder.length}/4 selected
                   </p>
                 </div>
               )}

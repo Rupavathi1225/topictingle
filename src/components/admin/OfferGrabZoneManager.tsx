@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { offerGrabZoneClient } from "@/integrations/offergrabzone/client";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Trash2, Edit, Plus, Search, AlertTriangle } from "lucide-react";
+import { Trash2, Edit, Plus, Search, AlertTriangle, Sparkles, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,6 +16,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkActionToolbar } from "./BulkActionToolbar";
 import OfferGrabZoneBlogs from "./OfferGrabZoneBlogs";
+
+interface GeneratedWebResult {
+  name: string;
+  title: string;
+  description: string;
+  link: string;
+  isSelected: boolean;
+  isSponsored: boolean;
+}
 
 interface RelatedSearch {
   id: string;
@@ -196,6 +206,11 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
     wr_page: 1, serial_number: 0, is_active: true,
     allowed_countries: ["worldwide"] as string[], fallback_link: ""
   });
+
+  // AI Web Results Generator
+  const [selectedRelatedSearchForAI, setSelectedRelatedSearchForAI] = useState<string>("");
+  const [isGeneratingWebResults, setIsGeneratingWebResults] = useState(false);
+  const [generatedWebResults, setGeneratedWebResults] = useState<GeneratedWebResult[]>([]);
 
   // Prelandings
   const [prelandings, setPrelandings] = useState<Prelanding[]>([]);
@@ -400,6 +415,106 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
     setWebResultDialog(false);
   };
 
+  // AI Web Results Generation
+  const generateWebResultsWithAI = async () => {
+    if (!selectedRelatedSearchForAI) {
+      toast.error("Please select a related search first");
+      return;
+    }
+
+    const search = relatedSearches.find(s => s.id === selectedRelatedSearchForAI);
+    if (!search) return;
+
+    setIsGeneratingWebResults(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-web-results", {
+        body: { searchText: search.title, count: 6 },
+      });
+
+      if (error) throw error;
+
+      if (data.webResults && data.webResults.length > 0) {
+        setGeneratedWebResults(data.webResults.map((r: any) => ({
+          name: r.name || r.title?.split(' ')[0] || 'Site',
+          title: r.title,
+          description: r.description,
+          link: r.url || r.link,
+          isSelected: false,
+          isSponsored: r.is_sponsored || false,
+        })));
+        toast.success("6 web results generated! Select up to 4.");
+      } else {
+        throw new Error(data.error || "Failed to generate web results");
+      }
+    } catch (error) {
+      console.error("Error generating web results:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to generate web results");
+    } finally {
+      setIsGeneratingWebResults(false);
+    }
+  };
+
+  const toggleGeneratedResultSelection = (index: number) => {
+    setGeneratedWebResults(prev => {
+      const selected = prev.filter(r => r.isSelected).length;
+      const result = prev[index];
+      
+      if (!result.isSelected && selected >= 4) {
+        toast.error("Maximum 4 web results allowed");
+        return prev;
+      }
+      
+      return prev.map((r, i) => 
+        i === index ? { ...r, isSelected: !r.isSelected } : r
+      );
+    });
+  };
+
+  const toggleGeneratedResultSponsored = (index: number) => {
+    setGeneratedWebResults(prev => 
+      prev.map((r, i) => 
+        i === index ? { ...r, isSponsored: !r.isSponsored } : r
+      )
+    );
+  };
+
+  const saveGeneratedWebResults = async () => {
+    const selectedResults = generatedWebResults.filter(r => r.isSelected);
+    if (selectedResults.length === 0) {
+      toast.error("Please select at least one web result");
+      return;
+    }
+
+    const search = relatedSearches.find(s => s.id === selectedRelatedSearchForAI);
+    if (!search) return;
+
+    try {
+      const resultsToInsert = selectedResults.map((r, idx) => ({
+        name: r.name,
+        title: r.title,
+        description: r.description,
+        link: r.link,
+        wr_page: search.target_wr,
+        is_sponsored: r.isSponsored,
+        serial_number: idx + 1,
+        is_active: true,
+        allowed_countries: ['worldwide'],
+      }));
+
+      const { error } = await offerGrabZoneClient.from('web_results').insert(resultsToInsert);
+      if (error) throw error;
+
+      setGeneratedWebResults([]);
+      setSelectedRelatedSearchForAI("");
+      fetchWebResults();
+      fetchAllWebResults();
+      toast.success(`${selectedResults.length} web results added to wr=${search.target_wr}`);
+    } catch (error) {
+      console.error('Error saving web results:', error);
+      toast.error("Failed to save web results: " + (error instanceof Error ? error.message : "Unknown error"));
+    }
+  };
+
   // Prelanding CRUD
   const handlePrelandingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -599,6 +714,123 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
 
           {/* Web Results Tab */}
           <TabsContent value="webresults" className="space-y-4">
+            {/* AI Web Results Generator */}
+            <div className="p-6 border-2 border-[#00b4d8]/30 rounded-lg bg-[#0d1520]">
+              <h3 className="font-semibold text-[#00b4d8] mb-4 flex items-center gap-2">
+                <Sparkles className="w-5 h-5" />
+                AI Web Results Generator
+              </h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm text-gray-400 mb-2 block">Select Related Search</Label>
+                  <div className="flex gap-4">
+                    <Select 
+                      value={selectedRelatedSearchForAI} 
+                      onValueChange={(value) => {
+                        setSelectedRelatedSearchForAI(value);
+                        const search = relatedSearches.find(s => s.id === value);
+                        if (search) {
+                          setSelectedPage(search.target_wr);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="flex-1 bg-[#0d1520] border-[#2a3f5f] text-white">
+                        <SelectValue placeholder="Choose a related search" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#1a2942] border-[#2a3f5f]">
+                        {relatedSearches.map(search => (
+                          <SelectItem key={search.id} value={search.id} className="text-white hover:bg-[#2a3f5f]">
+                            {search.title} (wr={search.target_wr})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      onClick={generateWebResultsWithAI} 
+                      disabled={!selectedRelatedSearchForAI || isGeneratingWebResults}
+                      className="gap-2 bg-[#00b4d8] hover:bg-[#0096b4] text-white"
+                    >
+                      {isGeneratingWebResults ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4" />
+                      )}
+                      Generate 6 Web Results
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Generated Results Selection */}
+                {generatedWebResults.length > 0 && (
+                  <div className="space-y-3 p-4 border border-[#2a3f5f] rounded-lg bg-[#1a2942]/50">
+                    <Label className="text-sm font-medium text-white">
+                      Select Web Results (max 4) - Toggle Sponsored
+                    </Label>
+                    <p className="text-xs text-gray-400">
+                      Selected results will be added to wr={relatedSearches.find(s => s.id === selectedRelatedSearchForAI)?.target_wr}
+                    </p>
+                    
+                    <div className="flex flex-col gap-3">
+                      {generatedWebResults.map((result, index) => (
+                        <div 
+                          key={index} 
+                          className={`p-4 rounded-lg border transition-colors ${
+                            result.isSelected 
+                              ? 'border-[#00b4d8] bg-[#00b4d8]/10' 
+                              : 'border-[#2a3f5f] hover:border-[#00b4d8]/50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <Checkbox
+                              checked={result.isSelected}
+                              onCheckedChange={() => toggleGeneratedResultSelection(index)}
+                              className="mt-1 border-gray-500"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-medium text-white">{result.name}</span>
+                                {result.isSponsored && (
+                                  <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded">
+                                    Sponsored
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-[#00b4d8] mb-1">{result.title}</p>
+                              <p className="text-xs text-gray-400 mb-2">{result.description}</p>
+                              <p className="text-xs text-gray-500 truncate">{result.link}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Label className="text-xs text-gray-400">Sponsored</Label>
+                              <Switch
+                                checked={result.isSponsored}
+                                onCheckedChange={() => toggleGeneratedResultSponsored(index)}
+                                disabled={!result.isSelected}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="flex items-center justify-between pt-2">
+                      <p className="text-xs text-gray-400">
+                        {generatedWebResults.filter(r => r.isSelected).length}/4 selected
+                      </p>
+                      <Button 
+                        onClick={saveGeneratedWebResults} 
+                        disabled={!generatedWebResults.some(r => r.isSelected)}
+                        className="bg-[#00b4d8] hover:bg-[#0096b4] text-white"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Save Selected Results
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <Select value={selectedPage.toString()} onValueChange={(v) => setSelectedPage(parseInt(v))}>
