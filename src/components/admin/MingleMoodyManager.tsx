@@ -443,7 +443,10 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
         body: { searchText: selectedSearch.title || selectedSearch.search_text, count: 6 }
       });
 
-      if (error) throw error;
+      if (error) {
+        toast.error(error.message || "Failed to generate web results");
+        return;
+      }
 
       // Check for error in response data (e.g., 402 credits exhausted)
       if (data?.error) {
@@ -456,18 +459,13 @@ export const MingleMoodyManager = ({ initialTab = "landing" }: MingleMoodyManage
           ...r, 
           selected: index < 4 // Select first 4 by default
         })));
-        toast.success(`Generated ${data.webResults.length} web results`);
+        toast.success(`Generated ${data.webResults.length} web results! Edit and select up to 4 to save.`);
       } else {
-        toast.error('No web results generated. Please try again.');
+        toast.error('No results generated. Please try again.');
       }
     } catch (error: any) {
       console.error('Error generating web results:', error);
-      const errorMessage = error?.message || 'Failed to generate web results';
-      if (errorMessage.includes('credits') || errorMessage.includes('402')) {
-        toast.error('AI credits exhausted. Please add more credits in Settings → Workspace → Usage.');
-      } else {
-        toast.error(errorMessage);
-      }
+      toast.error(error?.message || "Failed to generate web results");
     } finally {
       setGeneratingAI(false);
     }

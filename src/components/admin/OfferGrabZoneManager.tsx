@@ -432,9 +432,18 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
         body: { searchText: search.title, count: 6 },
       });
 
-      if (error) throw error;
+      if (error) {
+        toast.error(error.message || "Failed to generate web results");
+        return;
+      }
 
-      if (data.webResults && data.webResults.length > 0) {
+      // Check for error in response data (e.g., 402 credits exhausted)
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      if (data?.webResults && data.webResults.length > 0) {
         setGeneratedWebResults(data.webResults.map((r: any) => ({
           name: r.name || r.title?.split(' ')[0] || 'Site',
           title: r.title,
@@ -445,7 +454,7 @@ const OfferGrabZoneManager = ({ initialTab = "landing" }: OfferGrabZoneManagerPr
         })));
         toast.success("6 web results generated! Select up to 4.");
       } else {
-        throw new Error(data.error || "Failed to generate web results");
+        toast.error("No results generated. Please try again.");
       }
     } catch (error) {
       console.error("Error generating web results:", error);
